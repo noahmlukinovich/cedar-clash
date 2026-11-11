@@ -8,10 +8,8 @@ import { toGrid, toWorld } from '../core/iso';
 import { Particles } from '../core/particles';
 import {
   BORDER,
-  buildNew,
   canPlace,
   caps,
-  collect,
   collectorCap,
   occupancy,
 } from '../game/economy';
@@ -134,7 +132,8 @@ export class VillageScene implements Scene {
   confirmPlace(): void {
     if (this.mode.kind !== 'placing') return;
     const { type, gx, gy } = this.mode;
-    const res = buildNew(this.state, type, gx, gy);
+    const r = this.game.act({ k: 'build', type, x: gx, y: gy });
+    const res = r.building ?? r.err ?? 'Error';
     if (typeof res === 'string') {
       toast(res, 'bad');
       sfx('error');
@@ -175,7 +174,7 @@ export class VillageScene implements Scene {
   removeSelected(): void {
     const b = this.selected();
     if (!b || !BUILDINGS[b.type].removable) return;
-    this.state.buildings = this.state.buildings.filter((x) => x.id !== b.id);
+    if (this.game.act({ k: 'remove', id: b.id }).err) return;
     const sz = BUILDINGS[b.type].size;
     const w = toWorld(b.x + sz / 2, b.y + sz / 2);
     this.particles.poof(w.x, w.y, 1.5);
@@ -184,7 +183,7 @@ export class VillageScene implements Scene {
   }
 
   doCollect(b: BuildingInst): boolean {
-    const got = collect(this.state, b);
+    const got = this.game.act({ k: 'collect', id: b.id }).got ?? 0;
     if (got <= 0) return false;
     const isT = b.type === 'admissions';
     const sz = BUILDINGS[b.type].size;
@@ -313,9 +312,7 @@ export class VillageScene implements Scene {
       const b = this.state.buildings.find((q) => q.id === m.id);
       if (b) {
         if (canPlace(this.state, b.type, m.gx, m.gy, b.id)) {
-          if (b.x !== m.gx || b.y !== m.gy) {
-            b.x = m.gx;
-            b.y = m.gy;
+          if ((b.x !== m.gx || b.y !== m.gy) && !this.game.act({ k: 'move', id: b.id, x: m.gx, y: m.gy }).err) {
             sfx('place');
             this.pop(b.id);
             const sz = BUILDINGS[b.type].size;

@@ -1,5 +1,6 @@
 import { BUILDINGS, blocksPath, maxCount, maxLevelForDmc } from '../config/buildings';
 import { DMC_STORAGE, FINISH_NOW_PER_MIN, GRID } from '../config/balance';
+import { ACHIEVEMENTS } from '../config/humor';
 import type { BuildingType, ResourceId } from '../config/types';
 import { bus, toast } from '../core/bus';
 import type { BuildingInst, GameState } from './state';
@@ -195,6 +196,8 @@ export function bump(s: GameState, stat: string, n = 1): void {
 export function unlock(s: GameState, id: string): void {
   if (s.achievements[id]) return;
   s.achievements[id] = true;
+  const a = ACHIEVEMENTS.find((x) => x.id === id);
+  if (a) addRes(s, 'chapel', a.reward);
   bus.emit('achievement', id);
 }
 

@@ -1070,3 +1070,75 @@ kbd {
   gap: 8px;
   flex-wrap: wrap;
 }
+
+/* ---------- Login / start screen ---------- */
+.login {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  background: radial-gradient(circle at 50% 40%, #3d78d6, #13295a 70%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 16px;
+  color: #fff;
+  pointer-events: auto;
+}
+.login h1 {
+  font-size: 64px;
+  margin: 0;
+  transform: rotate(-3deg);
+  color: var(--gold);
+  text-align: center;
+}
+.login h1 span {
+  color: #fff;
+  display: block;
+  font-size: 36px;
+  transform: rotate(2deg);
+}
+.login-card {
+  background: #f4ead2;
+  color: #1c2340;
+  border: 4px solid var(--out);
+  border-radius: 18px;
+  padding: 18px;
+  width: min(380px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.login-tabs {
+  display: flex;
+  gap: 8px;
+}
+.login-tabs .btn {
+  flex: 1;
+}
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.login-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-weight: 900;
+  font-size: 14px;
+}
+.login-form input {
+  font: inherit;
+  font-weight: 700;
+  padding: 8px 10px;
+  border: 3px solid var(--out);
+  border-radius: 10px;
+  background: #fff;
+}
+.login-msg {
+  color: #c0392b;
+  font-weight: 900;
+  min-height: 1em;
+}
