@@ -212,7 +212,7 @@ export class VillageScene implements Scene {
         dur: 0.6 + Math.random() * 0.2,
         delay: i * 0.04,
         color: '',
-        icon: isT ? '🪙' : '☕',
+        icon: isT ? 'tuition' : 'coffee',
         arc: 60 + Math.random() * 40,
         onArrive: i === n - 1 ? () => this.game.ui.bumpResource(isT ? 'tuition' : 'coffee') : undefined,
       });
@@ -500,7 +500,10 @@ export class VillageScene implements Scene {
           }),
       });
     }
-    for (const tr of this.trees) list.push({ depth: tr.x + tr.y, fn: () => drawTree(ctx, tr) });
+    for (const tr of this.trees) {
+      const w = toWorld(tr.x, tr.y);
+      if (this.cam.visible(w.x, w.y)) list.push({ depth: tr.x + tr.y, fn: () => drawTree(ctx, tr) });
+    }
     for (const w of this.wanderers) {
       list.push({
         depth: w.x + w.y,

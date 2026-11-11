@@ -124,7 +124,7 @@ export const FAN_DEF: TroopDef = {
   prefers: 'any',
   color: '#ffd23f',
   size: 1,
-  levels: tl([90, 120, 150, 190], [16, 20, 25, 31], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]),
+  levels: tl([80, 100, 125, 150], [10, 13, 16, 20], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]),
 };
 
 export const HEROES: Record<HeroType, HeroDef> = {

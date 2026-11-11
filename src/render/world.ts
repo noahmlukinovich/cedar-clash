@@ -9,13 +9,53 @@ import { drawBuilder } from './unitSprites';
 
 type Ctx = CanvasRenderingContext2D;
 
+const groundCache = new Map<string, HTMLCanvasElement>();
+const GX0 = -GRID * 32 - 40;
+const GY0 = -40;
+const GW = GRID * 64 + 80;
+const GH = GRID * 32 + 80;
+
+/** Static ground is rendered once into an offscreen canvas; only the grid overlay is live. */
 export function drawGround(ctx: Ctx, opts: { grid?: boolean; border: number; tint?: string; snow?: boolean }): void {
+  const key = `${opts.border}|${opts.tint ?? ''}|${opts.snow ? 1 : 0}`;
+  let c = groundCache.get(key);
+  if (!c) {
+    c = document.createElement('canvas');
+    const S = 1.5;
+    c.width = GW * S;
+    c.height = GH * S;
+    const g = c.getContext('2d')!;
+    g.scale(S, S);
+    g.translate(-GX0, -GY0);
+    drawGroundRaw(g, { ...opts, grid: false });
+    groundCache.set(key, c);
+  }
+  ctx.fillStyle = opts.snow ? '#dfe9ef' : '#3f8a2a';
+  ctx.fillRect(GX0 - 3000, GY0 - 3000, GW + 6000, GH + 6000);
+  ctx.drawImage(c, GX0, GY0, GW, GH);
+  if (opts.grid) {
+    ctx.save();
+    ctx.transform(32, 16, -32, 16, 0, 0);
+    const b = opts.border;
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    ctx.lineWidth = 0.04;
+    ctx.beginPath();
+    for (let i = b; i <= GRID - b; i++) {
+      ctx.moveTo(i, b);
+      ctx.lineTo(i, GRID - b);
+      ctx.moveTo(b, i);
+      ctx.lineTo(GRID - b, i);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawGroundRaw(ctx: Ctx, opts: { grid?: boolean; border: number; tint?: string; snow?: boolean }): void {
   // world-space: apply iso transform for tile rects
   ctx.save();
   ctx.transform(32, 16, -32, 16, 0, 0);
   // outer forest floor
-  ctx.fillStyle = opts.snow ? '#dfe9ef' : '#3f8a2a';
-  ctx.fillRect(-12, -12, GRID + 24, GRID + 24);
   // map base
   ctx.fillStyle = opts.snow ? '#eef4f7' : C.grass;
   ctx.fillRect(0, 0, GRID, GRID);

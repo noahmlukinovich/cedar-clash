@@ -175,7 +175,7 @@ export class Game {
     this.scene.update(dt, realDt);
     const ctx = this.ctx;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = '#2d6a1f';
+    ctx.fillStyle = '#3f8a2a';
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     this.scene.draw(ctx, this.dpr);
     if (this.scene === this.village) this.ui.update();

@@ -40,9 +40,10 @@ export function getBuildingSprite(type: BuildingType, level: number, variant = 0
   let s = cache.get(key);
   if (s) return s;
   const size = BUILDINGS[type].size;
-  const w = size * 64 + 80;
-  const top = 200;
-  const h = size * 32 + top + 30;
+  const w = size * 64 + 48;
+  // headroom above the footprint, by footprint size (the DMC steeple is the tallest thing on campus)
+  const top = type === 'dmc' ? 210 : size === 1 ? 46 : size === 2 ? 80 : size === 3 ? 150 : 140;
+  const h = size * 32 + top + 12;
   const canvas = document.createElement('canvas');
   canvas.width = w * SCALE;
   canvas.height = h * SCALE;

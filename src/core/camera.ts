@@ -27,6 +27,13 @@ export class Camera {
     };
   }
 
+  /** Is a world-space point (with margin in world px) on screen? */
+  visible(wx: number, wy: number, margin = 150): boolean {
+    const hw = this.width / 2 / this.zoom + margin;
+    const hh = this.height / 2 / this.zoom + margin;
+    return wx > this.x - hw && wx < this.x + hw && wy > this.y - hh && wy < this.y + hh + margin;
+  }
+
   zoomAt(sx: number, sy: number, factor: number): void {
     const before = this.screenToWorld(sx, sy);
     this.zoom = clamp(this.zoom * factor, this.minZoom, this.maxZoom);

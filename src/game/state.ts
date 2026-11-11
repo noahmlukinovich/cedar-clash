@@ -76,7 +76,7 @@ export function newGame(): GameState {
     nextId: 1,
     resources: { ...START_RESOURCES },
     buildings: [],
-    army: { freshman: 12 },
+    army: { freshman: 20 },
     trainQueue: [],
     spells: {},
     spellQueue: [],

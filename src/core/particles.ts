@@ -237,10 +237,39 @@ export class Particles {
       const x = f.x + (f.tx - f.x) * e;
       const y = f.y + (f.ty - f.y) * e - Math.sin(t * Math.PI) * f.arc;
       const s = 1 + Math.sin(t * Math.PI) * 0.4;
-      ctx.font = `${Math.round(20 * s)}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(f.icon, x, y);
+      drawIcon(ctx, f.icon, x, y, 10 * s);
     }
+  }
+}
+
+/** Tiny procedural resource icons for flyers. */
+function drawIcon(ctx: CanvasRenderingContext2D, kind: string, x: number, y: number, r: number): void {
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#1e1b2b';
+  if (kind === 'coffee') {
+    ctx.fillStyle = '#f4efe4';
+    ctx.beginPath();
+    ctx.moveTo(x - r * 0.8, y - r);
+    ctx.lineTo(x + r * 0.8, y - r);
+    ctx.lineTo(x + r * 0.6, y + r);
+    ctx.lineTo(x - r * 0.6, y + r);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#7a4520';
+    ctx.fillRect(x - r * 0.65, y - r * 0.2, r * 1.3, r * 0.7);
+    ctx.fillStyle = '#2e63b8';
+    ctx.fillRect(x - r, y - r * 1.25, r * 2, r * 0.4);
+    ctx.strokeRect(x - r, y - r * 1.25, r * 2, r * 0.4);
+  } else {
+    ctx.fillStyle = kind === 'chapel' ? '#9b6dd6' : '#f5c32c';
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.beginPath();
+    ctx.arc(x - r * 0.35, y - r * 0.35, r * 0.3, 0, Math.PI * 2);
+    ctx.fill();
   }
 }

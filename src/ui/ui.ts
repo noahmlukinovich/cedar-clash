@@ -90,6 +90,7 @@ export class UI {
   modalBack: HTMLElement | null = null;
   refreshModal: (() => void) | null = null;
   private lastSelId = -2;
+  private chipSig = '';
   private lastSelSig = '';
   private tick = 0;
 
@@ -113,7 +114,7 @@ export class UI {
   toast(text: string, kind: 'info' | 'good' | 'bad' | 'event' = 'info', ms = 2600): void {
     const t = el('div', `toast ${kind} stroke`, text);
     this.toasts.appendChild(t);
-    while (this.toasts.children.length > 4) this.toasts.firstChild?.remove();
+    while (this.toasts.children.length > 3) this.toasts.firstChild?.remove();
     setTimeout(() => {
       t.classList.add('out');
       setTimeout(() => t.remove(), 350);
@@ -242,17 +243,25 @@ export class UI {
     this.buildersEl.innerHTML = `${icon('builder', 30)}<div>${bl.total - bl.busy}/${bl.total}<small>Facilities Crew</small></div>`;
     const lg = leagueFor(s.trophies);
     this.trophyEl.innerHTML = `${icon('trophy', 34)}<div><div class="num">${s.trophies}</div><div class="league" style="color:${lg.color}">${lg.name}</div></div>`;
-    // event chips
-    const chips: string[] = [];
-    for (const e of s.events) {
-      if (e.end <= s.clock) continue;
-      const info = EVENT_INFO[e.type];
-      const left = e.end - s.clock;
-      const ic = e.type === 'ringbyspring' ? icon('ring', 20) : info.icon;
-      chips.push(`<div class="chip stroke ${e.type === 'ringbyspring' ? 'ring' : ''}" title="${info.desc}">${ic} ${info.name}${left < 3000 ? ' · ' + fmtTime(left) : ''}</div>`);
+    // event chips (rebuild only when the set of events changes; otherwise just update timers)
+    const active = s.events.filter((e) => e.end > s.clock);
+    const sig = active.map((e) => e.type).join(',');
+    if (sig !== this.chipSig) {
+      this.chipSig = sig;
+      this.chipsEl.innerHTML = '';
+      for (const e of active) {
+        const info = EVENT_INFO[e.type];
+        const ic = e.type === 'ringbyspring' ? icon('ring', 20) : info.icon;
+        const chip = el('div', `chip stroke ${e.type === 'ringbyspring' ? 'ring' : ''}`, `${ic} ${info.name}<span class="tl"></span>`);
+        chip.title = info.desc;
+        this.chipsEl.appendChild(chip);
+      }
     }
-    const html = chips.join('');
-    if (this.chipsEl.innerHTML !== html) this.chipsEl.innerHTML = html;
+    active.forEach((e, i) => {
+      const tl = this.chipsEl.children[i]?.querySelector('.tl');
+      const left = e.end - s.clock;
+      if (tl) tl.textContent = left < 3000 ? ` · ${fmtTime(left)}` : '';
+    });
     this.renderSelection(false);
     if (this.refreshModal && this.tick % 12 === 0) this.refreshModal();
   }

@@ -384,6 +384,8 @@ canvas#game.dragging {
   background: rgba(10, 12, 30, 0.55);
   display: flex;
   align-items: center;
+  padding-top: 110px;
+  padding-bottom: 16px;
   justify-content: center;
   pointer-events: auto;
   animation: fadeIn 0.15s;
@@ -400,7 +402,7 @@ canvas#game.dragging {
   border-radius: 22px;
   box-shadow: 0 8px 0 var(--out), 0 20px 50px rgba(0, 0, 0, 0.5);
   width: min(960px, 92vw);
-  max-height: 86vh;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
   color: #2a2733;
@@ -719,7 +721,8 @@ canvas#game.dragging {
   left: 0;
   right: 0;
   text-align: center;
-  font-size: 48px;
+  font-size: 40px;
+  padding: 0 60px;
   font-weight: 900;
   color: #fff;
   pointer-events: none;
@@ -986,7 +989,9 @@ canvas#game.dragging {
   height: 80px !important;
 }
 .result-stars .ic:nth-child(2) {
-  transform: translateY(-14px);
+  width: 100px !important;
+  height: 100px !important;
+  margin-top: -18px;
 }
 .result-stars .ic.on {
   animation: starPop 0.7s cubic-bezier(0.3, 1.8, 0.6, 1) both;
