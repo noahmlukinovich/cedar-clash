@@ -48,6 +48,7 @@ The **⚙ Settings** panel has debug tools: speed toggle, free resources, finish
 - **Events**: Ring by Spring (pair-up buff, ring on the HUD, always on in real-world spring), Ohio wind (mid-raid push), Finals Week, campus construction fencing, Elephant Run (a limited-time freshmen conga-line raid mode), Campus Safety ticketing idle troops, "waiting in line at Chuck's…" training delays, and daily Chapel attendance (with a stern popup if you skip).
 - **Achievements** such as *Dean's List*, *Academic Probation*, and *Walked Across the Lake Bridge*.
 - **Saves**: `localStorage` with a versioned schema and step-by-step migrations (`src/game/save.ts`), offline progress, autosave, and export/reset.
+- **Updates**: each build gets an id, which is baked into the bundle and published as `version.json`. Open tabs check it every 3 minutes and on refocus, and show a "new version — reload" bar. A tab running an older build than the one that last saved stops autosaving and asks the player to reload, so it can never overwrite newer progress.
 
 ## Project layout
 

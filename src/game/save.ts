@@ -1,6 +1,21 @@
 import { GameState, SAVE_VERSION, newGame } from './state';
 
 const KEY = 'cedarville-clash-save';
+/** Which build last wrote the save (kept separately so checking it is cheap). */
+const BUILD_KEY = 'cedarville-clash-build';
+export const BUILD_TIME: number = __BUILD_TIME__;
+
+/**
+ * Set when the save on disk was written by a NEWER build (or newer schema) than
+ * this tab is running. While set, this tab never writes, so it can't clobber
+ * the newer save; the UI asks the player to reload instead.
+ */
+export let staleSave = false;
+
+function savedByNewer(): boolean {
+  const b = Number(localStorage.getItem(BUILD_KEY) ?? 0);
+  return b > BUILD_TIME;
+}
 
 type AnySave = Record<string, unknown> & { version?: number };
 
@@ -56,7 +71,9 @@ export function loadGame(): { state: GameState; offlineSeconds: number; fresh: b
   try {
     const txt = localStorage.getItem(KEY);
     if (txt) {
-      const state = migrate(JSON.parse(txt));
+      const raw = JSON.parse(txt);
+      if ((typeof raw.version === 'number' && raw.version > SAVE_VERSION) || savedByNewer()) staleSave = true;
+      const state = migrate(raw);
       const offline = Math.max(0, (Date.now() - state.lastReal) / 1000);
       state.clock += offline;
       state.lastReal = Date.now();
@@ -68,17 +85,32 @@ export function loadGame(): { state: GameState; offlineSeconds: number; fresh: b
   return { state: newGame(), offlineSeconds: 0, fresh: true };
 }
 
-export function saveGame(state: GameState): void {
+/** Returns false if the save was skipped because a newer version owns it. */
+export function saveGame(state: GameState): boolean {
   state.lastReal = Date.now();
   try {
+    if (staleSave || savedByNewer()) {
+      staleSave = true;
+      return false;
+    }
     localStorage.setItem(KEY, JSON.stringify(state));
+    localStorage.setItem(BUILD_KEY, String(BUILD_TIME));
+    return true;
   } catch (e) {
     console.warn('Save failed', e);
+    return false;
   }
+}
+
+/** Re-check (e.g. when another tab writes) whether a newer build owns the save. */
+export function checkStale(): boolean {
+  if (!staleSave && savedByNewer()) staleSave = true;
+  return staleSave;
 }
 
 export function resetSave(): void {
   localStorage.removeItem(KEY);
+  localStorage.removeItem(BUILD_KEY);
 }
 
 export function exportSave(state: GameState): string {

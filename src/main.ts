@@ -6,7 +6,7 @@ import { bus } from './core/bus';
 import { tickArmy } from './game/army';
 import { tickEconomy } from './game/economy';
 import { checkChapelSkip, claimAchievementReward, tickEvents } from './game/events';
-import { loadGame, saveGame } from './game/save';
+import { BUILD_TIME, checkStale, loadGame, saveGame, staleSave } from './game/save';
 import type { GameState } from './game/state';
 import { RaidScene, type RaidKind } from './raid/raidScene';
 import { UI } from './ui/ui';
@@ -78,13 +78,37 @@ export class Game {
       sfx('complete');
     });
     window.addEventListener('beforeunload', () => {
-      if (!this.resetting) saveGame(this.state);
+      if (!this.resetting) this.save();
     });
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden && !this.resetting) saveGame(this.state);
+      if (document.hidden && !this.resetting) this.save();
+      if (!document.hidden) void this.checkForUpdate();
     });
+    // Another tab wrote the save: if it's a newer build, stop saving here.
+    window.addEventListener('storage', () => {
+      if (checkStale()) this.ui.showUpdateBar('stale');
+    });
+    if (import.meta.env.PROD) setInterval(() => void this.checkForUpdate(), 3 * 60 * 1000);
     this.village.enter();
     requestAnimationFrame((t) => this.frame(t));
+  }
+
+  /** Save, or warn the player if a newer version in another tab owns the save. */
+  save(): void {
+    if (!saveGame(this.state)) this.ui.showUpdateBar('stale');
+  }
+
+  /** Compare our build id with the deployed version.json. */
+  async checkForUpdate(): Promise<void> {
+    if (!import.meta.env.PROD) return;
+    try {
+      const r = await fetch(`./version.json?t=${Date.now()}`, { cache: 'no-store' });
+      if (!r.ok) return;
+      const { build } = (await r.json()) as { build: number };
+      if (build > BUILD_TIME) this.ui.showUpdateBar('update');
+    } catch {
+      // offline or blocked: try again next time
+    }
   }
 
   speed(): number {
@@ -160,7 +184,7 @@ export class Game {
     this.scene = this.village;
     this.ui.showVillage(true);
     this.village.enter();
-    saveGame(this.state);
+    this.save();
   }
 
   private frame(now: number): void {
@@ -182,7 +206,7 @@ export class Game {
     this.saveTimer += realDt;
     if (this.saveTimer > 5) {
       this.saveTimer = 0;
-      saveGame(s);
+      this.save();
     }
     requestAnimationFrame((t) => this.frame(t));
   }
@@ -192,6 +216,8 @@ async function boot(): Promise<void> {
   const game = new Game();
   (window as unknown as { game: Game }).game = game;
   await game.ui.showLoading();
+  if (staleSave) game.ui.showUpdateBar('stale');
+  void game.checkForUpdate();
   if (game.offlineSeconds > 60) {
     game.ui.toast(`Welcome back! ${fmtTime(game.offlineSeconds)} passed. Your Admissions Office kept recruiting.`, 'good', 4000);
   }

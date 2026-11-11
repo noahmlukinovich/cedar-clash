@@ -867,8 +867,8 @@ export class UI {
       };
       const save = el('button', 'btn', '💾 Save now');
       save.onclick = () => {
-        saveGame(s);
-        this.toast('Saved!', 'good');
+        if (saveGame(s)) this.toast('Saved!', 'good');
+        else this.showUpdateBar('stale');
       };
       row1.append(mute, save);
       m.body.appendChild(row1);
@@ -971,6 +971,41 @@ export class UI {
         }
       }, 160);
     });
+  }
+
+  /**
+   * Persistent bar asking the player to reload.
+   * 'update': a new version was deployed. 'stale': a newer version is open in
+   * another tab, so this tab has stopped saving to protect that progress.
+   */
+  showUpdateBar(kind: 'update' | 'stale'): void {
+    const existing = document.getElementById('update-bar');
+    if (existing) {
+      if (existing.dataset.kind === 'stale' || kind === 'update') return; // stale wins
+      existing.remove();
+    }
+    const bar = el('div', `update-bar ${kind}`);
+    bar.id = 'update-bar';
+    bar.dataset.kind = kind;
+    const msg =
+      kind === 'update'
+        ? '🎉 A new version of Cedarville Clash is out! Reload to get it. Your progress is saved.'
+        : '⚠️ A newer version of the game is open in another tab, so this tab has stopped saving to protect that progress. Reload to continue here.';
+    bar.appendChild(el('span', 'stroke', msg));
+    const reload = el('button', 'btn small gold', 'Reload');
+    reload.onclick = () => {
+      // Save first if we're allowed to (an 'update' tab still owns the save).
+      if (kind === 'update') saveGame(this.state);
+      this.game.resetting = true; // skip the beforeunload save; we just saved
+      location.reload();
+    };
+    bar.appendChild(reload);
+    if (kind === 'update') {
+      const later = el('button', 'btn small gray', 'Later');
+      later.onclick = () => bar.remove();
+      bar.appendChild(later);
+    }
+    document.body.appendChild(bar);
   }
 
   /** Popup with a stern/cute message and an OK button. */
