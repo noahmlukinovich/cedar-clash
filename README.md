@@ -8,13 +8,41 @@ An affectionate, joke-heavy parody of Cedarville University in the style of the 
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173
-npm run build      # type-check + production build into dist/
+npm run dev        # http://localhost:5173 (offline mode unless the game server is running)
+npm run dev:server # game server for online mode, on 127.0.0.1:8787 (Vite proxies /api to it)
+npm test           # raid replay determinism + server end-to-end tests
+npm run build      # type-check, build the game into dist/ and the server into server-dist/
 ```
 
-Desktop browser with mouse and keyboard; designed for 1280×800 and up.
+To try online mode locally, create an invite code first:
 
-**Play online:** https://noahmlukinovich.github.io/cedar-clash/ (deployed by `.github/workflows/deploy.yml` on every push to the default branch or `main`; Pages must be set to *Source: GitHub Actions* in the repo settings).
+```bash
+npm run build:server && DB_PATH=./data/dev.db npm run admin -- invite 5
+```
+
+Desktop browser with mouse and keyboard; designed for 1280×800 and up. Requires Node 22.13 or newer.
+
+**Single-player build:** https://noahmlukinovich.github.io/cedar-clash/ (deployed by `.github/workflows/deploy.yml` on every push to the default branch or `main`; Pages must be set to *Source: GitHub Actions* in the repo settings). GitHub Pages has no game server, so the game runs in offline mode there.
+
+**Multiplayer server:** see [`deploy/README.md`](deploy/README.md) for setting up a droplet.
+
+## Online multiplayer
+
+When the page is served with the game server behind it, players log in (invite-only) and their campus lives on the server. **Find a Rival** matches you against real players near your trophy count, or against a computer-generated campus if nobody is available.
+
+- **Raids are verified by the server.** The raid simulation is deterministic: a fixed 30 Hz timestep and a seeded RNG, with no `Math.random`, `cos` or `sin` in gameplay code. The browser sends only *what you deployed, where, and on which tick*. The server replays that against the same setup and decides the stars, loot and trophies. If the browser's raid and the server's replay ever disagree, the server's result counts and the results screen says so.
+- **The server runs the economy.** Every village action (build, upgrade, collect, train…) goes through `applyAction` (`src/game/actions.ts`). The browser applies it immediately, and the server applies the same code to its copy, which is the one that counts. Action batches carry sequence numbers, so a retried request never applies twice.
+- **Defending.** While you're offline, others can raid a snapshot of your campus. You lose the loot they take: 35% of stored Tuition and Coffee, plus some of what's waiting in collectors. You get a popup next time you play. A raid with 40% or more destruction gives you a 6-hour shield (12 hours for 3 stars). Attacking a real player drops your own shield.
+- **Abandoned raids** are settled automatically with the moves the server already received. Closing the tab mid-raid doesn't undo it.
+- **Security:**
+  - Passwords are hashed with scrypt.
+  - Sessions are random tokens in `HttpOnly; Secure; SameSite=Strict` cookies, and only hashes of the tokens are stored.
+  - POST requests need a custom header, a JSON body, and a same-origin `Origin`.
+  - Logins, sign-ups and requests are rate-limited.
+  - Campus names are restricted to a safe character set and escaped wherever they're displayed.
+- **Known limits:**
+  - The browser knows a raid's random seed, so a determined cheater could rehearse a raid offline before playing it. This is fine for friends; a public game would need more.
+  - Different browsers' JavaScript engines can occasionally disagree in the last decimal place of a calculation, which could nudge a raid's result. The server's result always wins.
 
 ## How to play
 
@@ -58,9 +86,16 @@ src/
   game/       # state, save/migration, economy, army/research/heroes, events & chapel
   render/     # procedural drawing primitives, building + unit sprites, world/ground
   village/    # village scene: placement, moving, selection, collection
-  raid/       # base generator, A* pathfinding, raid simulation, raid scene + HUD
+  raid/       # base generator, A* pathfinding, raid simulation, deterministic raid engine,
+              # raid outcome rules, raid scene + HUD
+  net/        # online client: login screen, API calls, state sync, shared protocol types
   ui/         # DOM HUD, modals, icons, thumbnails
+server/       # game server (Node + built-in SQLite): accounts, sync, matchmaking, raid replay
+deploy/       # droplet setup: cloud-init, setup.sh, systemd unit, Caddyfile, push/invite scripts
+test/         # vitest: replay determinism, server end-to-end
 ```
+
+Code shared by the browser and the server (`config/`, `core/rng`, `core/bus`, `game/`, `raid/engine`, `raid/sim`, `raid/outcome`) must not touch the DOM.
 
 ### Balancing
 

@@ -1,0 +1,22 @@
+#cloud-config
+# Cedar Clash first-boot setup. When creating the droplet on DigitalOcean, open
+# "Advanced options", tick "Add Initialization scripts (free)", and paste this whole file.
+#
+# It installs Node 22 and Caddy, builds the game from GitHub, starts it as a locked-down
+# systemd service, turns on the firewall and HTTPS, and writes the first invite code to
+# /root/cedar-clash-first-invite.txt. Takes about 5 minutes after the droplet boots.
+# Progress: ssh in and run   tail -f /var/log/cedar-clash-setup.log
+#
+# To deploy a different branch, change BRANCH below.
+packages:
+  - git
+runcmd:
+  - - bash
+    - -c
+    - |
+      set -euo pipefail
+      BRANCH=claude/loving-faraday-a0w2of
+      REPO=https://github.com/noahmlukinovich/cedar-clash.git
+      mkdir -p /opt/cedar-clash
+      [ -d /opt/cedar-clash/repo/.git ] || git clone --branch "$BRANCH" "$REPO" /opt/cedar-clash/repo
+      bash /opt/cedar-clash/repo/deploy/setup.sh >>/var/log/cedar-clash-setup.log 2>&1

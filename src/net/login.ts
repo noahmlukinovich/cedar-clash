@@ -3,25 +3,46 @@ import { el, esc } from '../ui/ui';
 import { api } from './online';
 import type { MeResponse } from './protocol';
 
-export type StartChoice = { mode: 'online'; me: MeResponse } | { mode: 'offline' };
+export type StartChoice = { mode: 'online'; me: MeResponse } | { mode: 'offline'; serverAvailable: boolean };
 
-/** Is there a game server behind this page? (No on static hosting such as GitHub Pages.) */
-async function serverAvailable(): Promise<boolean> {
+const PREF = 'cedarville-clash-mode';
+
+function prefersOffline(): boolean {
   try {
-    await api('/api/health', undefined, 4000);
-    return true;
+    return localStorage.getItem(PREF) === 'offline';
   } catch {
     return false;
   }
 }
 
-export async function chooseStart(): Promise<StartChoice> {
-  if (!(await serverAvailable())) return { mode: 'offline' };
+export function setPrefersOffline(v: boolean): void {
   try {
-    const me = await api<MeResponse>('/api/me');
-    return { mode: 'online', me };
+    if (v) localStorage.setItem(PREF, 'offline');
+    else localStorage.removeItem(PREF);
   } catch {
-    /* not logged in */
+    /* storage blocked */
+  }
+}
+
+/** Is there a game server behind this page? (No on static hosting such as GitHub Pages.) */
+async function serverStatus(): Promise<{ ok: boolean; loggedIn: boolean } | null> {
+  try {
+    return await api<{ ok: boolean; loggedIn: boolean }>('/api/health', undefined, 4000);
+  } catch {
+    return null;
+  }
+}
+
+export async function chooseStart(): Promise<StartChoice> {
+  const status = await serverStatus();
+  if (!status?.ok) return { mode: 'offline', serverAvailable: false };
+  if (!status.loggedIn && prefersOffline()) return { mode: 'offline', serverAvailable: true };
+  if (status.loggedIn) {
+    try {
+      return { mode: 'online', me: await api<MeResponse>('/api/me') };
+    } catch {
+      /* session expired between calls */
+    }
   }
   return showLogin();
 }
@@ -68,6 +89,7 @@ function showLogin(): Promise<StartChoice> {
         try {
           await api(signup ? '/api/signup' : '/api/login', body);
           const me = await api<MeResponse>('/api/me');
+          setPrefersOffline(false);
           wrap.remove();
           resolve({ mode: 'online', me });
         } catch (err) {
@@ -81,8 +103,9 @@ function showLogin(): Promise<StartChoice> {
       const off = el('button', 'btn small gray', 'Play offline instead');
       off.title = 'Single-player, saved in this browser only. No real raids.';
       off.onclick = () => {
+        setPrefersOffline(true);
         wrap.remove();
-        resolve({ mode: 'offline' });
+        resolve({ mode: 'offline', serverAvailable: true });
       };
       card.appendChild(off);
     };

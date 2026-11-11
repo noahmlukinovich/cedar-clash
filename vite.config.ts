@@ -5,7 +5,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   base: './',
   server: {
-    proxy: { '/api': 'http://127.0.0.1:8787' },
+    proxy: { '/api': { target: 'http://127.0.0.1:8787', changeOrigin: false } },
   },
   test: {
     include: ['test/**/*.test.ts'],

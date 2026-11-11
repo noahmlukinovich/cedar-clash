@@ -36,7 +36,8 @@ import {
   upgradeCheck,
 } from '../game/economy';
 import { canAttendChapel, chapelReward, startEvent } from '../game/events';
-import { exportSave, resetSave } from '../game/save';
+import { exportSave, resetSave, saveGame } from '../game/save';
+import { setPrefersOffline } from '../net/login';
 import type { BuildingInst } from '../game/state';
 import type { Game } from '../main';
 import { fmtTime } from '../village/villageScene';
@@ -890,6 +891,19 @@ export class UI {
         m.body.appendChild(el('p', 'flavor', 'Your campus is saved on the server. Other players can raid it while you are away; a shield protects you for a while after a big raid.'));
         appendControls();
         return;
+      }
+
+      if (this.game.serverAvailable) {
+        m.body.appendChild(el('div', 'section-title', 'Online play'));
+        const go = el('button', 'btn small blue', '🌐 Log in / sign up to play online');
+        go.onclick = () => {
+          saveGame(s);
+          setPrefersOffline(false);
+          this.game.resetting = true;
+          location.reload();
+        };
+        m.body.appendChild(go);
+        m.body.appendChild(el('p', 'flavor', 'Online campuses are separate from this offline save, and real players can raid them.'));
       }
 
       m.body.appendChild(el('div', 'section-title', 'Debug'));

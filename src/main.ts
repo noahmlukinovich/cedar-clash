@@ -50,6 +50,8 @@ export class Game {
   private pendingNotes: Note[] = [];
   private pendingDefenses: DefenseEntry[] = [];
   private raidId: string | null = null;
+  /** Offline, but a game server is reachable (offer "play online" in settings). */
+  serverAvailable = false;
   private pushT = 0;
 
   constructor(start: StartChoice) {
@@ -68,6 +70,7 @@ export class Game {
       this.pendingNotes = me.notes;
       this.pendingDefenses = me.defenses;
     } else {
+      this.serverAvailable = start.serverAvailable;
       const loaded = loadGame();
       this.state = loaded.state;
       this.offlineSeconds = loaded.offlineSeconds;

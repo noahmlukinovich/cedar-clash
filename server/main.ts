@@ -155,7 +155,7 @@ export function createApp(db: DB, cfg: ServerConfig) {
     const path = url.pathname;
     const method = req.method ?? 'GET';
     if (!path.startsWith('/api/')) throw new HttpError(404, 'Not found');
-    if (path === '/api/health') return { ok: true };
+    if (path === '/api/health') return { ok: true, loggedIn: sessionUser(req) != null };
     if (!requests.hit(clientIp(req))) throw new HttpError(429, 'Slow down a little');
 
     let body: Record<string, unknown> = {};
