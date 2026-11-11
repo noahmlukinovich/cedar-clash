@@ -14,6 +14,8 @@ npm run build      # type-check + production build into dist/
 
 Desktop browser with mouse and keyboard; designed for 1280×800 and up.
 
+**Play online:** https://noahmlukinovich.github.io/cedar-clash/ (deployed by `.github/workflows/deploy.yml` on every push to the default branch or `main`; Pages must be set to *Source: GitHub Actions* in the repo settings).
+
 ## How to play
 
 1. **Collect** Tuition (Admissions Office) and Coffee (Coffee Cart) by clicking the bubbles over them, or use the green "collect all" button.
