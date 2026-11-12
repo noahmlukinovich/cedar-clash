@@ -7,7 +7,7 @@ import { Rng } from '../src/core/rng';
 function setupFor(seed: number, kind: 'campaign' | 'random' = 'random'): RaidSetup {
   const s = newGame();
   s.army = { freshman: 40, engineer: 10, athlete: 8 };
-  s.troopLevels = { freshman: 2, engineer: 1, nurse: 1, theology: 1, athlete: 1 };
+  s.troopLevels = { ...s.troopLevels, freshman: 2 };
   const r = new Rng(seed);
   const setup = localSetup(s, kind, () => r.next());
   return { ...setup, wind: true };

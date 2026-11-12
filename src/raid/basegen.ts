@@ -147,7 +147,7 @@ export function generateBase(dmc: number, seed: number): BaseLayout {
   const R0 = Math.max(maxX - minX, maxY - minY) / 2 + 2;
   for (const t of outerDefs) place(t, cx, cy, R0, R0 + 4) ?? place(t, cx, cy, R0, R0 + 9);
   const outer: BuildingType[] = [];
-  for (const t of ['admissions', 'coffeecart', 'reshall', 'biblical', 'callan', 'ens', 'health', 'library', 'ssc', 'faculty', 'presidents'] as BuildingType[]) {
+  for (const t of ['admissions', 'coffeecart', 'reshall', 'biblical', 'callan', 'ens', 'health', 'library', 'ssc', 'faculty', 'presidents', 'business', 'music'] as BuildingType[]) {
     for (let i = 0; i < count(t); i++) outer.push(t);
   }
   outer.push('shed', 'shed');

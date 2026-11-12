@@ -81,7 +81,7 @@ export function newGame(): GameState {
     trainQueue: [],
     spells: {},
     spellQueue: [],
-    troopLevels: { freshman: 1, engineer: 1, nurse: 1, theology: 1, athlete: 1 },
+    troopLevels: { freshman: 1, engineer: 1, nurse: 1, theology: 1, athlete: 1, business: 1, music: 1, runner: 1, ra: 1, goteam: 1 },
     heroes: { prof: { level: 1, hpFrac: 1 }, president: { level: 1, hpFrac: 1 } },
     trophies: 0,
     bestTrophies: 0,

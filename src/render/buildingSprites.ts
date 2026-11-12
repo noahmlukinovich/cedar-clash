@@ -103,6 +103,10 @@ export function drawBuilding(ctx: Ctx, type: BuildingType, level: number, varian
       return academic(ctx, L, C.brick, '#4a2f6b', 'BIBLE', 'book');
     case 'callan':
       return callan(ctx, L);
+    case 'business':
+      return academic(ctx, L, '#d9cdb8', '#2f6f4f', 'BUSINESS', 'coin');
+    case 'music':
+      return academic(ctx, L, C.brick, '#b23a6f', 'MUSIC', 'note');
     case 'ens':
       return ens(ctx, L);
     case 'health':
@@ -464,7 +468,7 @@ function reshall(ctx: Ctx, L: number): void {
   levelFlags(ctx, L, 1.55, 1.25, h);
 }
 
-function academic(ctx: Ctx, L: number, wallColor: string, accent: string, label: string, icon: 'book' | 'plus'): void {
+function academic(ctx: Ctx, L: number, wallColor: string, accent: string, label: string, icon: 'book' | 'plus' | 'coin' | 'note'): void {
   pad(ctx, 3);
   const h = 32 + L * 6;
   box(ctx, -1.15, -1.15, 1.1, 1.05, 4, h, wallColor);
@@ -484,6 +488,36 @@ function academic(ctx: Ctx, L: number, wallColor: string, accent: string, label:
     ctx.fill();
     ctx.stroke();
     ctx.fillRect(x - 2, y - 2, 4, 4);
+  } else if (icon === 'coin') {
+    ctx.fillStyle = C.gold;
+    ctx.strokeStyle = OUT;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.arc(x, y, 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = OUT;
+    ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('$', x, y + 1);
+    ctx.textBaseline = 'alphabetic';
+  } else if (icon === 'note') {
+    ctx.fillStyle = C.white;
+    ctx.strokeStyle = OUT;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.ellipse(x - 5, y + 6, 4.5, 3.2, -0.4, 0, Math.PI * 2);
+    ctx.ellipse(x + 6, y + 3, 4.5, 3.2, -0.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.moveTo(x - 1, y + 5);
+    ctx.lineTo(x - 1, y - 9);
+    ctx.lineTo(x + 10, y - 12);
+    ctx.lineTo(x + 10, y + 2);
+    ctx.stroke();
   } else {
     ctx.fillStyle = C.white;
     ctx.strokeStyle = OUT;

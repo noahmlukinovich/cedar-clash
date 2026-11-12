@@ -168,7 +168,7 @@ export class RaidScene implements Scene {
       if (c.kind === 'troop') {
         d.appendChild(unitThumb(c.type, 72, 66));
         d.appendChild(el('div', 'n stroke', `x${n}`));
-        d.appendChild(el('div', 'nm', TROOPS[c.type].name.split(' ')[0]));
+        d.appendChild(el('div', 'nm', TROOPS[c.type].short ?? TROOPS[c.type].name.split(' ')[0]));
         if (n <= 0) d.classList.add('empty');
       } else if (c.kind === 'hero') {
         d.classList.add('hero');
@@ -433,7 +433,8 @@ export class RaidScene implements Scene {
         case 'death': {
           const p = toWorld(ev.u.x, ev.u.y);
           P2.poof(p.x, p.y, ev.u.hero ? 2 : 1);
-          if (ev.u.side === 'atk') this.graves.push({ x: ev.u.x, y: ev.u.y, t: 0 });
+          // GO Team members whose trip is over just head home: no gravestone
+          if (ev.u.side === 'atk' && !(ev.u.expireAt > 0 && this.sim.time >= ev.u.expireAt)) this.graves.push({ x: ev.u.x, y: ev.u.y, t: 0 });
           if (ev.u.hero) {
             this.game.ui.toast(`${HEROES[ev.u.hero].name} has been knocked out! (They'll recover back home.)`, 'bad');
             this.renderCards();
@@ -527,6 +528,23 @@ export class RaidScene implements Scene {
             this.cam.shake(4, 0.5);
           }
           break;
+        case 'unload': {
+          const p = toWorld(ev.x, ev.y);
+          P2.burst(p.x, p.y, 10, 14, { kind: 'puff', color: '#fff', size: 7, speed: 80, max: 0.5, grow: 10 });
+          P2.text(p.x, p.y - 40, 40, pick(['Everybody out!', 'GO Team, go!', 'We brought snacks!']), '#ffe58a', 16);
+          sfx('deploy');
+          break;
+        }
+        case 'chorus': {
+          const p = toWorld(ev.x, ev.y);
+          P2.add({ kind: 'text', x: p.x + (Math.random() - 0.5) * 20, y: p.y, z: 40, vz: 35, max: 0.9, text: '♪♫', color: '#ff9fd0', size: 18 });
+          break;
+        }
+        case 'roomcheck': {
+          const p = toWorld(ev.u.x, ev.u.y);
+          P2.text(p.x, p.y - 50, 40, 'Room check!', '#cfe9ff', 16);
+          break;
+        }
         case 'wander': {
           const p = toWorld(ev.u.x, ev.u.y);
           P2.add({ kind: 'text', x: p.x, y: p.y, z: 40, vz: 20, max: 1.2, text: pick(['?', 'where is ENS??', 'is this the DMC?', '?!']), color: '#fff', size: 12 });
@@ -745,7 +763,7 @@ export class RaidScene implements Scene {
         depth: u.x + u.y,
         fn: () => {
           const p = toWorld(u.x, u.y);
-          const scale = (u.hero ? 1.35 : u.type === 'fan' ? 0.9 : TROOPS[u.type as TroopType]?.size ?? 1) * 0.9;
+          const scale = (u.hero ? 1.35 : u.type === 'fan' ? 0.9 : u.type === 'gomember' ? 0.95 : TROOPS[u.type as TroopType]?.size ?? 1) * 0.9;
           // glow rings for buffs
           if (u.rageUntil > sim.time || u.convoUntil > sim.time) {
             ctx.strokeStyle = u.convoUntil > sim.time ? 'rgba(245,195,44,0.9)' : 'rgba(255,79,163,0.9)';

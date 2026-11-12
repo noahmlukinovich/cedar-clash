@@ -39,6 +39,8 @@ export interface RaidResult {
   stars: number;
   destruction: number;
   loot: { tuition: number; coffee: number };
+  /** Business Major bonus: paid to the attacker on top of `loot`, not taken from the defender. */
+  bonus?: { tuition: number; coffee: number };
   usedTroops: Partial<Record<TroopType, number>>;
   usedSpells: Partial<Record<SpellType, number>>;
   /** Remaining health fraction for each hero that was deployed. */
@@ -233,6 +235,7 @@ export class RaidEngine {
       stars: this.sim.stars,
       destruction: this.sim.destruction,
       loot: { tuition: Math.floor(this.sim.loot.tuition), coffee: Math.floor(this.sim.loot.coffee) },
+      bonus: { tuition: Math.floor(this.sim.bonusLoot.tuition), coffee: Math.floor(this.sim.bonusLoot.coffee) },
       usedTroops,
       usedSpells,
       heroHp,
