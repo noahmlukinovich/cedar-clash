@@ -50,13 +50,41 @@ cedar-clash-admin delete-user "Campus Name"
 
 ## 3. Deploy updates
 
-Push your commits to GitHub, then run this from your computer:
+**Automatic.** Every 5 minutes the droplet checks GitHub. When `main` has new commits, it:
+
+1. checks out the new commit and runs the test suite
+2. if the tests pass, rebuilds and restarts the game
+3. if the new version doesn't start, puts the previous version back
+
+A commit that fails the tests, or fails to start, stays undeployed and isn't retried until a newer commit arrives. Builds run at low priority so the game stays responsive. Player data is never touched. Raids in progress during the restart are settled automatically with the moves already received.
+
+So **merging a pull request into `main` is publishing it**. It goes live within about 5 minutes.
+
+To check what's deployed, open `https://<ip-with-dashes>.sslip.io/deploy-status.json`, or run:
 
 ```bash
-deploy/push.sh <droplet-ip>
+ssh root@<droplet-ip> journalctl -u cedar-clash-update -n 50 --no-pager
 ```
 
-The droplet pulls the branch you have checked out (or the one you pass as the second argument), rebuilds, and restarts only the game. Player data is never touched. A deploy takes about a minute. Raids that are in progress during the restart are settled automatically with the moves already received.
+To pause automatic updates:
+
+```bash
+ssh root@<droplet-ip> systemctl disable --now cedar-clash-update.timer
+```
+
+To resume them:
+
+```bash
+ssh root@<droplet-ip> systemctl enable --now cedar-clash-update.timer
+```
+
+**Manual.** To deploy right away, or to try a branch other than `main`, push to GitHub and run this from your computer:
+
+```bash
+deploy/push.sh <droplet-ip> [branch]
+```
+
+It deploys the branch you have checked out, or the one you name. Deploying any branch other than `main` pauses automatic updates until you deploy `main` again with `deploy/push.sh <droplet-ip> main`.
 
 ## Checking on it
 
@@ -112,3 +140,5 @@ ssh root@<droplet-ip> "cd /opt/cedar-clash/repo && git checkout --quiet <commit>
 | `/etc/systemd/system/cedar-clash.service` | the service and its sandbox |
 | `/etc/caddy/Caddyfile` | HTTPS and routing |
 | `/var/log/cedar-clash-setup.log` | first-boot log |
+| `/etc/systemd/system/cedar-clash-update.timer` | the every-5-minutes update check (`/usr/local/sbin/cedar-clash-auto-update`) |
+| `/opt/cedar-clash/app.prev` | the previous version, kept for automatic rollback |
