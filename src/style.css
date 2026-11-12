@@ -222,6 +222,28 @@ canvas#game.dragging {
   font-weight: 900;
   font-size: 17px;
 }
+.builders {
+  pointer-events: auto;
+  cursor: pointer;
+}
+.builders:hover {
+  filter: brightness(1.25);
+}
+.up-badge {
+  position: absolute;
+  top: -9px;
+  right: -11px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 5px;
+  border: 3px solid var(--out);
+  border-radius: 12px;
+  background: linear-gradient(#ff7a6b, #c9332b);
+  font-size: 13px;
+  line-height: 18px;
+  text-align: center;
+  box-sizing: border-box;
+}
 .builders small {
   font-size: 11px;
   opacity: 0.85;
@@ -667,6 +689,101 @@ canvas#game.dragging {
 .next {
   color: #2f9a2f;
   font-weight: 900;
+}
+
+/* ---------- Upgrades list ---------- */
+.section-title small {
+  font-size: 13px;
+  color: #6a5f7a;
+}
+.up-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 8px;
+}
+.up-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  border: 3px solid var(--out);
+  border-radius: 14px;
+  box-shadow: 0 3px 0 var(--out);
+  padding: 4px 10px 4px 4px;
+  min-width: 0;
+}
+.up-row.waiting {
+  background: var(--panel-d);
+  box-shadow: none;
+}
+.up-row.waiting canvas,
+.up-row.waiting .up-txt {
+  filter: grayscale(0.9);
+  opacity: 0.65;
+}
+.up-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 0;
+  padding: 2px;
+  border-radius: 10px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+button.up-main {
+  cursor: pointer;
+}
+button.up-main:hover {
+  background: rgba(46, 99, 184, 0.14);
+}
+.up-main canvas {
+  width: 60px;
+  height: 50px;
+  flex: none;
+}
+.up-txt {
+  min-width: 0;
+}
+.up-name {
+  font-weight: 900;
+  font-size: 15px;
+  color: var(--navy);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.up-sub {
+  font-size: 12px;
+  color: #555;
+  white-space: nowrap;
+}
+.up-side {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+.up-side .price {
+  font-weight: 900;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.up-side .btn .price {
+  font-size: 14px;
+}
+.up-why {
+  font-size: 12px;
+  font-weight: 900;
+  color: #6a5f7a;
+  max-width: 130px;
+  text-align: right;
 }
 
 /* ---------- Toasts ---------- */

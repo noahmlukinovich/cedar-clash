@@ -47,7 +47,7 @@ When the page is served with the game server behind it, players log in (invite-o
 ## How to play
 
 1. **Collect** Tuition (Admissions Office) and Coffee (Coffee Cart) by clicking the bubbles over them, or use the green "collect all" button.
-2. **Build and upgrade** from the **Shop**. Each job ties up a Facilities Crew builder; build more sheds for more builders. The **DMC** level caps everything else.
+2. **Build and upgrade** from the **Shop**. Each job ties up a Facilities Crew builder; build more sheds for more builders. Click the **Facilities Crew** counter for a list of every upgrade you can do right now (its badge shows how many). The **DMC** level caps everything else.
 3. **Train** troops in the **Army** menu. Residence halls set your army capacity.
 4. **Attack!** Start with the hand-built tutorial base, *Rival State U*, then use **Find a Rival** for procedurally generated campuses. You earn stars, loot, and trophies.
 5. Unlock the **Library** (research), **The Hive**, the **Brew Lab** (spells), and the heroes **The Prof** and **The President** as the DMC levels up.
