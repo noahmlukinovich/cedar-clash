@@ -29,7 +29,7 @@ export interface DefenseEntry {
 
 export interface StateMsg {
   state: GameState;
-  /** Last action sequence number the server has applied. */
+  /** Last action sequence number the server has applied for this client (0 if none). */
   seq: number;
   shieldUntil: number;
   notes: Note[];
@@ -41,6 +41,8 @@ export interface MeResponse extends StateMsg {
 }
 
 export interface SyncRequest {
+  /** Random id for this open copy of the game (one per device/tab). */
+  client: string;
   /** Sequence number of the first action; actions the server already applied are skipped. */
   seq: number;
   actions: Action[];

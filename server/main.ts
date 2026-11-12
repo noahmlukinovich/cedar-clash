@@ -198,7 +198,7 @@ export function createApp(db: DB, cfg: ServerConfig) {
       requireUser(req);
       return db.st.leaderboard.all();
     }
-    if (post('/api/sync')) return sync(db, requireUser(req), now, body.seq, body.actions);
+    if (post('/api/sync')) return sync(db, requireUser(req), now, body.client, body.seq, body.actions);
     if (post('/api/raid/start')) return startRaid(db, requireUser(req), now, body.kind);
     if (post('/api/raid/inputs')) {
       raidInputs(db, requireUser(req), body.raidId, body.inputs);
@@ -243,6 +243,7 @@ export function startServer(cfg: ServerConfig): { close: () => Promise<void>; po
     try {
       settleStaleRaids(db, Date.now());
       db.st.purgeSessions.run(Date.now());
+      db.st.purgeClientSeq.run(Date.now() - 30 * 86400 * 1000);
     } catch (e) {
       console.error('sweep failed', e);
     }

@@ -107,8 +107,8 @@ function defenses(db: DB, userId: number): DefenseEntry[] {
   });
 }
 
-function stateMsg(db: DB, u: Loaded, extra: Note[] = []): StateMsg {
-  return { state: u.state, seq: u.row.seq, shieldUntil: u.row.shield_until, notes: [...extra, ...takeNotes()], defenses: defenses(db, u.row.id) };
+function stateMsg(db: DB, u: Loaded, extra: Note[] = [], seq = 0): StateMsg {
+  return { state: u.state, seq, shieldUntil: u.row.shield_until, notes: [...extra, ...takeNotes()], defenses: defenses(db, u.row.id) };
 }
 
 function takeNotes(): Note[] {
@@ -131,23 +131,33 @@ export function me(db: DB, userId: number, now: number): StateMsg {
   });
 }
 
-/** POST /api/sync: apply a batch of actions (skipping ones already applied). */
-export function sync(db: DB, userId: number, now: number, seq: unknown, actions: unknown): StateMsg & { errors: string[] } {
+const CLIENT_RE = /^[A-Za-z0-9_-]{1,64}$/;
+
+/**
+ * POST /api/sync: apply a batch of actions. Each open copy of the game (device or tab) has
+ * its own id and counter, so a retried batch is skipped without one device's counter
+ * swallowing another device's actions. (Clients from before ids existed share 'legacy'.)
+ */
+export function sync(db: DB, userId: number, now: number, client: unknown, seq: unknown, actions: unknown): StateMsg & { errors: string[] } {
   if (!Number.isInteger(seq) || (seq as number) < 1) throw new GameError('Bad request');
   if (!Array.isArray(actions) || actions.length > 300) throw new GameError('Bad request');
+  const cid = typeof client === 'string' && CLIENT_RE.test(client) ? client : null;
   takeNotes();
   return db.tx(() => {
     const u = load(db, userId, now);
+    let last = cid ? ((db.st.clientSeq.get(userId, cid) as { seq: number } | undefined)?.seq ?? 0) : u.row.seq;
     const errors: string[] = [];
     actions.forEach((a: Action, i: number) => {
       const n = (seq as number) + i;
-      if (n <= u.row.seq) return; // already applied (a retried request)
+      if (n <= last) return; // already applied (a retried request)
       const r = applyAction(u.state, a);
       if (r.err) errors.push(r.err);
-      u.row.seq = n;
+      last = n;
     });
+    if (cid) db.st.setClientSeq.run(userId, cid, last, now);
+    else u.row.seq = last;
     save(db, u, now);
-    return { ...stateMsg(db, u), errors };
+    return { ...stateMsg(db, u, [], last), errors };
   });
 }
 

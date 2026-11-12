@@ -1,4 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { hashPassword } from '../server/auth';
+import { newPlayerState } from '../server/game';
 import { startServer } from '../server/main';
 import type { MeResponse, RaidFinishResponse, RaidStartResponse, SyncResponse } from '../src/net/protocol';
 import type { GameState } from '../src/game/state';
@@ -79,11 +81,11 @@ describe('economy runs on the server', () => {
     patchState('Alice Hall', (s) => (s.army = {}));
     const me = await alice.call<MeResponse>('/api/me');
     const before = me.data.state.resources.tuition;
-    const r1 = await alice.call<SyncResponse>('/api/sync', { seq: me.data.seq + 1, actions: [{ k: 'train', type: 'freshman' }] });
+    const r1 = await alice.call<SyncResponse>('/api/sync', { client: 'test-a', seq: me.data.seq + 1, actions: [{ k: 'train', type: 'freshman' }] });
     expect(r1.data.errors).toEqual([]);
     expect(r1.data.state.trainQueue.length).toBe(1);
     // same batch again (a network retry): must not train twice
-    const r2 = await alice.call<SyncResponse>('/api/sync', { seq: me.data.seq + 1, actions: [{ k: 'train', type: 'freshman' }] });
+    const r2 = await alice.call<SyncResponse>('/api/sync', { client: 'test-a', seq: me.data.seq + 1, actions: [{ k: 'train', type: 'freshman' }] });
     expect(r2.data.state.trainQueue.length).toBe(1);
     expect(r2.data.state.resources.tuition).toBeLessThanOrEqual(before);
   });
@@ -91,11 +93,40 @@ describe('economy runs on the server', () => {
   it('rejects cheating actions', async () => {
     const me = await alice.call<MeResponse>('/api/me');
     const r = await alice.call<SyncResponse>('/api/sync', {
+      client: 'test-b',
       seq: me.data.seq + 1,
       actions: [{ k: 'build', type: 'dmc', x: 5, y: 5 }, { k: 'move', id: 1, x: -5, y: 0 }, { k: 'collect', id: 999 }, { k: 'debugMoney' }],
     });
     expect(r.data.errors.length).toBe(4);
     expect(r.data.state.buildings.filter((b) => b.type === 'dmc').length).toBe(1);
+  });
+});
+
+describe('two devices on one account', () => {
+  it("keeps both devices' actions", async () => {
+    const laptop = new Client();
+    const phone = new Client();
+    // created directly, so this test doesn't use up the per-network sign-up allowance
+    srv.db.st.insertUser.run('Two Devices', await hashPassword('twodevices1'), Date.now(), JSON.stringify(newPlayerState('Two Devices', Date.now())), Date.now());
+    await laptop.call('/api/login', { username: 'Two Devices', password: 'twodevices1' });
+    await phone.call('/api/login', { username: 'Two Devices', password: 'twodevices1' });
+    patchState('Two Devices', (s) => (s.army = {}));
+    const lm = await laptop.call<MeResponse>('/api/me');
+    const pm = await phone.call<MeResponse>('/api/me');
+    // the phone sends a few actions first...
+    let pseq = pm.data.seq;
+    for (let i = 0; i < 3; i++) {
+      const r = await phone.call<SyncResponse>('/api/sync', { client: 'phone-1', seq: ++pseq, actions: [{ k: 'train', type: 'freshman' }] });
+      expect(r.data.errors).toEqual([]);
+    }
+    // ...then the laptop, which still has its own (now older) counter
+    const r = await laptop.call<SyncResponse>('/api/sync', { client: 'laptop-1', seq: lm.data.seq + 1, actions: [{ k: 'train', type: 'freshman' }, { k: 'train', type: 'freshman' }] });
+    expect(r.data.errors).toEqual([]);
+    expect(r.data.state.trainQueue.length).toBe(5);
+    // and a retry of the laptop's batch is still recognised as a duplicate
+    const again = await laptop.call<SyncResponse>('/api/sync', { client: 'laptop-1', seq: lm.data.seq + 1, actions: [{ k: 'train', type: 'freshman' }, { k: 'train', type: 'freshman' }] });
+    expect(again.data.state.trainQueue.length).toBe(5);
+    srv.db.st.deleteUser.run((srv.db.st.userByName.get('Two Devices') as { id: number }).id);
   });
 });
 
