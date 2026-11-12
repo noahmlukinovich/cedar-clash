@@ -20,7 +20,8 @@ export const LOADING_TIPS: string[] = [
   'Pro tip: Coffee production doubles during Finals Week. So does crying in the library.',
   'Pro tip: Rinnova stores Coffee. Also stores 40% of all group-project procrastination.',
   'Pro tip: The President\'s Convocation buff stacks with All-Nighter. Do not tell the Dean.',
-  'Pro tip: The Prof\'s Pop Quiz stuns everything nearby. Like a real pop quiz.',
+  'Pro tip: The Bible Prof\'s Pop Quiz stuns everything nearby. Like a real pop quiz.',
+  'Pro tip: the Bible Prof\'s crossbow fires the Hebrew alphabet in order. Every fifth letter hits twice as hard.',
   'Loading... (the Wi-Fi in the dorms is also loading)',
   'Loading... finding a parking spot (this may take a while)',
   'Loading... counting the bricks (we lost count)',
@@ -89,7 +90,7 @@ export const LOSE_LINES: string[] = [
   'Academic probation, but for raiding.',
   'Your troops are taking this to the Lord in prayer. And to the Coffee Cart.',
   'Not great. Not terrible. Actually, pretty terrible.',
-  'The Prof would like to see you during office hours.',
+  'The Bible Prof would like to see you during office hours.',
   'It\'s fine. Everyone fails their first Calc II exam.',
 ];
 
@@ -167,7 +168,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'allnighter', name: 'Pulled an All-Nighter', desc: 'Cast the All-Nighter spell.', reward: 5 },
   { id: 'dmc3', name: 'Upperclassman', desc: 'Upgrade the DMC to level 3.', reward: 10 },
   { id: 'dmc5', name: 'Senior Status', desc: 'Upgrade the DMC to level 5.', reward: 25 },
-  { id: 'popquiz', name: 'Pop Quiz!', desc: "Use the Prof's Pop Quiz.", reward: 5 },
+  { id: 'popquiz', name: 'Pop Quiz!', desc: "Use the Bible Prof's Pop Quiz.", reward: 5 },
   { id: 'ringbyspring', name: 'Ring by Spring', desc: 'Win a raid during Ring by Spring.', reward: 10 },
   { id: 'windblown', name: 'Ohio Weather Survivor', desc: 'Win a raid during an Ohio wind gust.', reward: 5 },
   { id: 'elephant', name: 'Elephant Runner', desc: 'Complete an Elephant Run.', reward: 10 },

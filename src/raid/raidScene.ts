@@ -23,6 +23,11 @@ import type { RU, RaidSim } from './sim';
 
 export type { RaidKind } from './engine';
 
+/** Aleph to tav: the Bible Prof's ammunition, fired in order. */
+const HEBREW = 'אבגדהוזחטיכלמנסעפצקרשת';
+/** Seconds a letter takes to reach its target. */
+const LETTER_FLIGHT = 0.18;
+
 type Card = { kind: 'troop'; type: TroopType } | { kind: 'hero'; type: HeroType } | { kind: 'spell'; type: SpellType };
 
 interface Beam {
@@ -54,6 +59,8 @@ export class RaidScene implements Scene {
   trees: TreeSpot[] = borderTrees(0);
   beams: Beam[] = [];
   graves: Grave[] = [];
+  /** Hebrew letters in flight from the Bible Prof's crossbow (visual only). */
+  letters: { fx: number; fy: number; tx: number; ty: number; ch: string; big: boolean; t: number }[] = [];
   forbidFlash = 0;
   private forbidPath: Path2D | null = null;
   hud = el('div', 'hud');
@@ -399,6 +406,15 @@ export class RaidScene implements Scene {
       if (this.beams[i].t <= 0) this.beams.splice(i, 1);
     }
     for (const g of this.graves) g.t += dt;
+    for (let i = this.letters.length - 1; i >= 0; i--) {
+      const l = this.letters[i];
+      l.t += dt / LETTER_FLIGHT;
+      if (l.t < 1) continue;
+      this.letters.splice(i, 1);
+      const p = toWorld(l.tx, l.ty);
+      this.particles.burst(p.x, p.y, 20, l.big ? 12 : 4, { kind: 'spark', color: l.big ? C.gold : '#fff6d6', size: l.big ? 6 : 4, speed: l.big ? 130 : 80, max: l.big ? 0.5 : 0.3 });
+      if (l.big) this.particles.add({ kind: 'ring', x: p.x, y: p.y, z: 0, max: 0.35, size: 6, grow: 70, color: 'rgba(245,195,44,0.9)' });
+    }
     if (this.graves.length > 80) this.graves.shift();
     // wind streaks
     if (this.sim.windOn) {
@@ -535,6 +551,10 @@ export class RaidScene implements Scene {
           sfx('deploy');
           break;
         }
+        case 'bolt':
+          this.letters.push({ fx: ev.fx, fy: ev.fy, tx: ev.tx, ty: ev.ty, ch: HEBREW[ev.n % HEBREW.length], big: ev.big, t: 0 });
+          sfx(ev.big ? 'cannon' : 'shoot');
+          break;
         case 'chorus': {
           const p = toWorld(ev.x, ev.y);
           P2.add({ kind: 'text', x: p.x + (Math.random() - 0.5) * 20, y: p.y, z: 40, vz: 35, max: 0.9, text: '♪♫', color: '#ff9fd0', size: 18 });
@@ -843,6 +863,26 @@ export class RaidScene implements Scene {
         ctx.fillStyle = C.red;
         ctx.fillRect(-4, -1, 5, 2);
       }
+      ctx.restore();
+    }
+    // Hebrew letters from the Bible Prof's crossbow
+    for (const l of this.letters) {
+      const k = Math.min(1, l.t);
+      const a = toWorld(l.fx, l.fy);
+      const b = toWorld(l.tx, l.ty);
+      const x = a.x + (b.x - a.x) * k;
+      const y = a.y - 26 + (b.y - 14 - (a.y - 26)) * k - Math.sin(k * Math.PI) * 10;
+      const size = l.big ? 30 : 18;
+      ctx.save();
+      ctx.font = `900 ${size}px "Arial Hebrew", "Noto Sans Hebrew", "Segoe UI", Arial, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = l.big ? 5 : 3.5;
+      ctx.strokeStyle = OUT;
+      ctx.strokeText(l.ch, x, y);
+      ctx.fillStyle = l.big ? C.gold : '#fff6d6';
+      ctx.fillText(l.ch, x, y);
       ctx.restore();
     }
     // beams

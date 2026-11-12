@@ -1,7 +1,7 @@
 // Raid behaviour of the five newer troops. Each test builds a tiny base and runs the real
 // simulation, so the rules are checked the way a raid (and the server's replay) plays them.
 import { describe, expect, it } from 'vitest';
-import { GO_MEMBER_DEF, TROOPS, TROOP_ORDER } from '../src/config/troops';
+import { GO_MEMBER_DEF, HEROES, TROOPS, TROOP_ORDER } from '../src/config/troops';
 import { BUILDINGS } from '../src/config/buildings';
 import type { BuildingType, TroopType } from '../src/config/types';
 import { applyAction } from '../src/game/actions';
@@ -305,5 +305,74 @@ describe('GO Team', () => {
     expect(a).toEqual(b);
     expect(a.usedTroops).toEqual({ goteam: 1, ra: 1, runner: 1, music: 1, business: 1 });
     expect(a.ticks).toBeGreaterThan(30);
+  });
+});
+
+describe('The Bible Prof', () => {
+  const profLevels = { prof: 1, president: 1 };
+  const mk = (pieces: BasePiece[]): RaidSim => new RaidSim(base(pieces), { troopLevels: newGame().troopLevels, heroLevels: profLevels, ringBySpring: false, wind: false, elephant: false, seed: 3 });
+  const one = HEROES.prof.levels[0].dps * HEROES.prof.attackRate;
+  type Bolt = { n: number; big: boolean };
+
+  /** Runs until `count` crossbow shots have been fired; returns the shots and the damage of each. */
+  function shots(s: RaidSim, hp: () => number, count: number): { bolts: Bolt[]; dmg: number[] } {
+    const bolts: Bolt[] = [];
+    const dmg: number[] = [];
+    let last = hp();
+    for (let t = 0; t < 60 && bolts.length < count; t += TICK) {
+      s.update(TICK);
+      for (const ev of s.events) if (ev.e === 'bolt') bolts.push({ n: ev.n, big: ev.big });
+      s.events.length = 0;
+      if (hp() < last) {
+        dmg.push(Math.round((last - hp()) * 100) / 100);
+        last = hp();
+      }
+    }
+    return { bolts, dmg };
+  }
+
+  it('is renamed and still has Pop Quiz', () => {
+    expect(HEROES.prof.name).toBe('The Bible Prof');
+    expect(HEROES.prof.ability.name).toBe('Pop Quiz');
+    expect(HEROES.prof.bolt).toEqual({ every: 5, mul: 2 });
+  });
+
+  it('fires the alphabet in order, and every fifth letter deals double damage to a building', () => {
+    const s = mk([pc('dmc', 12, 10, 6)]);
+    s.spawnHero('prof', 9, 12);
+    const dmc = B(s, 'dmc');
+    const r = shots(s, () => dmc.hp, 25);
+    expect(r.bolts.map((b) => b.n)).toEqual([...Array.from({ length: 22 }, (_, i) => i), 0, 1, 2]); // wraps after tav
+    expect(r.bolts.map((b) => b.big)).toEqual(Array.from({ length: 25 }, (_, i) => (i + 1) % 5 === 0));
+    expect(r.dmg.slice(0, 10)).toEqual([one, one, one, one, one * 2, one, one, one, one, one * 2]);
+    expect(r.dmg).toHaveLength(25); // one damage instance per shot: it lands instantly, as before
+  });
+
+  it('applies the same rule against Hive fans', () => {
+    const s = mk([pc('hive', 20, 20, 1)]);
+    const prof = s.spawnHero('prof', 5, 5);
+    prof.speed = 0; // stand and shoot
+    // a very tough practice dummy on the defending side, standing in range
+    const dummy = s.spawnTroop('ra', 7, 5);
+    dummy.side = 'def';
+    dummy.speed = 0;
+    dummy.dps = 0;
+    dummy.hp = dummy.maxHp = 1e6;
+    const r = shots(s, () => dummy.hp, 10);
+    expect(r.dmg).toEqual([one, one, one, one, one * 2, one, one, one, one, one * 2]);
+    expect(r.bolts.filter((b) => b.big)).toHaveLength(2);
+  });
+
+  it('a raid with the Bible Prof replays identically', () => {
+    const setup: RaidSetup = { kind: 'random', base: base([pc('dmc', 14, 10, 6), pc('ratower', 20, 16), pc('hive', 9, 18, 1)]), seed: 42, wind: false, ringBySpring: false, troopLevels: newGame().troopLevels, heroLevels: { prof: 2, president: 1 }, heroes: { prof: 1 }, army: { freshman: 6 }, spells: {} };
+    const inputs: RaidInput[] = [
+      { t: 0, k: 'hero', type: 'prof', x: 6, y: 12 },
+      { t: 4, k: 'troop', type: 'freshman', x: 6, y: 13 },
+      { t: 300, k: 'ability', type: 'prof' },
+    ];
+    const a = replayRaid(setup, inputs);
+    expect(replayRaid(JSON.parse(JSON.stringify(setup)), JSON.parse(JSON.stringify(inputs)))).toEqual(a);
+    expect(a.heroHp.prof).toBeDefined();
+    expect(a.destruction).toBeGreaterThan(0);
   });
 });

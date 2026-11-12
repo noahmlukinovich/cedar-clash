@@ -142,7 +142,9 @@ export type SimEvent =
   | { e: 'ability'; kind: 'quiz' | 'convo'; u: RU }
   | { e: 'unload'; x: number; y: number }
   | { e: 'chorus'; x: number; y: number }
-  | { e: 'roomcheck'; u: RU };
+  | { e: 'roomcheck'; u: RU }
+  /** The Bible Prof's crossbow: letter `n` of the Hebrew alphabet flies from (fx, fy) to (tx, ty). Visual only. */
+  | { e: 'bolt'; fx: number; fy: number; tx: number; ty: number; n: number; big: boolean };
 
 export interface RaidOptions {
   troopLevels: Record<TroopType, number>;
@@ -161,6 +163,9 @@ const WANDER_DIRS: [number, number][] = [
   [-1, 0], [-0.9238795325, -0.3826834324], [-0.7071067812, -0.7071067812], [-0.3826834324, -0.9238795325],
   [0, -1], [0.3826834324, -0.9238795325], [0.7071067812, -0.7071067812], [0.9238795325, -0.3826834324],
 ];
+
+/** Aleph to tav. */
+export const HEBREW_LETTERS = 22;
 
 /** What a Business Major goes for first. */
 const RESOURCE_TYPES: BuildingType[] = ['registrar', 'rinnova', 'admissions', 'coffeecart'];
@@ -1014,8 +1019,10 @@ export class RaidSim {
       dmg *= ch.mul;
       this.events.push({ e: 'chorus', x: b.cx, y: b.cy });
     }
-    if (u.hero === 'prof' || (u.range > 1.5 && u.type !== 'nurse')) {
-      // ranged: red pen / thrown book projectile (visual only, damage applies instantly)
+    if (u.hero === 'prof') {
+      dmg *= this.letterShot(u, b.cx, b.cy);
+    } else if (u.range > 1.5 && u.type !== 'nurse') {
+      // ranged: thrown book (visual only, damage applies instantly)
       this.events.push({ e: 'hit', x: b.cx, y: b.cy, dmg, kind: 'pen' });
     } else {
       this.events.push({ e: 'hit', x: (u.x + b.cx) / 2, y: (u.y + b.cy) / 2, dmg, kind: 'melee' });
@@ -1035,7 +1042,24 @@ export class RaidSim {
     if (u.cd > 0) return;
     u.cd = u.rate;
     u.attackT = 1;
-    this.damageUnit(o, u.dps * u.rate * (u.side === 'atk' ? this.mulDmg(u) : 1), 'melee');
+    let dmg = u.dps * u.rate * (u.side === 'atk' ? this.mulDmg(u) : 1);
+    if (u.hero === 'prof') {
+      u.hits++;
+      dmg *= this.letterShot(u, o.x, o.y);
+    }
+    this.damageUnit(o, dmg, 'melee');
+  }
+
+  /**
+   * The Bible Prof's crossbow. Shot number `u.hits` (already counted) fires the next Hebrew
+   * letter; every Nth is a big one. Returns the damage multiplier. The flying letter is drawn
+   * by the scene and damage still lands instantly, so raid timing is unchanged.
+   */
+  private letterShot(u: RU, tx: number, ty: number): number {
+    const bolt = HEROES.prof.bolt;
+    const big = !!bolt && u.hits % bolt.every === 0;
+    this.events.push({ e: 'bolt', fx: u.x, fy: u.y, tx, ty, n: (u.hits - 1) % HEBREW_LETTERS, big });
+    return big ? bolt.mul : 1;
   }
 
   private updateHealer(u: RU, dt: number, sp: number): void {

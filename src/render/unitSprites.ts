@@ -769,14 +769,50 @@ function drawHeld(ctx: CanvasRenderingContext2D, type: UnitType, lv = 1): void {
       ctx.stroke();
       break;
     case 'prof':
-      // red pen (longer with tenure)
-      ctx.fillStyle = C.red;
-      ctx.fillRect(0, 6, 2, 9 + lv);
-      ctx.strokeRect(0, 6, 2, 9 + lv);
-      if (lv >= 3) {
+      // crossbow, held out front with a letter on the rail: plain wood, gold limbs from
+      // level 3, a gold-trimmed stock at level 5
+      ctx.save();
+      ctx.translate(1, 9);
+      ctx.rotate(0.5);
+      // stock, pointing forward
+      ctx.fillStyle = C.woodDark;
+      ctx.fillRect(-2.5, -1.5, 13, 3);
+      ctx.strokeRect(-2.5, -1.5, 13, 3);
+      if (lv >= 5) {
         ctx.fillStyle = C.gold;
-        ctx.fillRect(0, 6, 2, 2.5);
+        ctx.fillRect(-2.5, -1.5, 3, 3);
+        ctx.fillRect(4.5, -1.5, 1.6, 3);
       }
+      // limbs
+      ctx.strokeStyle = OUT;
+      ctx.lineWidth = 3.4;
+      ctx.beginPath();
+      ctx.moveTo(6.5, -8);
+      ctx.quadraticCurveTo(12.5, 0, 6.5, 8);
+      ctx.stroke();
+      ctx.strokeStyle = lv >= 3 ? C.gold : '#c99a62';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(6.5, -8);
+      ctx.quadraticCurveTo(12.5, 0, 6.5, 8);
+      ctx.stroke();
+      // string
+      ctx.strokeStyle = '#f4efe4';
+      ctx.lineWidth = 0.9;
+      ctx.beginPath();
+      ctx.moveTo(6.5, -8);
+      ctx.lineTo(2.5, 0);
+      ctx.lineTo(6.5, 8);
+      ctx.stroke();
+      // the next letter, loaded
+      ctx.fillStyle = lv >= 3 ? C.gold : '#fff6d6';
+      ctx.strokeStyle = OUT;
+      ctx.lineWidth = 1;
+      ctx.fillRect(9.5, -2, 4, 4);
+      ctx.strokeRect(9.5, -2, 4, 4);
+      ctx.restore();
+      ctx.lineWidth = 1.4;
+      ctx.strokeStyle = OUT;
       break;
     case 'president':
       // scepter; a full ceremonial mace at level 3

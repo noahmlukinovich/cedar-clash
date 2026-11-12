@@ -10,6 +10,15 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 6,
+    date: 'Nov 12, 2026',
+    title: 'The Bible Prof gets a crossbow',
+    items: [
+      'The Prof is now The Bible Prof, and the red pen is gone: he fires Hebrew letters from a crossbow, aleph to tav, then starts over.',
+      'Every fifth shot is a big gold letter that deals double damage.',
+    ],
+  },
+  {
     v: 5,
     date: 'Nov 12, 2026',
     title: 'A new look for every level',
