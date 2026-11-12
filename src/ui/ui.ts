@@ -683,7 +683,7 @@ export class UI {
       if (!runs.length) qd.appendChild(el('span', 'flavor', 'Nobody in training. Click a troop below to recruit, or hold to recruit several.'));
       runs.forEach((r, i) => {
         const qi = el('div', 'qitem');
-        qi.appendChild(unitThumb(r.type, 62, 62));
+        qi.appendChild(unitThumb(r.type, 62, 62, s.troopLevels[r.type]));
         if (r.count > 1) qi.appendChild(el('div', 'n', `×${r.count}`));
         qi.appendChild(el('div', 'x', '✖'));
         if (i === 0) {
@@ -718,7 +718,7 @@ export class UI {
         const full = unlocked && armyUsed(s) + queueUsed(s) + d.housing > cap;
         const card = el('div', `card ${unlocked ? (err ? 'dim' : '') : 'locked'}`);
         card.dataset.troop = t;
-        card.appendChild(unitThumb(t, 100, 90));
+        card.appendChild(unitThumb(t, 100, 90, lvl));
         card.appendChild(el('div', 'name', d.name));
         card.appendChild(el('div', 'badge', `Lv${lvl}`));
         card.appendChild(el('div', 'count', `×${s.army[t] ?? 0}`));
@@ -804,7 +804,7 @@ export class UI {
         const hg = el('div', 'cards');
         for (const h of hs) {
           const card = el('div', 'card');
-          card.appendChild(unitThumb(h, 100, 90));
+          card.appendChild(unitThumb(h, 100, 90, s.heroes[h].level));
           card.appendChild(el('div', 'name', HEROES[h].name));
           card.appendChild(el('div', 'badge', `Lv${s.heroes[h].level}`));
           const meta = el('div', 'meta');
@@ -950,7 +950,7 @@ export class UI {
       const running = e.left !== undefined;
       const what = e.kind === 'research' ? 'Research' : 'Hero';
       const sub = running ? `${what} · Lv ${e.level} → ${e.level + 1} · ⏱ <span class="up-left"></span>` : `${what} · Lv ${e.level} → ${e.level + 1} · ${time(e.time)}`;
-      const r = mkRow(running || e.ok ? '' : 'waiting', unitThumb(e.type, 60, 50), e.name, sub);
+      const r = mkRow(running || e.ok ? '' : 'waiting', unitThumb(e.type, 60, 50, e.level), e.name, sub);
       if (running) {
         const left = r.sub.querySelector('.up-left') as HTMLElement;
         left.textContent = fmtTime(e.left!);
@@ -1006,7 +1006,7 @@ export class UI {
         const err = researchCheck(s, t);
         const maxed = lvl >= d.levels.length;
         const card = el('div', `card ${err && err !== 'Not enough Coffee' && err !== 'The Library is already researching' ? 'locked' : ''}`);
-        card.appendChild(unitThumb(t, 100, 90));
+        card.appendChild(unitThumb(t, 100, 90, lvl));
         card.appendChild(el('div', 'name', d.name));
         card.appendChild(el('div', 'badge', `Lv${lvl}`));
         if (maxed) card.appendChild(el('div', 'meta', '⭐ Max level'));
@@ -1047,7 +1047,7 @@ export class UI {
       const N = d.levels[st.level];
       m.body.innerHTML = '';
       const row = el('div', 'row');
-      row.appendChild(unitThumb(h, 140, 140));
+      row.appendChild(unitThumb(h, 140, 140, st.level));
       const col = el('div', 'col');
       col.appendChild(el('div', '', d.desc));
       col.appendChild(el('div', 'flavor', `"${d.flavor}"`));

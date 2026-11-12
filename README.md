@@ -68,7 +68,7 @@ The **⚙ Settings** panel has debug tools: speed toggle, free resources, finish
 
 ## Features
 
-- **Isometric canvas renderer** with procedurally drawn buildings, troops, trees, and particles: thick outlines, squash-and-stretch, confetti, screen shake, and Web Audio synthesized sound effects. There are no image or audio files.
+- **Isometric canvas renderer** with procedurally drawn buildings, troops, trees, and particles, with a distinct look for every building level (wood → brick → stone trim → cupola and gold → banners and finials) and gear that grows with each troop's research level: thick outlines, squash-and-stretch, confetti, screen shake, and Web Audio synthesized sound effects. There are no image or audio files.
 - **Economy**: three resources (Tuition / Coffee / Chapel Credits), collectors, storage caps, builder-limited upgrade timers, DMC gating, and instant-finish with Chapel Credits.
 - **Raids**: A* pathfinding on the grid, where walls are breakable high-cost tiles. Targeting AI per troop type, projectiles, building loot, 0–3 stars (50% / DMC destroyed / 100%), a 3-minute timer, and trophies with a league ladder.
 - **Defenses**: RA Tower (rapid write-ups), Campus Safety Cart (parking tickets), Cedar Sprayer (40% slow, charged 2s freeze), Bible Prof Tower (prayer splash that targets the densest clump and blesses walls at Lv3+), Yellow Jacket Nest (hidden swarm trap), The Hive (student-section fans), brick walls, and Cedar Lake (blocks pathing).

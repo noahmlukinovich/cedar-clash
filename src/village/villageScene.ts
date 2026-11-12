@@ -506,7 +506,7 @@ export class VillageScene implements Scene {
         depth: w.x + w.y,
         fn: () => {
           const p = toWorld(w.x, w.y);
-          drawUnit(ctx, p.x, p.y, w.type, { t: w.t, facing: w.face, moving: w.wait <= 0, attacking: 0, scale: 0.85 * TROOPS[w.type].size });
+          drawUnit(ctx, p.x, p.y, w.type, { t: w.t, facing: w.face, moving: w.wait <= 0, attacking: 0, scale: 0.85 * TROOPS[w.type].size, level: this.state.troopLevels[w.type] });
         },
       });
     }

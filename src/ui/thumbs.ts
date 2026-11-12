@@ -24,7 +24,7 @@ export function buildingThumb(type: BuildingType, level: number, w = 120, h = 10
   return c;
 }
 
-export function unitThumb(type: UnitType, w = 70, h = 70): HTMLCanvasElement {
+export function unitThumb(type: UnitType, w = 70, h = 70, level = 1): HTMLCanvasElement {
   const c = document.createElement('canvas');
   c.width = w * 2;
   c.height = h * 2;
@@ -36,7 +36,7 @@ export function unitThumb(type: UnitType, w = 70, h = 70): HTMLCanvasElement {
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, w, h);
   const sc = (Math.min(w, h) / 70) * (type === 'goteam' ? 1.25 : type === 'athlete' || type === 'president' || type === 'ra' ? 1.5 : 1.7);
-  drawUnit(ctx, w / 2, h * 0.88, type, { t: 0.4, facing: 1, moving: false, attacking: 0, scale: sc });
+  drawUnit(ctx, w / 2, h * 0.88, type, { t: 0.4, facing: 1, moving: false, attacking: 0, scale: sc, level });
   return c;
 }
 
