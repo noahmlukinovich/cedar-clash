@@ -516,6 +516,25 @@ canvas#game.dragging {
   opacity: 0.7;
   cursor: not-allowed;
 }
+.card.dim {
+  background: var(--panel-d);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+.card.dim canvas {
+  filter: grayscale(0.7);
+  opacity: 0.75;
+}
+.card.dim:hover {
+  transform: none;
+}
+.card .meta .bad {
+  color: var(--red);
+}
+.card[data-troop] {
+  user-select: none;
+  touch-action: manipulation;
+}
 .card canvas {
   width: 120px;
   height: 100px;
@@ -631,11 +650,14 @@ canvas#game.dragging {
 }
 .qitem .n {
   position: absolute;
-  top: 1px;
-  left: 4px;
+  top: 2px;
+  left: 2px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--navy);
+  color: #fff;
   font-weight: 900;
-  font-size: 13px;
-  color: var(--navy);
+  font-size: 12px;
 }
 .qitem .t {
   position: absolute;
@@ -1181,6 +1203,50 @@ button.up-main:hover {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+/* ---------- What's new ---------- */
+.news {
+  background: #fff;
+  border: 3px solid var(--out);
+  border-radius: 14px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+}
+.news.new {
+  box-shadow: 0 3px 0 var(--out);
+}
+.news:not(.new) {
+  background: var(--panel-d);
+}
+.news-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  color: var(--navy);
+}
+.news-head small {
+  margin-left: auto;
+  font-size: 12px;
+  color: #6a5f7a;
+}
+.news-tag {
+  background: linear-gradient(#ff7a6b, #c9332b);
+  color: #fff;
+  border: 2px solid var(--out);
+  border-radius: 8px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 900;
+}
+.news ul {
+  margin: 6px 0 2px;
+  padding-left: 20px;
+  font-size: 14px;
+}
+.news li {
+  margin: 3px 0;
 }
 
 /* ---------- Visiting another campus ---------- */

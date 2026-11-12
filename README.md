@@ -49,7 +49,7 @@ When the page is served with the game server behind it, players log in (invite-o
 
 1. **Collect** Tuition (Admissions Office) and Coffee (Coffee Cart) by clicking the bubbles over them, or use the green "collect all" button.
 2. **Build and upgrade** from the **Shop**. Each job ties up a Facilities Crew builder; build more sheds for more builders. Click the **Facilities Crew** counter for a list of every upgrade you can do right now (its badge shows how many). The **DMC** level caps everything else.
-3. **Train** troops in the **Army** menu. Residence halls set your army capacity.
+3. **Train** troops in the **Army** menu. Residence halls set your army capacity. Click a troop to recruit one, or hold to keep recruiting; click a tile in the queue to cancel one for a full refund.
 4. **Attack!** Start with the hand-built tutorial base, *Rival State U*, then use **Find a Rival** for procedurally generated campuses. You earn stars, loot, and trophies.
 5. Unlock the **Library** (research), **The Hive**, the **Brew Lab** (spells), and the heroes **The Prof** and **The President** as the DMC levels up.
 
@@ -106,6 +106,10 @@ Everything numeric lives in typed tables under `src/config/`:
 - `buildings.ts`: per-level cost, time, HP, production, capacity, defense stats, and per-DMC count limits
 - `troops.ts`: per-level HP, DPS, training cost, and research cost/time (plus heroes)
 - `spells.ts`, `balance.ts`: spell stats and global knobs (raid time, loot %, chapel rewards, event odds)
+
+### Announcing an update
+
+Add an entry at the top of `src/config/changelog.ts` with the next `v` number. Players see the **What's New** popup once, the first time they load a build with a newer entry than their browser has shown, and can reread the list from **⚙ Settings**. Brand-new players don't get the popup.
 
 ### Adding jokes
 

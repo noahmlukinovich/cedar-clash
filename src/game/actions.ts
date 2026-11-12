@@ -19,7 +19,13 @@ export type Action =
   | { k: 'finish'; id: number }
   | { k: 'collect'; id: number }
   | { k: 'train'; type: TroopType }
-  | { k: 'cancelTrain'; idx: number }
+  /**
+   * `back` is the item's distance from the end of the queue (0 = last) and wins over `idx`:
+   * the head of the queue finishes on its own, at slightly different moments in the browser
+   * and on the server, so only a position counted from the end means the same item to both.
+   * `type` guards against cancelling something else if the item is already gone.
+   */
+  | { k: 'cancelTrain'; idx: number; back?: number; type?: TroopType }
   | { k: 'brew'; type: SpellType }
   | { k: 'research'; type: TroopType }
   | { k: 'heroUpgrade'; type: HeroType }
@@ -84,8 +90,11 @@ export function applyAction(s: GameState, a: Action): ActionResult {
       return e ? { err: e } : {};
     }
     case 'cancelTrain': {
-      if (!int(a.idx) || a.idx < 0 || a.idx >= s.trainQueue.length) return { err: 'Bad action' };
-      cancelTrain(s, a.idx);
+      if (a.back !== undefined && !int(a.back)) return { err: 'Bad action' };
+      const idx = a.back !== undefined ? s.trainQueue.length - 1 - a.back : a.idx;
+      if (!int(idx) || idx >= s.trainQueue.length) return { err: 'Bad action' };
+      if (idx < 0 || (a.type !== undefined && s.trainQueue[idx].type !== a.type)) return { err: 'That troop already finished training' };
+      cancelTrain(s, idx);
       return {};
     }
     case 'brew': {

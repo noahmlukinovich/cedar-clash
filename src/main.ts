@@ -392,6 +392,7 @@ async function boot(): Promise<void> {
     if (msg) game.ui.popup('A note from the Chapel office', msg, 'I will do better');
   }
   if (game.online) game.showServerNews();
+  game.ui.checkWhatsNew(game.fresh);
 }
 
 void boot();
