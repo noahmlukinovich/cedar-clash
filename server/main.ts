@@ -273,6 +273,14 @@ export function startServer(cfg: ServerConfig): { close: () => Promise<void>; po
 
 // ---------- CLI ----------
 
+/** Sets how many sign-ups an existing invite code has left (0 turns it off). Returns the normalized code. */
+export function setInviteUses(db: DB, code: string, uses: number): string {
+  if (!Number.isInteger(uses) || uses < 0 || uses > 1000) throw new Error('uses must be a whole number from 0 to 1000');
+  const c = code.trim().toUpperCase();
+  if (!Number(db.st.setInviteUses.run(uses, c).changes)) throw new Error(`No invite code ${c}`);
+  return c;
+}
+
 export async function cli(args: string[]): Promise<void> {
   const cfg = configFromEnv();
   const [cmd, ...rest] = args;
@@ -292,6 +300,11 @@ export async function cli(args: string[]): Promise<void> {
       const code = newInviteCode();
       db.st.insertInvite.run(code, uses, Date.now(), rest.slice(1).join(' ') || null);
       console.log(`${code}  (good for ${uses} sign-up${uses === 1 ? '' : 's'})`);
+    } else if (cmd === 'invite-uses') {
+      const [code, n] = rest;
+      if (!code || n === undefined || !/^\d+$/.test(n)) throw new Error('usage: invite-uses <code> <uses left (0 turns it off)>');
+      const c = setInviteUses(db, code, Number(n));
+      console.log(Number(n) === 0 ? `${c} is turned off (0 sign-ups left).` : `${c} now has ${n} sign-up${n === '1' ? '' : 's'} left.`);
     } else if (cmd === 'invites') {
       for (const r of db.st.listInvites.all() as { code: string; uses_left: number; note: string | null }[]) console.log(`${r.code}  ${r.uses_left} left  ${r.note ?? ''}`);
     } else if (cmd === 'users') {
@@ -311,7 +324,7 @@ export async function cli(args: string[]): Promise<void> {
       db.st.deleteUser.run(u.id);
       console.log(`Deleted ${u.name}.`);
     } else {
-      console.log('Commands: serve | invite [uses] [note] | invites | users | passwd <name> <password> | delete-user <name>');
+      console.log('Commands: serve | invite [uses] [note] | invite-uses <code> <n> | invites | users | passwd <name> <password> | delete-user <name>');
       process.exitCode = 1;
     }
   } finally {

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { hashPassword } from '../server/auth';
 import { newPlayerState } from '../server/game';
-import { startServer } from '../server/main';
+import { setInviteUses, startServer } from '../server/main';
 import type { MeResponse, RaidFinishResponse, RaidStartResponse, SyncResponse, VisitResponse } from '../src/net/protocol';
 import type { GameState } from '../src/game/state';
 
@@ -73,6 +73,29 @@ describe('accounts', () => {
     expect((await alice.call('/api/sync', { seq: 1, actions: [] }, { 'X-CC': '0' })).status).toBe(403);
     expect((await alice.call('/api/sync', { seq: 1, actions: [] }, { Origin: 'https://evil.example' })).status).toBe(403);
     expect((await new Client().call('/api/me')).status).toBe(401);
+  });
+});
+
+describe('admin: invite-uses', () => {
+  const left = (code: string): number | undefined => (srv.db.st.invite.get(code) as { uses_left: number } | undefined)?.uses_left;
+
+  it('changes the sign-ups left on an existing code, case-insensitively', () => {
+    srv.db.st.insertInvite.run('ADMIN-TEST-0001', 1, Date.now(), null);
+    expect(setInviteUses(srv.db, ' admin-test-0001 ', 7)).toBe('ADMIN-TEST-0001');
+    expect(left('ADMIN-TEST-0001')).toBe(7);
+  });
+
+  it('0 turns a code off and hides it from the unused list', () => {
+    setInviteUses(srv.db, 'ADMIN-TEST-0001', 0);
+    expect(left('ADMIN-TEST-0001')).toBe(0);
+    const codes = (srv.db.st.listInvites.all() as { code: string }[]).map((r) => r.code);
+    expect(codes).not.toContain('ADMIN-TEST-0001');
+  });
+
+  it('rejects unknown codes and bad numbers without changing anything', () => {
+    expect(() => setInviteUses(srv.db, 'NO-SUCH-CODE', 3)).toThrow(/No invite code/);
+    for (const bad of [-1, 1.5, 1001, NaN]) expect(() => setInviteUses(srv.db, 'ADMIN-TEST-0001', bad)).toThrow();
+    expect(left('ADMIN-TEST-0001')).toBe(0);
   });
 });
 

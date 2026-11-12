@@ -44,6 +44,7 @@ That prints one code good for 3 sign-ups. Other admin commands, run on the dropl
 ```bash
 cedar-clash-admin users                    # list players
 cedar-clash-admin invites                  # unused codes
+cedar-clash-admin invite-uses ABCD-EFGH-JKLM 10   # change how many sign-ups a code has left (0 turns it off)
 cedar-clash-admin passwd "Campus Name" newpassword123   # reset a password (logs them out)
 cedar-clash-admin delete-user "Campus Name"
 ```
