@@ -1,5 +1,6 @@
 import { BUILDINGS, SHOP_TABS, maxCount, maxLevelForDmc } from '../config/buildings';
 import { DEBUG_SPEEDS, SCOUT_COST_PER_DMC } from '../config/balance';
+import { CHANGELOG, LATEST_CHANGE } from '../config/changelog';
 import { ACHIEVEMENTS, EVENT_INFO, LEAGUES, LOADING_TIPS, leagueFor, CHAPEL_ATTEND_LINES, CHUCKS_LINE } from '../config/humor';
 import { HEROES, TROOPS, TROOP_ORDER } from '../config/troops';
 import { SPELLS, SPELL_ORDER } from '../config/spells';
@@ -76,6 +77,25 @@ export function costHtml(res: ResourceId, amt: number, ok = true): string {
   return `<span class="price ${ok ? '' : 'bad'}">${icon(res, 18)} ${amt > 0 ? fmt(amt) : 'Free'}</span>`;
 }
 
+const SEEN_KEY = 'cedarville-clash-whatsnew';
+
+/** Newest What's New entry this browser has shown (0 if none, or if storage is unavailable). */
+function seenChange(): number {
+  try {
+    return Number(localStorage.getItem(SEEN_KEY) ?? 0) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function markChangeSeen(): void {
+  try {
+    localStorage.setItem(SEEN_KEY, String(LATEST_CHANGE));
+  } catch {
+    /* private mode: the popup may show again next time, which is harmless */
+  }
+}
+
 export class UI {
   root = document.getElementById('ui')!;
   village = el('div', 'hud');
@@ -98,6 +118,8 @@ export class UI {
   private lastSelSig = '';
   private tick = 0;
   private buildersSig = '';
+  /** Set at start-up when this browser hasn't seen the newest What's New entry yet. */
+  whatsNewPending = false;
 
   constructor(public game: Game) {
     this.toasts.id = 'toasts';
@@ -287,6 +309,11 @@ export class UI {
     });
     this.renderSelection(false);
     if (this.refreshModal && this.tick % 12 === 0) this.refreshModal();
+    // Wait for any other start-up popup (welcome back, raided, chapel) to be closed first.
+    if (this.whatsNewPending && !this.isModalOpen()) {
+      this.whatsNewPending = false;
+      this.openWhatsNew(seenChange());
+    }
   }
 
   // ---------- Selection panel ----------
@@ -1046,13 +1073,19 @@ export class UI {
         render();
       };
       const online = this.game.online;
+      const news = el('button', 'btn gold', "🎉 What's new");
+      news.onclick = () => {
+        sfx('click');
+        this.openWhatsNew();
+      };
       const save = el('button', 'btn', online ? '🔄 Sync now' : '💾 Save now');
       save.onclick = () => {
         this.game.save();
         if (online) this.toast('Synced with the server.', 'good');
         else if (!staleSave) this.toast('Saved!', 'good');
       };
-      row1.append(mute, save);
+      row1.append(mute, save, news);
+      row1.style.flexWrap = 'wrap';
       m.body.appendChild(row1);
 
       if (online) {
@@ -1231,6 +1264,35 @@ export class UI {
     this.visitHud?.remove();
     this.visitHud = null;
     this.visitSel = null;
+  }
+
+  // ---------- What's new ----------
+  /** Called once at start-up: queue the popup if there is something this browser hasn't seen. */
+  checkWhatsNew(freshPlayer: boolean): void {
+    if (freshPlayer) markChangeSeen(); // a brand-new player has nothing to catch up on
+    else if (seenChange() < LATEST_CHANGE) this.whatsNewPending = true;
+  }
+
+  /** The update notes. Entries newer than `seen` get a NEW tag; from Settings nothing is tagged. */
+  openWhatsNew(seen = LATEST_CHANGE): void {
+    const m = this.modal("What's New", { narrow: true, headIcon: '<span style="font-size:30px">🎉</span>' });
+    markChangeSeen();
+    for (const e of CHANGELOG) {
+      const isNew = e.v > seen;
+      const box = el('div', `news ${isNew ? 'new' : ''}`);
+      box.appendChild(el('div', 'news-head', `<b>${esc(e.title)}</b>${isNew ? '<span class="news-tag">NEW</span>' : ''}<small>${esc(e.date)}</small>`));
+      const ul = el('ul');
+      for (const it of e.items) ul.appendChild(el('li', '', esc(it)));
+      box.appendChild(ul);
+      m.body.appendChild(box);
+    }
+    const ok = el('button', 'btn big', 'Got it');
+    ok.style.marginTop = '4px';
+    ok.onclick = () => {
+      sfx('click');
+      m.close();
+    };
+    m.body.appendChild(ok);
   }
 
   // ---------- Loading ----------

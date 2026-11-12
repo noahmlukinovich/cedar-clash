@@ -1183,6 +1183,50 @@ button.up-main:hover {
   gap: 8px;
 }
 
+/* ---------- What's new ---------- */
+.news {
+  background: #fff;
+  border: 3px solid var(--out);
+  border-radius: 14px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+}
+.news.new {
+  box-shadow: 0 3px 0 var(--out);
+}
+.news:not(.new) {
+  background: var(--panel-d);
+}
+.news-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  color: var(--navy);
+}
+.news-head small {
+  margin-left: auto;
+  font-size: 12px;
+  color: #6a5f7a;
+}
+.news-tag {
+  background: linear-gradient(#ff7a6b, #c9332b);
+  color: #fff;
+  border: 2px solid var(--out);
+  border-radius: 8px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 900;
+}
+.news ul {
+  margin: 6px 0 2px;
+  padding-left: 20px;
+  font-size: 14px;
+}
+.news li {
+  margin: 3px 0;
+}
+
 /* ---------- Visiting another campus ---------- */
 .visit-bar {
   position: absolute;

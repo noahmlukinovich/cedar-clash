@@ -107,6 +107,10 @@ Everything numeric lives in typed tables under `src/config/`:
 - `troops.ts`: per-level HP, DPS, training cost, and research cost/time (plus heroes)
 - `spells.ts`, `balance.ts`: spell stats and global knobs (raid time, loot %, chapel rewards, event odds)
 
+### Announcing an update
+
+Add an entry at the top of `src/config/changelog.ts` with the next `v` number. Players see the **What's New** popup once, the first time they load a build with a newer entry than their browser has shown, and can reread the list from **⚙ Settings**. Brand-new players don't get the popup.
+
 ### Adding jokes
 
 All flavor text lives in `src/config/humor.ts` (loading tips, rival names, league names, win/lose lines, chapel messages, Campus Safety tickets, achievements). Building and troop descriptions are in their config files. Add your own inside jokes there.
