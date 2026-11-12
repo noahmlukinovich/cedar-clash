@@ -39,6 +39,8 @@ import { canAttendChapel, chapelReward, startEvent } from '../game/events';
 import { exportSave, resetSave, saveGame, staleSave } from '../game/save';
 import { setPrefersOffline } from '../net/login';
 import type { BuildingInst } from '../game/state';
+import { type ExtraRow, type UpgradeRow, listUpgrades } from '../game/upgrades';
+import { toWorld } from '../core/iso';
 import type { Game } from '../main';
 import { fmtTime } from '../village/villageScene';
 import { ICONS, icon } from './icons';
@@ -92,6 +94,7 @@ export class UI {
   private chipSig = '';
   private lastSelSig = '';
   private tick = 0;
+  private buildersSig = '';
 
   constructor(public game: Game) {
     this.toasts.id = 'toasts';
@@ -150,7 +153,17 @@ export class UI {
     v.appendChild(stack);
 
     this.buildersEl = el('div', 'builders stroke');
-    this.buildersEl.title = 'Facilities Crew (builders). Build more sheds to work on more things at once.';
+    this.buildersEl.title = 'Facilities Crew (builders). Click to list every upgrade you can do.';
+    this.buildersEl.setAttribute('role', 'button');
+    this.buildersEl.tabIndex = 0;
+    const openList = (): void => {
+      sfx('click');
+      this.openUpgrades();
+    };
+    this.buildersEl.onclick = openList;
+    this.buildersEl.onkeydown = (e) => {
+      if (e.key === 'Enter') openList();
+    };
     v.appendChild(this.buildersEl);
 
     const prof = el('div', 'profile');
@@ -241,7 +254,13 @@ export class UI {
       e.fill.style.width = `${Math.min(100, (s.resources[r] / Math.max(1, cp[r])) * 100)}%`;
     }
     const bl = builders(s);
-    this.buildersEl.innerHTML = `${icon('builder', 30)}<div>${bl.total - bl.busy}/${bl.total}<small>Facilities Crew</small></div>`;
+    // Rewritten only when it changes, so a click on it is never lost to a re-render.
+    const ups = listUpgrades(s).count;
+    const bsig = `${bl.total - bl.busy}/${bl.total}:${ups}`;
+    if (bsig !== this.buildersSig) {
+      this.buildersSig = bsig;
+      this.buildersEl.innerHTML = `${icon('builder', 30)}<div>${bl.total - bl.busy}/${bl.total}<small>Facilities Crew</small></div>${ups > 0 ? `<span class="up-badge" title="${ups} upgrade${ups === 1 ? '' : 's'} available">${ups}</span>` : ''}`;
+    }
     const lg = leagueFor(s.trophies);
     this.trophyEl.innerHTML = `${icon('trophy', 34)}<div><div class="num">${s.trophies}</div><div class="league" style="color:${lg.color}">${lg.name}</div></div>`;
     // event chips (rebuild only when the set of events changes; otherwise just update timers)
@@ -652,6 +671,164 @@ export class UI {
     };
     render();
     this.refreshModal = render;
+  }
+
+  // ---------- Upgrades list ----------
+  /** Every upgrade the player can do (or is waiting on), in one place. */
+  openUpgrades(): void {
+    const m = this.modal('Upgrades', { headIcon: icon('builder', 36) });
+    let sig = '';
+    let timers: { el: HTMLElement; left: () => number }[] = [];
+    const fail = (err: string): void => {
+      this.toast(err, 'bad');
+      sfx('error');
+    };
+    const goTo = (id: number): void => {
+      const b = this.state.buildings.find((x) => x.id === id);
+      if (!b) return;
+      this.closeModal();
+      const vs = this.game.village;
+      vs.select(id);
+      const sz = BUILDINGS[b.type].size;
+      const w = toWorld(b.x + sz / 2, b.y + sz / 2);
+      vs.cam.x = w.x;
+      vs.cam.y = w.y;
+      vs.cam.clampPos();
+    };
+    /** A row: [picture + text (optionally clickable)] [right-hand side]. */
+    const mkRow = (cls: string, thumb: HTMLElement, title: string, sub: string, go?: () => void): { row: HTMLElement; side: HTMLElement; sub: HTMLElement } => {
+      const row = el('div', `up-row ${cls}`);
+      const main = el(go ? 'button' : 'div', 'up-main');
+      const subEl = el('div', 'up-sub', sub);
+      const txt = el('div', 'up-txt');
+      txt.append(el('div', 'up-name', title), subEl);
+      main.append(thumb, txt);
+      if (go) {
+        main.title = 'Show on campus';
+        main.onclick = go;
+      }
+      const side = el('div', 'up-side');
+      row.append(main, side);
+      return { row, side, sub: subEl };
+    };
+    const time = (t: number): string => (t > 0 ? `⏱ ${fmtTime(t)}` : '⚡ Instant');
+    const render = (force = false): void => {
+      const s = this.state;
+      const l = listUpgrades(s);
+      // Rebuild only when something other than a countdown changed; otherwise just tick the timers.
+      const nsig = JSON.stringify([l.progress.map((p) => [p.id, p.to, p.finishCost, s.resources.chapel >= p.finishCost]), l.ready, l.waiting, l.extras.map((e) => ({ ...e, left: e.left !== undefined }))]);
+      if (!force && nsig === sig) {
+        for (const t of timers) t.el.textContent = fmtTime(t.left());
+        return;
+      }
+      sig = nsig;
+      timers = [];
+      const scroll = m.body.scrollTop;
+      m.body.innerHTML = '';
+      const bl = builders(s);
+      m.body.appendChild(el('div', 'flavor', `Facilities Crew free: ${bl.total - bl.busy}/${bl.total}. Click a name or picture to find it on campus.`));
+      const section = (title: string, n: number): HTMLElement => {
+        m.body.appendChild(el('div', 'section-title', `${title} <small>(${n})</small>`));
+        const list = el('div', 'up-list');
+        m.body.appendChild(list);
+        return list;
+      };
+
+      if (l.progress.length) {
+        const list = section('In progress', l.progress.length);
+        for (const p of l.progress) {
+          const r = mkRow('', buildingThumb(p.type, p.to, 60, 50), esc(p.name), `${p.to <= 1 ? 'Building' : `Lv ${p.to - 1} → ${p.to}`} · ⏱ <span class="up-left"></span>`, () => goTo(p.id));
+          const left = r.sub.querySelector('.up-left') as HTMLElement;
+          left.textContent = fmtTime(p.left);
+          timers.push({ el: left, left: () => Math.max(0, (this.state.buildings.find((b) => b.id === p.id)?.upgrade?.end ?? 0) - this.state.clock) });
+          const fin = el('button', 'btn small purple', `Finish ${costHtml('chapel', p.finishCost, canAfford(s, 'chapel', p.finishCost))}`);
+          fin.onclick = () => {
+            const err = this.game.act({ k: 'finish', id: p.id }).err;
+            if (err) fail(err);
+            else sfx('click');
+            render(true);
+          };
+          r.side.appendChild(fin);
+          list.appendChild(r.row);
+        }
+      }
+
+      const buildingRow = (u: UpgradeRow, ready: boolean): HTMLElement => {
+        const title = u.type === 'wall' ? `Walls ×${u.count}` : esc(u.name);
+        const r = mkRow(ready ? '' : 'waiting', buildingThumb(u.type, u.level, 60, 50), title, `Lv ${u.level} → ${u.level + 1} · ${time(u.time)}`, () => goTo(u.id));
+        r.side.appendChild(el('div', '', costHtml(u.res, u.cost, canAfford(s, u.res, u.cost))));
+        if (ready) {
+          const up = el('button', 'btn small gold', 'Upgrade');
+          up.onclick = () => {
+            const err = this.game.act({ k: 'upgrade', id: u.id }).err;
+            if (err) fail(err);
+            else {
+              sfx('build');
+              this.game.village.pop(u.id);
+            }
+            render(true);
+          };
+          r.side.appendChild(up);
+        } else if (u.reason && canAfford(s, u.res, u.cost)) {
+          r.side.appendChild(el('div', 'up-why', u.reason));
+        }
+        return r.row;
+      };
+      if (l.ready.length) {
+        const list = section('Ready to upgrade', l.ready.length);
+        for (const u of l.ready) list.appendChild(buildingRow(u, true));
+      }
+      if (l.waiting.length) {
+        const list = section('Need more resources', l.waiting.length);
+        for (const u of l.waiting) list.appendChild(buildingRow(u, false));
+      }
+
+      if (l.extras.length) {
+        const list = section('Library & heroes', l.extras.length);
+        for (const e of l.extras) list.appendChild(extraRow(e));
+      }
+      if (!l.progress.length && !l.ready.length && !l.waiting.length && !l.extras.length) {
+        m.body.appendChild(el('p', 'flavor', 'Nothing left to upgrade at this DMC level. Facilities is, for once, caught up.'));
+      }
+      m.body.scrollTop = scroll;
+    };
+    const extraRow = (e: ExtraRow): HTMLElement => {
+      const s = this.state;
+      const running = e.left !== undefined;
+      const what = e.kind === 'research' ? 'Research' : 'Hero';
+      const sub = running ? `${what} · Lv ${e.level} → ${e.level + 1} · ⏱ <span class="up-left"></span>` : `${what} · Lv ${e.level} → ${e.level + 1} · ${time(e.time)}`;
+      const r = mkRow(running || e.ok ? '' : 'waiting', unitThumb(e.type, 60, 50), e.name, sub);
+      if (running) {
+        const left = r.sub.querySelector('.up-left') as HTMLElement;
+        left.textContent = fmtTime(e.left!);
+        timers.push({
+          el: left,
+          left: () => {
+            const st = this.state;
+            const end = e.kind === 'research' ? st.research?.end : st.heroes[e.type as HeroType].upgrade?.end;
+            return Math.max(0, (end ?? 0) - st.clock);
+          },
+        });
+        r.side.appendChild(el('div', 'up-why', e.kind === 'research' ? 'Researching…' : 'Upgrading…'));
+        return r.row;
+      }
+      r.side.appendChild(el('div', '', costHtml(e.res, e.cost, canAfford(s, e.res, e.cost))));
+      if (e.ok) {
+        const b = el('button', `btn small ${e.kind === 'research' ? 'blue' : 'purple'}`, e.kind === 'research' ? 'Research' : 'Upgrade');
+        b.onclick = () => {
+          const err = e.kind === 'research' ? this.game.act({ k: 'research', type: e.type as TroopType }).err : this.game.act({ k: 'heroUpgrade', type: e.type as HeroType }).err;
+          if (err) fail(err);
+          else sfx('build');
+          render(true);
+        };
+        r.side.appendChild(b);
+      } else if (e.reason && canAfford(s, e.res, e.cost)) {
+        r.side.appendChild(el('div', 'up-why', e.reason));
+      }
+      return r.row;
+    };
+    render(true);
+    this.refreshModal = () => render();
   }
 
   // ---------- Library ----------
