@@ -10,20 +10,15 @@ import { pick } from '../core/rng';
 import {
   armyCapacity,
   armyUsed,
-  brew,
   brewCheck,
-  cancelTrain,
   heroAvailable,
   heroUnlocked,
-  heroUpgrade,
   heroUpgradeCheck,
   libraryLevel,
   queueUsed,
   researchCheck,
   spellCapacity,
   spellsUsed,
-  startResearch,
-  train,
   trainCheck,
   troopUnlocked,
 } from '../game/army';
@@ -34,16 +29,15 @@ import {
   caps,
   countOf,
   dmcLevel,
-  finishNow,
   finishNowCost,
   hasEvent,
   nextLevelInfo,
   resName,
-  startUpgrade,
   upgradeCheck,
 } from '../game/economy';
-import { attendChapel, canAttendChapel, chapelReward, startEvent } from '../game/events';
-import { exportSave, resetSave, saveGame } from '../game/save';
+import { canAttendChapel, chapelReward, startEvent } from '../game/events';
+import { exportSave, resetSave, saveGame, staleSave } from '../game/save';
+import { setPrefersOffline } from '../net/login';
 import type { BuildingInst } from '../game/state';
 import type { Game } from '../main';
 import { fmtTime } from '../village/villageScene';
@@ -55,6 +49,11 @@ export function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', html
   if (cls) e.className = cls;
   if (html) e.innerHTML = html;
   return e;
+}
+
+/** Escapes text for safe use inside innerHTML (player-chosen names come from other people). */
+export function esc(t: string): string {
+  return t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 }
 
 export function fmt(n: number): string {
@@ -323,7 +322,7 @@ export class UI {
     if (b.upgrade) {
       const c = finishNowCost(s, b);
       btn('Finish', icon('clock', 30), 'purple', () => {
-        const err = finishNow(s, b);
+        const err = this.game.act({ k: 'finish', id: b.id }).err;
         if (err) {
           this.toast(err, 'bad');
           sfx('error');
@@ -338,7 +337,7 @@ export class UI {
           `<span style="font-size:28px">⬆️</span>`,
           err ? 'gray' : 'gold',
           () => {
-            const e2 = startUpgrade(s, b);
+            const e2 = this.game.act({ k: 'upgrade', id: b.id }).err;
             if (e2) {
               this.toast(e2, 'bad');
               sfx('error');
@@ -540,7 +539,7 @@ export class UI {
         }
         qi.title = 'Click to cancel (refund)';
         qi.onclick = () => {
-          cancelTrain(s, i);
+          this.game.act({ k: 'cancelTrain', idx: i });
           sfx('click');
           render();
         };
@@ -570,7 +569,7 @@ export class UI {
         }
         card.title = `${d.desc}\n\n"${d.flavor}"`;
         card.onclick = () => {
-          const err = train(s, t);
+          const err = this.game.act({ k: 'train', type: t }).err;
           if (err) {
             this.toast(err, 'bad');
             sfx('error');
@@ -616,7 +615,7 @@ export class UI {
           if (!locked) card.appendChild(el('div', '', costHtml(d.res, d.cost, canAfford(s, d.res, d.cost))));
           card.title = `${d.desc}\n\n"${d.flavor}"`;
           card.onclick = () => {
-            const e2 = brew(s, t);
+            const e2 = this.game.act({ k: 'brew', type: t }).err;
             if (e2) {
               this.toast(e2, 'bad');
               sfx('error');
@@ -687,7 +686,7 @@ export class UI {
           card.appendChild(el('div', '', costHtml('coffee', n.researchCost, canAfford(s, 'coffee', n.researchCost))));
         }
         card.onclick = () => {
-          const e2 = startResearch(s, t);
+          const e2 = this.game.act({ k: 'research', type: t }).err;
           if (e2) {
             this.toast(e2, 'bad');
             sfx('error');
@@ -734,7 +733,7 @@ export class UI {
         const b = el('button', `btn ${err ? 'gray' : 'purple'}`, `Upgrade ${costHtml('chapel', N.upgradeCost, canAfford(s, 'chapel', N.upgradeCost))}`);
         b.style.marginTop = '12px';
         b.onclick = () => {
-          const e2 = heroUpgrade(s, h, dmcLevel(s));
+          const e2 = this.game.act({ k: 'heroUpgrade', type: h }).err;
           if (e2) {
             this.toast(e2, 'bad');
             sfx('error');
@@ -760,7 +759,7 @@ export class UI {
         const r = chapelReward(s);
         const b = el('button', 'btn purple big', `Attend Chapel (+${r} ${icon('chapel', 26)})`);
         b.onclick = () => {
-          const got = attendChapel(s);
+          const got = this.game.act({ k: 'chapel' }).got ?? 0;
           sfx('pray');
           this.toast(`${pick(CHAPEL_ATTEND_LINES)} +${got} Chapel Credits`, 'good');
           this.game.village.particles.text(0, 400, 50, `+${got} Chapel Credits`, '#d6b4ff', 24);
@@ -835,7 +834,6 @@ export class UI {
         sfx('error');
         return;
       }
-      s.resources.tuition -= cost;
       this.closeModal();
       this.game.startRaid({ kind: 'random' });
     };
@@ -865,13 +863,49 @@ export class UI {
         s.settings.muted = isMuted();
         render();
       };
-      const save = el('button', 'btn', '💾 Save now');
+      const online = this.game.online;
+      const save = el('button', 'btn', online ? '🔄 Sync now' : '💾 Save now');
       save.onclick = () => {
-        if (saveGame(s)) this.toast('Saved!', 'good');
-        else this.showUpdateBar('stale');
+        this.game.save();
+        if (online) this.toast('Synced with the server.', 'good');
+        else if (!staleSave) this.toast('Saved!', 'good');
       };
       row1.append(mute, save);
       m.body.appendChild(row1);
+
+      if (online) {
+        m.body.appendChild(el('div', 'section-title', 'Account'));
+        const shield = online.shieldUntil > Date.now() ? ` · 🛡️ Shield for ${fmtTime((online.shieldUntil - Date.now()) / 1000)}` : '';
+        m.body.appendChild(el('div', '', `Playing online as <b>${esc(online.user.name)}</b>${shield}`));
+        const r2 = el('div', 'row');
+        const lb = el('button', 'btn small gold', '🏆 Leaderboard');
+        lb.onclick = () => void this.openLeaderboard();
+        const out = el('button', 'btn small red', 'Log out');
+        out.onclick = async () => {
+          await online.flush();
+          await online.logout().catch(() => undefined);
+          this.game.resetting = true;
+          location.reload();
+        };
+        r2.append(lb, out);
+        m.body.appendChild(r2);
+        m.body.appendChild(el('p', 'flavor', 'Your campus is saved on the server. Other players can raid it while you are away; a shield protects you for a while after a big raid.'));
+        appendControls();
+        return;
+      }
+
+      if (this.game.serverAvailable) {
+        m.body.appendChild(el('div', 'section-title', 'Online play'));
+        const go = el('button', 'btn small blue', '🌐 Log in / sign up to play online');
+        go.onclick = () => {
+          saveGame(s);
+          setPrefersOffline(false);
+          this.game.resetting = true;
+          location.reload();
+        };
+        m.body.appendChild(go);
+        m.body.appendChild(el('p', 'flavor', 'Online campuses are separate from this offline save, and real players can raid them.'));
+      }
 
       m.body.appendChild(el('div', 'section-title', 'Debug'));
       const dr = el('div', 'debug-row');
@@ -934,6 +968,9 @@ export class UI {
       };
       r3.append(exp, reset);
       m.body.appendChild(r3);
+      appendControls();
+    };
+    const appendControls = (): void => {
       m.body.appendChild(el('div', 'section-title', 'Controls'));
       m.body.appendChild(
         el(
@@ -945,6 +982,26 @@ export class UI {
       m.body.appendChild(el('p', 'flavor', 'Cedarville Clash is an unofficial, affectionate fan parody. Not affiliated with or endorsed by any university or game studio. All art is procedurally drawn.'));
     };
     render();
+  }
+
+  async openLeaderboard(): Promise<void> {
+    const online = this.game.online;
+    if (!online) return;
+    let rows;
+    try {
+      rows = await online.leaderboard();
+    } catch (e) {
+      this.toast((e as Error).message, 'bad');
+      return;
+    }
+    const m = this.modal('Leaderboard', { narrow: true, headIcon: icon('trophy', 36) });
+    const list = el('div', 'league-list');
+    rows.forEach((r, i) => {
+      const me = r.name === online.user.name;
+      list.appendChild(el('div', `league-row stroke ${me ? 'me' : ''}`, `<span>${i + 1}. ${esc(r.name)} <small>DMC ${r.dmc}</small></span><span>${icon('trophy', 18)} ${r.trophies}</span>`));
+    });
+    if (!rows.length) list.appendChild(el('div', 'flavor', 'Nobody here yet.'));
+    m.body.appendChild(list);
   }
 
   // ---------- Loading ----------
@@ -993,9 +1050,10 @@ export class UI {
         : '⚠️ A newer version of the game is open in another tab, so this tab has stopped saving to protect that progress. Reload to continue here.';
     bar.appendChild(el('span', 'stroke', msg));
     const reload = el('button', 'btn small gold', 'Reload');
-    reload.onclick = () => {
+    reload.onclick = async () => {
       // Save first if we're allowed to (an 'update' tab still owns the save).
-      if (kind === 'update') saveGame(this.state);
+      if (this.game.online) await this.game.online.flush();
+      else if (kind === 'update') saveGame(this.state);
       this.game.resetting = true; // skip the beforeunload save; we just saved
       location.reload();
     };

@@ -6,6 +6,7 @@ import { FAN_DEF, HEROES, TROOPS } from '../config/troops';
 import { SPELLS } from '../config/spells';
 import type { BuildingType, DefenseStats, HeroType, SpellType, TroopType, UnitType } from '../config/types';
 import { dist, distToRect } from '../core/iso';
+import { Rng } from '../core/rng';
 import { BLOCKED, FREE, WALL_COST, findPath } from './pathfind';
 import type { BaseLayout } from './basegen';
 
@@ -138,9 +139,17 @@ export interface RaidOptions {
   ringBySpring: boolean;
   wind: boolean;
   elephant: boolean;
+  /** Seeds every gameplay-affecting random roll, so a raid replays identically from its inputs. */
+  seed: number;
 }
 
-let UID = 1;
+/** Fixed unit vectors for "lost freshman" wandering (avoids cos/sin, which can differ across JS engines). */
+const WANDER_DIRS: [number, number][] = [
+  [1, 0], [0.9238795325, 0.3826834324], [0.7071067812, 0.7071067812], [0.3826834324, 0.9238795325],
+  [0, 1], [-0.3826834324, 0.9238795325], [-0.7071067812, 0.7071067812], [-0.9238795325, 0.3826834324],
+  [-1, 0], [-0.9238795325, -0.3826834324], [-0.7071067812, -0.7071067812], [-0.3826834324, -0.9238795325],
+  [0, -1], [0.3826834324, -0.9238795325], [0.7071067812, -0.7071067812], [0.9238795325, -0.3826834324],
+];
 
 export class RaidSim {
   buildings: RB[] = [];
@@ -166,17 +175,21 @@ export class RaidSim {
   windDir = 1;
   windOn = false;
   windSurvived = false;
+  /** Gameplay RNG. Cosmetic-only rolls (event flourishes) use Math.random so they never desync a replay. */
+  rng: Rng;
+  private uid = 1;
   private pathBudget = 0;
   private pairT = 0;
   private dirtyCost = true;
 
   constructor(public base: BaseLayout, public opts: RaidOptions) {
+    this.rng = new Rng(opts.seed);
     for (const p of base.pieces) {
       const def = BUILDINGS[p.type];
       const L = def.levels[Math.min(def.levels.length, p.level) - 1];
       const size = def.size;
       const b: RB = {
-        uid: UID++,
+        uid: this.uid++,
         type: p.type,
         level: p.level,
         x: p.x,
@@ -223,8 +236,8 @@ export class RaidSim {
         for (let x = b.x - 1; x < b.x + b.size + 1; x++) if (x >= 0 && y >= 0 && x < GRID && y < GRID) this.forbid[y * GRID + x] = 1;
     }
     if (opts.wind) {
-      this.windStart = 18 + Math.random() * 50;
-      this.windDir = Math.random() < 0.5 ? 1 : -1;
+      this.windStart = 18 + this.rng.next() * 50;
+      this.windDir = this.rng.next() < 0.5 ? 1 : -1;
     }
   }
 
@@ -298,7 +311,7 @@ export class RaidSim {
       type: 'fan',
       side: 'def',
       level: lvl,
-      x: b.cx + (Math.random() - 0.5),
+      x: b.cx + (this.rng.next() - 0.5),
       y: b.y + b.size + 0.3,
       hp: L.hp,
       dps: L.dps,
@@ -310,10 +323,10 @@ export class RaidSim {
 
   private addUnit(p: { type: UnitType; side: 'atk' | 'def'; level: number; x: number; y: number; hp: number; dps: number; speed: number; range: number; rate: number }): RU {
     const u: RU = {
-      uid: UID++,
+      uid: this.uid++,
       ...p,
       maxHp: p.hp,
-      cd: Math.random() * 0.3,
+      cd: this.rng.next() * 0.3,
       tb: null,
       tu: null,
       path: [],
@@ -333,7 +346,7 @@ export class RaidSim {
       wdx: 0,
       wdy: 0,
       face: 1,
-      t: Math.random() * 10,
+      t: this.rng.next() * 10,
       attackT: 0,
       moving: false,
       dead: false,
@@ -822,11 +835,11 @@ export class RaidSim {
         u.idleT += dt;
         return;
       }
-      if (u.type === 'freshman' && Math.random() < 0.18) {
-        u.wanderUntil = this.time + 1.2 + Math.random();
-        const a = Math.random() * Math.PI * 2;
-        u.wdx = Math.cos(a);
-        u.wdy = Math.sin(a);
+      if (u.type === 'freshman' && this.rng.next() < 0.18) {
+        u.wanderUntil = this.time + 1.2 + this.rng.next();
+        const [wx, wy] = WANDER_DIRS[Math.floor(this.rng.next() * WANDER_DIRS.length)];
+        u.wdx = wx;
+        u.wdy = wy;
         this.events.push({ e: 'wander', u });
         return;
       }
@@ -893,7 +906,7 @@ export class RaidSim {
   private stepToward(u: RU, tx: number, ty: number, step: number, loose: boolean): void {
     const dx = tx - u.x;
     const dy = ty - u.y;
-    const d = Math.hypot(dx, dy);
+    const d = Math.sqrt(dx * dx + dy * dy);
     if (d < 0.001) return;
     const k = Math.min(step, d) / d;
     const nx = u.x + dx * k;

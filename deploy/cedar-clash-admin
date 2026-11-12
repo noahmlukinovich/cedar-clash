@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Admin commands for the Cedar Clash server, run as the game's own user:
+#   cedar-clash-admin invite [uses] [note]   new invite code
+#   cedar-clash-admin invites                unused invite codes
+#   cedar-clash-admin users                  list players
+#   cedar-clash-admin passwd <name> <pw>     reset a password (logs them out)
+#   cedar-clash-admin delete-user <name>
+set -euo pipefail
+exec runuser -u cedarclash -- env DB_PATH=/var/lib/cedar-clash/cedar-clash.db TZ=America/New_York \
+  node --disable-warning=ExperimentalWarning /opt/cedar-clash/app/server.mjs "$@"

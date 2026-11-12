@@ -1,5 +1,5 @@
 import { BUILDINGS } from '../config/buildings';
-import { ELEPHANT_RUN_TIME, GRID, RAID_TIME, THREE_STAR_CHAPEL } from '../config/balance';
+import { GRID } from '../config/balance';
 import { EVENT_INFO, LOSE_LINES, WIN_LINES, WIND_LINES } from '../config/humor';
 import { HEROES, TROOPS, TROOP_ORDER } from '../config/troops';
 import { SPELLS, SPELL_ORDER } from '../config/spells';
@@ -9,24 +9,21 @@ import { Camera } from '../core/camera';
 import { toGrid, toWorld } from '../core/iso';
 import { Particles } from '../core/particles';
 import { pick } from '../core/rng';
-import { heroAvailable } from '../game/army';
-import { addRes, bump, dmcLevel, hasEvent, unlock } from '../game/economy';
 import type { Game, Scene } from '../main';
 import { C, OUT, P, poly } from '../render/draw';
 import { drawUnit } from '../render/unitSprites';
 import { borderTrees, drawBar, drawBuildingAt, drawGround, drawLabel, drawTree, type TreeSpot } from '../render/world';
 import { ICONS, icon } from '../ui/icons';
 import { spellThumb, unitThumb } from '../ui/thumbs';
-import { el, fmt } from '../ui/ui';
-import { type BaseLayout, generateBase, rivalStateU } from './basegen';
-import { type RU, RaidSim } from './sim';
+import { el, esc, fmt } from '../ui/ui';
+import type { BaseLayout } from './basegen';
+import { RaidEngine, type RaidSetup, TICK, q } from './engine';
+import type { RaidOutcome } from './outcome';
+import type { RU, RaidSim } from './sim';
 
-export type RaidKind = 'campaign' | 'random' | 'elephant';
+export type { RaidKind } from './engine';
 
-type Card =
-  | { kind: 'troop'; type: TroopType; count: number }
-  | { kind: 'hero'; type: HeroType; deployed: RU | null; avail: boolean }
-  | { kind: 'spell'; type: SpellType; count: number };
+type Card = { kind: 'troop'; type: TroopType } | { kind: 'hero'; type: HeroType } | { kind: 'spell'; type: SpellType };
 
 interface Beam {
   x1: number;
@@ -46,17 +43,14 @@ interface Grave {
 export class RaidScene implements Scene {
   cam = new Camera();
   particles = new Particles();
-  sim: RaidSim;
+  engine: RaidEngine;
   base: BaseLayout;
   cards: Card[] = [];
   sel = 0;
   time = 0;
-  timeLeft: number;
-  started = false;
-  scoutLeft = 30;
+  /** True once the raid is over (finishing or showing results). */
   ended = false;
-  endDelay = -1;
-  deployedAny = false;
+  private acc = 0;
   trees: TreeSpot[] = borderTrees(0);
   beams: Beam[] = [];
   graves: Grave[] = [];
@@ -70,27 +64,15 @@ export class RaidScene implements Scene {
   private windT = 0;
   private hudEls: Record<string, HTMLElement> = {};
   private starsShown = 0;
-  private elephantLeft = 30;
-  private lastElephant: RU | null = null;
 
-  constructor(public game: Game, public kind: RaidKind) {
-    const s = game.state;
-    const dl = dmcLevel(s);
-    if (kind === 'campaign') this.base = rivalStateU();
-    else this.base = generateBase(Math.max(1, Math.min(6, dl + (Math.random() < 0.25 ? 1 : 0) - (Math.random() < 0.2 ? 1 : 0))), (Math.random() * 1e9) | 0);
-    if (kind === 'elephant') {
-      this.base.name = `Elephant Run vs ${this.base.name}`;
-      this.base.loot.tuition = Math.round(this.base.loot.tuition * 1.5);
-      this.base.loot.coffee = Math.round(this.base.loot.coffee * 1.5);
-    }
-    this.sim = new RaidSim(this.base, {
-      troopLevels: s.troopLevels,
-      heroLevels: { prof: s.heroes.prof.level, president: s.heroes.president.level },
-      ringBySpring: hasEvent(s, 'ringbyspring'),
-      wind: Math.random() < 0.35,
-      elephant: kind === 'elephant',
-    });
-    this.timeLeft = kind === 'elephant' ? ELEPHANT_RUN_TIME : RAID_TIME;
+  constructor(
+    public game: Game,
+    public setup: RaidSetup,
+    /** Settles the raid (locally offline, or on the server online) and returns the official outcome. */
+    private settle: (engine: RaidEngine) => Promise<RaidOutcome>,
+  ) {
+    this.base = setup.base;
+    this.engine = new RaidEngine(setup);
     const c = toWorld(20, 20);
     this.cam.x = c.x;
     this.cam.y = c.y - 40;
@@ -98,27 +80,35 @@ export class RaidScene implements Scene {
     this.buildCards();
   }
 
-  get state() {
-    return this.game.state;
+  get sim(): RaidSim {
+    return this.engine.sim;
+  }
+
+  get kind() {
+    return this.setup.kind;
+  }
+
+  private count(c: Card): number {
+    return c.kind === 'troop' ? (this.engine.troops[c.type] ?? 0) : c.kind === 'spell' ? (this.engine.spells[c.type] ?? 0) : 0;
+  }
+
+  private deployed(c: Card): RU | null {
+    return c.kind === 'hero' ? (this.engine.heroUnits[c.type] ?? null) : null;
   }
 
   private buildCards(): void {
-    const s = this.state;
+    const e = this.engine;
     this.cards = [];
-    if (this.kind === 'elephant') {
-      this.cards.push({ kind: 'troop', type: 'freshman', count: this.elephantLeft });
-      return;
-    }
-    for (const t of TROOP_ORDER) if ((s.army[t] ?? 0) > 0) this.cards.push({ kind: 'troop', type: t, count: s.army[t]! });
-    for (const h of ['prof', 'president'] as HeroType[]) if (heroAvailable(s, h)) this.cards.push({ kind: 'hero', type: h, deployed: null, avail: true });
-    for (const sp of SPELL_ORDER) if ((s.spells[sp] ?? 0) > 0) this.cards.push({ kind: 'spell', type: sp, count: s.spells[sp]! });
+    for (const t of TROOP_ORDER) if ((e.troops[t] ?? 0) > 0) this.cards.push({ kind: 'troop', type: t });
+    for (const h of e.availableHeroes()) this.cards.push({ kind: 'hero', type: h });
+    for (const sp of SPELL_ORDER) if ((e.spells[sp] ?? 0) > 0) this.cards.push({ kind: 'spell', type: sp });
   }
 
   // ---------- Scene lifecycle ----------
   enter(): void {
     this.game.ui.root.appendChild(this.hud);
     this.buildHud();
-    this.game.ui.banner(this.base.name, '#ffe066');
+    this.game.ui.banner(esc(this.base.name), '#ffe066');
     if (this.kind === 'elephant') setTimeout(() => this.game.ui.toast(`🐘 ${EVENT_INFO.elephantrun.desc}`, 'event'), 600);
     if (this.sim.opts.ringBySpring) setTimeout(() => this.game.ui.toast('💍 Ring by Spring: troops that pair up get +20% damage & speed!', 'event'), 1200);
     sfx('whistle');
@@ -133,7 +123,8 @@ export class RaidScene implements Scene {
     const h = this.hud;
     h.innerHTML = '';
     const top = el('div', 'raid-top stroke');
-    top.innerHTML = `<div class="enemy">${this.base.name}</div><div class="tag">DMC ${this.base.dmc} · ${this.base.tagline}</div><div class="loot"><span>Available:</span><span class="lt">${icon('tuition', 22)} <b></b></span><span class="lc">${icon('coffee', 22)} <b></b></span></div><div class="loot"><span>Looted:</span><span class="gt">${icon('tuition', 22)} <b>0</b></span><span class="gc">${icon('coffee', 22)} <b>0</b></span></div>`;
+    const who = this.setup.defender ? `🏆 ${this.setup.defender.trophies} · a real campus!` : esc(this.base.tagline);
+    top.innerHTML = `<div class="enemy">${esc(this.base.name)}</div><div class="tag">DMC ${this.base.dmc} · ${who}</div><div class="loot"><span>Available:</span><span class="lt">${icon('tuition', 22)} <b></b></span><span class="lc">${icon('coffee', 22)} <b></b></span></div><div class="loot"><span>Looted:</span><span class="gt">${icon('tuition', 22)} <b>0</b></span><span class="gc">${icon('coffee', 22)} <b>0</b></span></div>`;
     h.appendChild(top);
     const timer = el('div', 'raid-timer stroke', `<div class="lbl">Scouting…</div><div class="t">3:00</div>`);
     h.appendChild(timer);
@@ -142,12 +133,8 @@ export class RaidScene implements Scene {
     const end = el('button', 'btn red raid-end', 'End Raid');
     end.onclick = () => {
       sfx('click');
-      if (!this.deployedAny) {
-        // no penalty if nothing deployed
-        this.ended = true;
-        this.game.endRaid();
-        return;
-      }
+      if (this.ended) return;
+      this.engine.apply({ t: 0, k: 'end' });
       this.finish();
     };
     h.appendChild(end);
@@ -177,27 +164,29 @@ export class RaidScene implements Scene {
     bar.innerHTML = '';
     this.cards.forEach((c, i) => {
       const d = el('div', `dcard ${i === this.sel ? 'sel' : ''}`);
+      const n = this.count(c);
       if (c.kind === 'troop') {
         d.appendChild(unitThumb(c.type, 72, 66));
-        d.appendChild(el('div', 'n stroke', `x${c.count}`));
+        d.appendChild(el('div', 'n stroke', `x${n}`));
         d.appendChild(el('div', 'nm', TROOPS[c.type].name.split(' ')[0]));
-        if (c.count <= 0) d.classList.add('empty');
+        if (n <= 0) d.classList.add('empty');
       } else if (c.kind === 'hero') {
         d.classList.add('hero');
         d.appendChild(unitThumb(c.type, 72, 66));
         d.appendChild(el('div', 'nm', HEROES[c.type].name.replace('The ', '')));
-        if (c.deployed) {
-          const hp = el('div', 'hpbar', `<div style="width:${Math.max(0, (c.deployed.hp / c.deployed.maxHp) * 100)}%"></div>`);
+        const u = this.deployed(c);
+        if (u) {
+          const hp = el('div', 'hpbar', `<div style="width:${Math.max(0, (u.hp / u.maxHp) * 100)}%"></div>`);
           d.appendChild(hp);
-          if (!c.deployed.abilityUsed && !c.deployed.dead) d.appendChild(el('div', 'ability stroke', HEROES[c.type].ability.name));
+          if (!u.abilityUsed && !u.dead) d.appendChild(el('div', 'ability stroke', HEROES[c.type].ability.name));
           else d.classList.add('empty');
         }
       } else {
         d.classList.add('spell');
         d.appendChild(spellThumb(c.type, 72, 66));
-        d.appendChild(el('div', 'n stroke', `x${c.count}`));
+        d.appendChild(el('div', 'n stroke', `x${n}`));
         d.appendChild(el('div', 'nm', SPELLS[c.type].name));
-        if (c.count <= 0) d.classList.add('empty');
+        if (n <= 0) d.classList.add('empty');
       }
       d.title = c.kind === 'troop' ? TROOPS[c.type].desc : c.kind === 'hero' ? `${HEROES[c.type].desc}` : SPELLS[c.type].desc;
       d.onclick = () => this.clickCard(i);
@@ -210,7 +199,8 @@ export class RaidScene implements Scene {
     const c = this.cards[i];
     if (!c) return;
     sfx('click');
-    if (c.kind === 'hero' && c.deployed && !c.deployed.abilityUsed && !c.deployed.dead) {
+    const u = this.deployed(c);
+    if (c.kind === 'hero' && u && !u.abilityUsed && !u.dead) {
       this.useAbility(c);
       return;
     }
@@ -219,16 +209,17 @@ export class RaidScene implements Scene {
   }
 
   private useAbility(c: Card & { kind: 'hero' }): void {
-    if (!c.deployed) return;
-    this.sim.useAbility(c.deployed);
+    if (this.ended) return;
+    this.engine.apply({ t: 0, k: 'ability', type: c.type });
     this.renderCards();
   }
 
   private updateHud(): void {
     const e = this.hudEls;
-    const t = Math.max(0, this.started ? this.timeLeft : this.scoutLeft);
+    const eng = this.engine;
+    const t = Math.max(0, eng.started ? eng.timeLeft : eng.scoutLeft);
     e.timerT.textContent = `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
-    e.timerL.textContent = this.started ? 'Raid ends in' : 'Scouting… (deploy to start)';
+    e.timerL.textContent = eng.started ? 'Raid ends in' : 'Scouting… (deploy to start)';
     e.pct.textContent = `${Math.floor(this.sim.destruction * 100)}%`;
     e.lt.textContent = fmt(this.sim.lootAvail.tuition - this.sim.loot.tuition);
     e.lc.textContent = fmt(this.sim.lootAvail.coffee - this.sim.loot.coffee);
@@ -248,53 +239,42 @@ export class RaidScene implements Scene {
   // ---------- Deployment ----------
   private deployAt(sx: number, sy: number): boolean {
     const c = this.cards[this.sel];
-    if (!c) return false;
+    if (!c || this.ended) return false;
     const w = this.cam.screenToWorld(sx, sy);
     const g = toGrid(w.x, w.y);
-    if (g.gx < 0 || g.gy < 0 || g.gx >= GRID || g.gy >= GRID) return false;
+    const x = q(g.gx);
+    const y = q(g.gy);
+    if (x < 0 || y < 0 || x >= GRID || y >= GRID) return false;
     if (c.kind === 'spell') {
-      if (c.count <= 0) return false;
-      this.sim.castSpell(c.type, g.gx, g.gy);
-      c.count--;
-      this.state.spells[c.type] = Math.max(0, (this.state.spells[c.type] ?? 0) - 1);
-      if (c.type === 'allnighter') unlock(this.state, 'allnighter');
-      this.markDeployed();
+      if (!this.engine.apply({ t: 0, k: 'spell', type: c.type, x, y })) return false;
       this.renderCards();
       return true;
     }
-    if (!this.sim.canDeploy(g.gx, g.gy)) {
+    if (!this.sim.canDeploy(x, y)) {
       this.forbidFlash = 1;
       return false;
     }
     if (c.kind === 'troop') {
-      if (c.count <= 0) {
+      if (this.count(c) <= 0) {
         this.nextCard();
         return false;
       }
-      const u = this.sim.spawnTroop(c.type, g.gx + (Math.random() - 0.5) * 0.3, g.gy + (Math.random() - 0.5) * 0.3);
-      c.count--;
-      if (this.kind === 'elephant') {
-        u.elephant = true;
-        u.leader = this.lastElephant;
-        this.lastElephant = u;
-        this.elephantLeft--;
-      } else this.state.army[c.type] = Math.max(0, (this.state.army[c.type] ?? 0) - 1);
+      const u = this.engine.apply({ t: 0, k: 'troop', type: c.type, x, y });
+      if (!u || u === true) return false;
       const p = toWorld(u.x, u.y);
       this.particles.burst(p.x, p.y, 2, 5, { kind: 'puff', color: '#fff', size: 5, speed: 40, max: 0.4, grow: 8 });
       sfx('deploy');
-      this.markDeployed();
-      if (c.count <= 0) this.nextCard();
+      if (this.count(c) <= 0) this.nextCard();
       this.renderCardCounts();
       return true;
     }
     if (c.kind === 'hero') {
-      if (c.deployed) return false;
-      c.deployed = this.sim.spawnHero(c.type, g.gx, g.gy, this.state.heroes[c.type].hpFrac);
-      const p = toWorld(g.gx, g.gy);
+      if (this.deployed(c)) return false;
+      if (!this.engine.apply({ t: 0, k: 'hero', type: c.type, x, y })) return false;
+      const p = toWorld(x, y);
       this.particles.burst(p.x, p.y, 2, 16, { kind: 'spark', color: C.gold, size: 5, speed: 90, max: 0.7, vz: 120, gravity: 200 });
       this.game.ui.toast(`${HEROES[c.type].name} has entered the raid! Click the card again for ${HEROES[c.type].ability.name}.`, 'good');
       sfx('chime');
-      this.markDeployed();
       this.renderCards();
       return true;
     }
@@ -308,8 +288,9 @@ export class RaidScene implements Scene {
       if (!d) return;
       if (c.kind === 'troop' || c.kind === 'spell') {
         const n = d.querySelector('.n');
-        if (n) n.textContent = `x${c.count}`;
-        d.classList.toggle('empty', c.count <= 0);
+        const k = this.count(c);
+        if (n) n.textContent = `x${k}`;
+        d.classList.toggle('empty', k <= 0);
       }
       d.classList.toggle('sel', i === this.sel);
     });
@@ -319,18 +300,11 @@ export class RaidScene implements Scene {
     for (let k = 1; k <= this.cards.length; k++) {
       const i = (this.sel + k) % this.cards.length;
       const c = this.cards[i];
-      if ((c.kind === 'troop' && c.count > 0) || (c.kind === 'hero' && !c.deployed)) {
+      if ((c.kind === 'troop' && this.count(c) > 0) || (c.kind === 'hero' && !this.deployed(c))) {
         this.sel = i;
         this.renderCards();
         return;
       }
-    }
-  }
-
-  private markDeployed(): void {
-    this.deployedAny = true;
-    if (!this.started) {
-      this.started = true;
     }
   }
 
@@ -374,7 +348,10 @@ export class RaidScene implements Scene {
     const n = parseInt(key, 10);
     if (n >= 1 && n <= 9) this.clickCard(n - 1);
     if (key === ' ') {
-      const h = this.cards.find((c) => c.kind === 'hero' && c.deployed && !c.deployed.abilityUsed && !c.deployed.dead) as (Card & { kind: 'hero' }) | undefined;
+      const h = this.cards.find((c) => {
+        const u = this.deployed(c);
+        return c.kind === 'hero' && u && !u.abilityUsed && !u.dead;
+      }) as (Card & { kind: 'hero' }) | undefined;
       if (h) this.useAbility(h);
     }
   }
@@ -393,11 +370,6 @@ export class RaidScene implements Scene {
     this.forbidFlash = Math.max(0, this.forbidFlash - dt * 1.5);
 
     if (!this.ended) {
-      if (this.started) this.timeLeft -= dt;
-      else {
-        this.scoutLeft -= dt;
-        if (this.scoutLeft <= 0) this.started = true;
-      }
       // hold-to-deploy
       if (this.down && this.down.deploying && this.down.button === 0) {
         this.deployTimer -= dt;
@@ -407,21 +379,18 @@ export class RaidScene implements Scene {
           if (c && c.kind === 'troop') this.deployAt(this.last.x, this.last.y);
         }
       }
-      if (this.started) this.sim.update(dt);
-      this.elephantConga(dt);
-      this.consumeEvents();
-      // end conditions
-      const nothingLeft =
-        this.cards.every((c) => (c.kind === 'troop' ? c.count <= 0 : c.kind === 'hero' ? !!c.deployed : true)) && this.sim.aliveAttackers() === 0 && this.deployedAny;
-      if (this.endDelay < 0 && (this.timeLeft <= 0 || this.sim.fullStar || nothingLeft)) this.endDelay = this.sim.fullStar ? 1.5 : 1.0;
-      if (this.endDelay > 0) {
-        this.endDelay -= dt;
-        if (this.endDelay <= 0) this.finish();
+      // fixed-step simulation (deterministic, so the server can replay it)
+      this.acc = Math.min(this.acc + dt, TICK * 10);
+      while (this.acc >= TICK && !this.engine.ended) {
+        this.acc -= TICK;
+        this.engine.step();
       }
+      this.consumeEvents();
+      if (this.engine.ended) this.finish();
       this.updateHud();
       // hero hp on cards
       if (Math.floor(this.time * 4) !== Math.floor((this.time - dt) * 4)) {
-        if (this.cards.some((c) => c.kind === 'hero' && c.deployed)) this.renderCards();
+        if (this.cards.some((c) => this.deployed(c))) this.renderCards();
       }
     }
     this.particles.update(dt);
@@ -438,23 +407,6 @@ export class RaidScene implements Scene {
         this.windT = 0.03;
         const w = this.cam.screenToWorld(Math.random() * this.cam.width, Math.random() * this.cam.height);
         this.particles.add({ kind: 'leaf', x: w.x, y: w.y, z: 20, vx: this.sim.windDir * 520, vy: 0, max: 0.8, size: 7, color: Math.random() < 0.5 ? '#e8f4ff' : '#c9a04a', vr: 8 });
-      }
-    }
-  }
-
-  /** Elephant Run: each freshman follows the one deployed before it, holding hands. */
-  private elephantConga(dt: number): void {
-    if (this.kind !== 'elephant') return;
-    for (const u of this.sim.units) {
-      if (!u.elephant || u.dead || !u.leader) continue;
-      if (u.leader.dead) {
-        u.leader = u.leader.leader ?? null;
-        continue;
-      }
-      const d = Math.hypot(u.leader.x - u.x, u.leader.y - u.y);
-      if (d > 1.4 && d < 6) {
-        u.x += ((u.leader.x - u.x) / d) * dt * 1.2;
-        u.y += ((u.leader.y - u.y) / d) * dt * 1.2;
       }
     }
   }
@@ -601,7 +553,6 @@ export class RaidScene implements Scene {
             this.game.ui.banner('📝 POP QUIZ! Pencils down, defenses!', '#ffffff');
             P2.burst(p.x, p.y, 30, 30, { kind: 'confetti', color: '#fff', size: 8, speed: 220, max: 1.2, gravity: 150, vz: 120 });
             sfx('stun');
-            unlock(this.state, 'popquiz');
           } else {
             this.game.ui.banner('🎓 CONVOCATION! Everybody rise!', C.gold);
             P2.burst(p.x, p.y, 30, 40, { kind: 'confetti', color: C.gold, size: 8, speed: 260, max: 1.4, gravity: 150, vz: 160 });
@@ -620,54 +571,28 @@ export class RaidScene implements Scene {
   private finish(): void {
     if (this.ended) return;
     this.ended = true;
-    const s = this.state;
-    const sim = this.sim;
-    const stars = sim.stars;
-    const win = stars > 0;
-    const tuition = Math.floor(sim.loot.tuition);
-    const coffee = Math.floor(sim.loot.coffee);
-    const gotT = addRes(s, 'tuition', tuition);
-    const gotC = addRes(s, 'coffee', coffee);
-    let trophyDelta = win ? Math.round((this.base.trophiesWin * (1 + stars)) / 4) : -this.base.trophiesLose;
-    if (this.kind === 'elephant') trophyDelta = Math.max(0, trophyDelta);
-    s.trophies = Math.max(0, s.trophies + trophyDelta);
-    s.bestTrophies = Math.max(s.bestTrophies, s.trophies);
-    let chapel = 0;
-    if (stars === 3) {
-      chapel = THREE_STAR_CHAPEL;
-      addRes(s, 'chapel', chapel);
-      unlock(s, 'deanslist');
-    }
-    s.lastRaidClock = s.clock;
-    bump(s, 'raids');
-    bump(s, 'destroyed', sim.buildingsDestroyed);
-    bump(s, 'wallsByEngineers', sim.wallsByEngineers);
-    if (win) bump(s, 'wins');
-    else bump(s, 'losses');
-    if ((s.stats.losses ?? 0) >= 3) unlock(s, 'probation');
-    if ((s.stats.destroyed ?? 0) >= 100) unlock(s, 'destroyer');
-    if ((s.stats.wallsByEngineers ?? 0) >= 25) unlock(s, 'wallbreaker');
-    if (win && this.sim.opts.ringBySpring) unlock(s, 'ringbyspring');
-    if (win && sim.windSurvived) unlock(s, 'windblown');
-    if (this.kind === 'elephant') {
-      unlock(s, 'elephant');
-      s.events = s.events.filter((e) => e.type !== 'elephantrun');
-    }
-    if (this.kind === 'campaign' && win) s.campaignDone = true;
-    // heroes: remaining hp fraction (recovers over time)
-    for (const c of this.cards) {
-      if (c.kind !== 'hero' || !c.deployed) continue;
-      s.heroes[c.type].hpFrac = c.deployed.dead ? 0 : Math.max(0, c.deployed.hp / c.deployed.maxHp);
-    }
-    sfx(win ? 'win' : 'lose');
-    if (win) {
-      const p = this.cam.screenToWorld(this.cam.width / 2, this.cam.height / 2);
-      for (const col of [C.gold, C.roofBlue, '#fff']) this.particles.burst(p.x, p.y, 80, 30, { kind: 'confetti', color: col, size: 8, speed: 300, max: 2, gravity: 120, vz: 200 });
-    }
-    this.showResults({ win, stars, gotT, gotC, tuition, coffee, trophyDelta, chapel });
+    this.hudEls.end.setAttribute('disabled', '');
+    this.settle(this.engine).then(
+      (r) => {
+        if (r.cancelled) {
+          this.game.endRaid();
+          return;
+        }
+        sfx(r.win ? 'win' : 'lose');
+        if (r.win) {
+          const p = this.cam.screenToWorld(this.cam.width / 2, this.cam.height / 2);
+          for (const col of [C.gold, C.roofBlue, '#fff']) this.particles.burst(p.x, p.y, 80, 30, { kind: 'confetti', color: col, size: 8, speed: 300, max: 2, gravity: 120, vz: 200 });
+        }
+        this.showResults(r);
+      },
+      (err: unknown) => {
+        this.game.ui.popup('Raid not recorded', `The server couldn't settle this raid: ${esc(String((err as Error)?.message ?? err))}. Your army is safe; try again in a moment.`);
+        this.game.endRaid();
+      },
+    );
   }
 
-  private showResults(r: { win: boolean; stars: number; gotT: number; gotC: number; tuition: number; coffee: number; trophyDelta: number; chapel: number }): void {
+  private showResults(r: RaidOutcome): void {
     const ui = this.game.ui;
     const m = ui.modal(r.win ? 'Victory!' : 'Defeat', { narrow: true });
     const starsRow = el('div', 'result-stars');
@@ -678,7 +603,8 @@ export class RaidScene implements Scene {
       if (i < r.stars) setTimeout(() => sfx('star'), 200 + i * 350);
     }
     m.body.appendChild(starsRow);
-    m.body.appendChild(el('div', 'result-big', `${Math.floor(this.sim.destruction * 100)}% <span style="font-size:18px">destruction</span>`));
+    m.body.appendChild(el('div', 'result-big', `${Math.floor(r.destruction * 100)}% <span style="font-size:18px">destruction</span>`));
+    if (r.stars !== this.sim.stars) m.body.appendChild(el('div', 'flavor', 'The official replay on the server scored this raid a little differently from your screen. The server result counts.'));
     m.body.appendChild(el('div', 'result-line flavor', r.win ? pick(WIN_LINES) : pick(LOSE_LINES)));
     const loot = el('div', 'loot-row');
     loot.innerHTML = `<div>${icon('tuition', 34)} +${fmt(r.gotT)}</div><div>${icon('coffee', 34)} +${fmt(r.gotC)}</div><div>${icon('trophy', 34)} ${r.trophyDelta >= 0 ? '+' : ''}${r.trophyDelta}</div>${r.chapel ? `<div>${icon('chapel', 34)} +${r.chapel}</div>` : ''}`;
