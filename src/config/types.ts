@@ -155,6 +155,8 @@ export interface HeroDef {
   flavor: string;
   building: BuildingType;
   ability: { name: string; desc: string; radius: number; duration: number };
+  /** Fires letters: every `every`th shot is a big one dealing `mul` times the damage. */
+  bolt?: { every: number; mul: number };
   speed: number;
   range: number;
   attackRate: number;

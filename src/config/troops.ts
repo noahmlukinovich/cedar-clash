@@ -248,9 +248,10 @@ export const FAN_DEF: TroopDef = {
 export const HEROES: Record<HeroType, HeroDef> = {
   prof: {
     type: 'prof',
-    name: 'The Prof',
-    desc: 'Hero. Ranged attacker with a red pen. Ability "Pop Quiz" stuns every defense and fan in a radius.',
-    flavor: 'Tenured. Unafraid. Has never once accepted "the printer was broken."',
+    name: 'The Bible Prof',
+    desc: 'Hero. Fires Hebrew letters from a crossbow, aleph to tav. Every fifth shot is a big gold letter for double damage. Ability "Pop Quiz" stuns every defense and fan in a radius.',
+    flavor: 'Tenured. Unafraid. Will make you parse it. Has never once accepted "the printer was broken."',
+    bolt: { every: 5, mul: 2 },
     building: 'faculty',
     ability: { name: 'Pop Quiz', desc: 'Stuns defenses & fans in a 5-tile radius for 3s and heals the Prof 30%.', radius: 5, duration: 3 },
     speed: 1.9,

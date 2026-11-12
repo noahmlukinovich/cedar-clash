@@ -270,7 +270,7 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
     name: 'Faculty Office',
     category: 'army',
     size: 3,
-    desc: 'Home of the Prof hero. Upgrade the Prof here with Chapel Credits.',
+    desc: 'Home of the Bible Prof hero and his crossbow. Upgrade him here with Chapel Credits.',
     flavor: 'Office hours: Tuesdays 2:00–2:05pm, or whenever the door is open (it is never open).',
     counts: [0, 0, 0, 1, 1, 1, 1],
     levels: mk(1, 'tuition', [8000], [90], [3], [600]),
