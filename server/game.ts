@@ -2,6 +2,7 @@
 // by replaying them. All of this is synchronous, so requests can't interleave mid-update.
 import { randomBytes, randomInt } from 'node:crypto';
 import { LOOT_FRACTION, SCOUT_COST_PER_DMC } from '../src/config/balance';
+import { BUILDINGS } from '../src/config/buildings';
 import { bus } from '../src/core/bus';
 import { type Action, applyAction } from '../src/game/actions';
 import { tickArmy } from '../src/game/army';
@@ -9,7 +10,7 @@ import { dmcLevel, hasEvent, spend, tickEconomy } from '../src/game/economy';
 import { checkChapelSkip, tickEvents } from '../src/game/events';
 import { migrate } from '../src/game/save';
 import { type GameState, newGame } from '../src/game/state';
-import type { DefenseEntry, Note, StateMsg } from '../src/net/protocol';
+import { type DefenseEntry, NAME_RE, type Note, type StateMsg, type VisitResponse } from '../src/net/protocol';
 import type { BaseLayout, BasePiece } from '../src/raid/basegen';
 import { MAX_INPUTS, type RaidInput, type RaidResult, type RaidSetup, SCOUT_TIME, replayRaid } from '../src/raid/engine';
 import { type RaidOutcome, applyRaidOutcome, localSetup, trophyDelta } from '../src/raid/outcome';
@@ -159,6 +160,24 @@ export function sync(db: DB, userId: number, now: number, client: unknown, seq: 
     save(db, u, now);
     return { ...stateMsg(db, u, [], last), errors };
   });
+}
+
+// ---------- Visiting ----------
+
+/**
+ * GET /api/visit: the public, read-only view of a player's campus. Only the layout leaves the
+ * server (no resources, army, research or stats), hidden traps are left out, and nothing about
+ * the visited player is saved or touched.
+ */
+export function visit(db: DB, now: number, name: unknown): VisitResponse {
+  if (typeof name !== 'string' || !NAME_RE.test(name)) throw new GameError('No such player', 404);
+  const row = db.st.userByName.get(name) as UserRow | undefined;
+  if (!row) throw new GameError('No such player', 404);
+  const { state } = load(db, row.id, now, true); // brought up to date in memory only
+  const buildings = state.buildings
+    .filter((b) => BUILDINGS[b.type]?.category !== 'trap')
+    .map((b, i) => ({ id: i + 1, type: b.type, x: b.x, y: b.y, level: b.level, ...(b.name ? { name: b.name } : {}), ...(b.upgrade ? { upgrading: true } : {}) }));
+  return { name: row.name, trophies: state.trophies, dmc: dmcLevel(state), buildings };
 }
 
 // ---------- Raids ----------

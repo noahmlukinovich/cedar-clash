@@ -13,6 +13,7 @@ import type {
   SyncRequest,
   SyncResponse,
   UserInfo,
+  VisitResponse,
 } from './protocol';
 
 function newClientId(): string {
@@ -188,6 +189,10 @@ export class OnlineSession {
 
   leaderboard(): Promise<LeaderRow[]> {
     return api<LeaderRow[]>('/api/leaderboard');
+  }
+
+  visit(name: string): Promise<VisitResponse> {
+    return api<VisitResponse>('/api/visit?name=' + encodeURIComponent(name));
   }
 
   async logout(): Promise<void> {

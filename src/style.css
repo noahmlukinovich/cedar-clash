@@ -1174,6 +1174,44 @@ button.up-main:hover {
 .league-row.me {
   outline: 4px solid var(--gold);
 }
+.league-row {
+  align-items: center;
+}
+.lb-side {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ---------- Visiting another campus ---------- */
+.visit-bar {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: 92vw;
+  padding: 6px 8px 8px 16px;
+  background: rgba(20, 18, 30, 0.75);
+  border: 3px solid var(--out);
+  border-radius: 14px;
+  font-weight: 900;
+  font-size: 18px;
+  white-space: nowrap;
+}
+.visit-bar small {
+  font-size: 13px;
+  opacity: 0.9;
+  margin-left: 6px;
+}
+.visit-desc {
+  max-width: min(560px, 90vw);
+  text-align: center;
+  font-weight: 900;
+  font-size: 14px;
+}
 kbd {
   background: #fff;
   border: 2px solid var(--out);

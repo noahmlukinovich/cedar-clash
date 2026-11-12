@@ -4,7 +4,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { NAME_RE } from '../src/net/protocol';
 import { DUMMY_HASH, RateLimiter, hashPassword, newInviteCode, newToken, tokenHash, verifyPassword } from './auth';
 import { type DB, type UserRow, openDb } from './db';
-import { GameError, finishRaid, me, newPlayerState, raidInputs, settleStaleRaids, startRaid, sync } from './game';
+import { GameError, finishRaid, me, newPlayerState, raidInputs, settleStaleRaids, startRaid, sync, visit } from './game';
 
 const SESSION_DAYS = 30;
 const COOKIE = 'cc_session';
@@ -197,6 +197,10 @@ export function createApp(db: DB, cfg: ServerConfig) {
     if (method === 'GET' && path === '/api/leaderboard') {
       requireUser(req);
       return db.st.leaderboard.all();
+    }
+    if (method === 'GET' && path === '/api/visit') {
+      requireUser(req);
+      return visit(db, now, url.searchParams.get('name'));
     }
     if (post('/api/sync')) return sync(db, requireUser(req), now, body.client, body.seq, body.actions);
     if (post('/api/raid/start')) return startRaid(db, requireUser(req), now, body.kind);
