@@ -16,7 +16,16 @@ export interface ServerConfig {
   port: number;
   /** Mark cookies Secure (true behind HTTPS; false only for local development over http). */
   secureCookies: boolean;
+  /** Sign-ups need an invite code. When false, anyone who can reach the site can make a campus. */
+  inviteRequired: boolean;
 }
+
+/**
+ * Invite codes are switched off for now, so anyone with the link can sign up. To switch them
+ * back on, set this to true (and merge), or set REQUIRE_INVITE=1 in the server's environment.
+ * REQUIRE_INVITE=0 forces them off. Existing codes are kept either way.
+ */
+const INVITES_REQUIRED_DEFAULT = false;
 
 export function configFromEnv(): ServerConfig {
   return {
@@ -24,6 +33,7 @@ export function configFromEnv(): ServerConfig {
     host: process.env.HOST ?? '127.0.0.1',
     port: Number(process.env.PORT ?? 8787),
     secureCookies: process.env.COOKIE_SECURE !== '0',
+    inviteRequired: process.env.REQUIRE_INVITE === '1' ? true : process.env.REQUIRE_INVITE === '0' ? false : INVITES_REQUIRED_DEFAULT,
   };
 }
 
@@ -80,7 +90,9 @@ function getCookie(req: IncomingMessage, name: string): string | null {
 
 export function createApp(db: DB, cfg: ServerConfig) {
   const loginFails = new RateLimiter(10, 15 * 60 * 1000);
-  const signups = new RateLimiter(5, 60 * 60 * 1000);
+  // Per address. Generous enough for a dorm sharing one campus Wi-Fi address; with invite
+  // codes off this is what stops one person from mass-creating campuses.
+  const signups = new RateLimiter(40, 60 * 60 * 1000);
   const requests = new RateLimiter(240, 60 * 1000);
 
   const cookie = (value: string, maxAge: number): string =>
@@ -113,18 +125,21 @@ export function createApp(db: DB, cfg: ServerConfig) {
       throw new HttpError(400, "Campus names are 3–20 letters, numbers, spaces, or _ . ' - (no leading/trailing spaces)");
     }
     if (typeof password !== 'string' || password.length < 8 || password.length > 200) throw new HttpError(400, 'Passwords need at least 8 characters');
-    if (typeof invite !== 'string' || invite.length > 40) throw new HttpError(400, 'Invite code required');
+    const needCode = cfg.inviteRequired;
+    if (needCode && (typeof invite !== 'string' || invite.length > 40)) throw new HttpError(400, 'Invite code required');
     if (!signups.hit(ip)) throw new HttpError(429, 'Too many sign-ups from here. Try again later.');
-    const code = invite.trim().toUpperCase();
-    const inv = db.st.invite.get(code) as { uses_left: number } | undefined;
-    if (!inv || inv.uses_left <= 0) throw new HttpError(400, "That invite code isn't valid");
+    const code = needCode ? (invite as string).trim().toUpperCase() : '';
+    if (needCode) {
+      const inv = db.st.invite.get(code) as { uses_left: number } | undefined;
+      if (!inv || inv.uses_left <= 0) throw new HttpError(400, "That invite code isn't valid");
+    }
     if (db.st.userByName.get(username)) throw new HttpError(409, 'That campus name is taken');
     const hash = await hashPassword(password);
     const now = Date.now();
     const id = db.tx(() => {
       // re-check inside the transaction (the hash above was async)
       if (db.st.userByName.get(username)) throw new HttpError(409, 'That campus name is taken');
-      if (!Number(db.st.useInvite.run(code).changes)) throw new HttpError(400, "That invite code isn't valid");
+      if (needCode && !Number(db.st.useInvite.run(code).changes)) throw new HttpError(400, "That invite code isn't valid");
       const r = db.st.insertUser.run(username, hash, now, JSON.stringify(newPlayerState(username, now)), now);
       return Number(r.lastInsertRowid);
     });
@@ -155,7 +170,7 @@ export function createApp(db: DB, cfg: ServerConfig) {
     const path = url.pathname;
     const method = req.method ?? 'GET';
     if (!path.startsWith('/api/')) throw new HttpError(404, 'Not found');
-    if (path === '/api/health') return { ok: true, loggedIn: sessionUser(req) != null };
+    if (path === '/api/health') return { ok: true, loggedIn: sessionUser(req) != null, invite: cfg.inviteRequired };
     if (!requests.hit(clientIp(req))) throw new HttpError(429, 'Slow down a little');
 
     let body: Record<string, unknown> = {};

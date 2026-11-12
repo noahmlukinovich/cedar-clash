@@ -25,9 +25,12 @@ export function setPrefersOffline(v: boolean): void {
 }
 
 /** Is there a game server behind this page? (No on static hosting such as GitHub Pages.) */
-async function serverStatus(): Promise<{ ok: boolean; loggedIn: boolean } | null> {
+/** `invite` is false when the server lets anyone sign up without an invite code. */
+type Status = { ok: boolean; loggedIn: boolean; invite?: boolean };
+
+async function serverStatus(): Promise<Status | null> {
   try {
-    return await api<{ ok: boolean; loggedIn: boolean }>('/api/health', undefined, 4000);
+    return await api<Status>('/api/health', undefined, 4000);
   } catch {
     return null;
   }
@@ -44,10 +47,10 @@ export async function chooseStart(): Promise<StartChoice> {
       /* session expired between calls */
     }
   }
-  return showLogin();
+  return showLogin(status.invite !== false);
 }
 
-function showLogin(): Promise<StartChoice> {
+function showLogin(needInvite: boolean): Promise<StartChoice> {
   return new Promise((resolve) => {
     const wrap = el('div', 'login');
     wrap.innerHTML = `<h1 class="stroke">CEDARVILLE<span>CLASH</span></h1>`;
@@ -76,7 +79,7 @@ function showLogin(): Promise<StartChoice> {
       form.innerHTML = `
         <label>Campus name<input name="username" autocomplete="username" required minlength="3" maxlength="20" spellcheck="false"></label>
         <label>Password<input name="password" type="password" autocomplete="${signup ? 'new-password' : 'current-password'}" required minlength="${signup ? 8 : 1}" maxlength="200"></label>
-        ${signup ? '<label>Invite code<input name="invite" required maxlength="40" spellcheck="false" autocomplete="off"></label>' : ''}
+        ${signup && needInvite ? '<label>Invite code<input name="invite" required maxlength="40" spellcheck="false" autocomplete="off"></label>' : ''}
         <div class="login-msg">${esc(msg)}</div>
         <button class="btn big" type="submit">${signup ? 'Create campus' : 'Log in'}</button>`;
       if (signup) form.appendChild(el('div', 'flavor', 'Campus name: 3–20 letters, numbers, spaces, or _ . \' -. Other players will see it.'));

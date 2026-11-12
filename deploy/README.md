@@ -35,6 +35,10 @@ ssh root@<droplet-ip> cat /root/cedar-clash-first-invite.txt
 
 ## 2. Invite people
 
+**Invite codes are currently switched off:** anyone with the link can sign up, limited to 40 sign-ups per hour from one address. To require codes again, set `INVITES_REQUIRED_DEFAULT` to `true` in `server/main.ts` and merge to `main` (or set `REQUIRE_INVITE=1` in the service's environment and restart it). Existing codes are kept and work again once codes are required.
+
+With codes required:
+
 ```bash
 deploy/invite.sh <droplet-ip> 3 "dorm floor"
 ```

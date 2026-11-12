@@ -9,7 +9,7 @@ let srv: ReturnType<typeof startServer>;
 let base = '';
 
 beforeAll(async () => {
-  srv = startServer({ dbPath: ':memory:', host: '127.0.0.1', port: 0, secureCookies: false });
+  srv = startServer({ dbPath: ':memory:', host: '127.0.0.1', port: 0, secureCookies: false, inviteRequired: true });
   await srv.ready;
   base = `http://127.0.0.1:${srv.port}`;
   srv.db.st.insertInvite.run('TEST-CODE-0001', 10, Date.now(), 'tests');
@@ -239,5 +239,40 @@ describe('visiting another campus', () => {
     }
     expect(JSON.stringify(r.data)).not.toMatch(/stored|resources|army|chapel|stats/);
     expect(rowOf('Bob_U')).toEqual(before); // state, last_seen, shield: nothing written
+  });
+});
+
+describe('sign-up without invite codes', () => {
+  it('lets anyone sign up when invites are switched off, and still enforces everything else', async () => {
+    const open = startServer({ dbPath: ':memory:', host: '127.0.0.1', port: 0, secureCookies: false, inviteRequired: false });
+    await open.ready;
+    const url = `http://127.0.0.1:${open.port}`;
+    const post = async (path: string, body: unknown): Promise<{ status: number; data: Record<string, unknown>; cookie: string }> => {
+      const res = await fetch(url + path, { method: 'POST', headers: { 'X-CC': '1', 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      return { status: res.status, data: (await res.json()) as Record<string, unknown>, cookie: (res.headers.get('set-cookie') ?? '').split(';')[0] };
+    };
+    try {
+      expect(((await (await fetch(url + '/api/health')).json()) as { invite: boolean }).invite).toBe(false);
+      // no code, a junk code, or a real-looking code: all fine
+      const a = await post('/api/signup', { username: 'Open One', password: 'longenough' });
+      expect(a.status).toBe(200);
+      expect((await post('/api/signup', { username: 'Open Two', password: 'longenough', invite: 'NOPE' })).status).toBe(200);
+      const me = (await (await fetch(url + '/api/me', { headers: { Cookie: a.cookie } })).json()) as MeResponse;
+      expect(me.user.name).toBe('Open One');
+      // the other rules still apply
+      expect((await post('/api/signup', { username: 'open one', password: 'longenough' })).status).toBe(409);
+      expect((await post('/api/signup', { username: '<img src=x>', password: 'longenough' })).status).toBe(400);
+      expect((await post('/api/signup', { username: 'Short Pass', password: 'short' })).status).toBe(400);
+      // and one address cannot mass-create campuses
+      let last = 200;
+      for (let i = 0; i < 45 && last === 200; i++) last = (await post('/api/signup', { username: `Bulk ${i}`, password: 'longenough' })).status;
+      expect(last).toBe(429);
+    } finally {
+      await open.close();
+    }
+  });
+
+  it('reports that invites are required on a server that needs them', async () => {
+    expect(((await (await fetch(base + '/api/health')).json()) as { invite: boolean }).invite).toBe(true);
   });
 });

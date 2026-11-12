@@ -14,7 +14,7 @@ npm test           # raid replay determinism + server end-to-end tests
 npm run build      # type-check, build the game into dist/ and the server into server-dist/
 ```
 
-To try online mode locally, create an invite code first:
+Sign-ups are currently open (no invite code needed). If invite codes are switched back on (`INVITES_REQUIRED_DEFAULT` in `server/main.ts`, or `REQUIRE_INVITE=1`), create one for local testing first:
 
 ```bash
 npm run build:server && DB_PATH=./data/dev.db npm run admin -- invite 5
@@ -28,7 +28,7 @@ Desktop browser with mouse and keyboard; designed for 1280×800 and up. Requires
 
 ## Online multiplayer
 
-When the page is served with the game server behind it, players log in (invite-only) and their campus lives on the server. **Find a Rival** matches you against real players near your trophy count, or against a computer-generated campus if nobody is available.
+When the page is served with the game server behind it, players sign up and log in, and their campus lives on the server. Invite codes are currently switched off, so anyone with the link can sign up; sign-ups are limited to 40 per hour from one address. **Find a Rival** matches you against real players near your trophy count, or against a computer-generated campus if nobody is available.
 
 - **Raids are verified by the server.** The raid simulation is deterministic: a fixed 30 Hz timestep and a seeded RNG, with no `Math.random`, `cos` or `sin` in gameplay code. The browser sends only *what you deployed, where, and on which tick*. The server replays that against the same setup and decides the stars, loot and trophies. If the browser's raid and the server's replay ever disagree, the server's result counts and the results screen says so.
 - **The server runs the economy.** Every village action (build, upgrade, collect, train…) goes through `applyAction` (`src/game/actions.ts`). The browser applies it immediately, and the server applies the same code to its copy, which is the one that counts. Action batches carry sequence numbers, so a retried request never applies twice.
