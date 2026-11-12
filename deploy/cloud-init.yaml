@@ -15,7 +15,7 @@ runcmd:
     - -c
     - |
       set -euo pipefail
-      BRANCH=claude/loving-faraday-a0w2of
+      BRANCH=main
       REPO=https://github.com/noahmlukinovich/cedar-clash.git
       mkdir -p /opt/cedar-clash
       [ -d /opt/cedar-clash/repo/.git ] || git clone --branch "$BRANCH" "$REPO" /opt/cedar-clash/repo

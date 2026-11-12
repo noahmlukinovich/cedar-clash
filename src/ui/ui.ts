@@ -36,7 +36,7 @@ import {
   upgradeCheck,
 } from '../game/economy';
 import { canAttendChapel, chapelReward, startEvent } from '../game/events';
-import { exportSave, resetSave, saveGame } from '../game/save';
+import { exportSave, resetSave, saveGame, staleSave } from '../game/save';
 import { setPrefersOffline } from '../net/login';
 import type { BuildingInst } from '../game/state';
 import type { Game } from '../main';
@@ -867,7 +867,8 @@ export class UI {
       const save = el('button', 'btn', online ? '🔄 Sync now' : '💾 Save now');
       save.onclick = () => {
         this.game.save();
-        this.toast(online ? 'Synced with the server.' : 'Saved!', 'good');
+        if (online) this.toast('Synced with the server.', 'good');
+        else if (!staleSave) this.toast('Saved!', 'good');
       };
       row1.append(mute, save);
       m.body.appendChild(row1);
@@ -1027,6 +1028,42 @@ export class UI {
         }
       }, 160);
     });
+  }
+
+  /**
+   * Persistent bar asking the player to reload.
+   * 'update': a new version was deployed. 'stale': a newer version is open in
+   * another tab, so this tab has stopped saving to protect that progress.
+   */
+  showUpdateBar(kind: 'update' | 'stale'): void {
+    const existing = document.getElementById('update-bar');
+    if (existing) {
+      if (existing.dataset.kind === 'stale' || kind === 'update') return; // stale wins
+      existing.remove();
+    }
+    const bar = el('div', `update-bar ${kind}`);
+    bar.id = 'update-bar';
+    bar.dataset.kind = kind;
+    const msg =
+      kind === 'update'
+        ? '🎉 A new version of Cedarville Clash is out! Reload to get it. Your progress is saved.'
+        : '⚠️ A newer version of the game is open in another tab, so this tab has stopped saving to protect that progress. Reload to continue here.';
+    bar.appendChild(el('span', 'stroke', msg));
+    const reload = el('button', 'btn small gold', 'Reload');
+    reload.onclick = async () => {
+      // Save first if we're allowed to (an 'update' tab still owns the save).
+      if (this.game.online) await this.game.online.flush();
+      else if (kind === 'update') saveGame(this.state);
+      this.game.resetting = true; // skip the beforeunload save; we just saved
+      location.reload();
+    };
+    bar.appendChild(reload);
+    if (kind === 'update') {
+      const later = el('button', 'btn small gray', 'Later');
+      later.onclick = () => bar.remove();
+      bar.appendChild(later);
+    }
+    document.body.appendChild(bar);
   }
 
   /** Popup with a stern/cute message and an OK button. */
