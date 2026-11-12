@@ -73,6 +73,15 @@ CREATE TABLE IF NOT EXISTS raids (
 CREATE INDEX IF NOT EXISTS raids_open ON raids(finished, created);
 CREATE INDEX IF NOT EXISTS raids_attacker ON raids(attacker, created);
 CREATE INDEX IF NOT EXISTS raids_defender ON raids(defender, seen);
+-- Last action batch applied per open copy of the game (one per device/tab), so a retried
+-- request is recognised without one device's counter blocking another's.
+CREATE TABLE IF NOT EXISTS client_seq (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  client TEXT NOT NULL,
+  seq INTEGER NOT NULL,
+  updated INTEGER NOT NULL,
+  PRIMARY KEY (user_id, client)
+);
 `;
 
 export type DB = ReturnType<typeof openDb>;
@@ -96,6 +105,12 @@ export function openDb(path: string) {
       'SELECT id FROM users WHERE id != ? AND shield_until < ? AND locked_until < ? ORDER BY ABS(trophies - ?) ASC LIMIT 12',
     ),
     recentDefenders: db.prepare('SELECT defender FROM raids WHERE attacker = ? AND defender IS NOT NULL AND created > ?'),
+
+    clientSeq: db.prepare('SELECT seq FROM client_seq WHERE user_id = ? AND client = ?'),
+    setClientSeq: db.prepare(
+      'INSERT INTO client_seq (user_id, client, seq, updated) VALUES (?, ?, ?, ?) ON CONFLICT (user_id, client) DO UPDATE SET seq = excluded.seq, updated = excluded.updated',
+    ),
+    purgeClientSeq: db.prepare('DELETE FROM client_seq WHERE updated < ?'),
 
     insertSession: db.prepare('INSERT INTO sessions (token, user_id, expires) VALUES (?, ?, ?)'),
     session: db.prepare('SELECT user_id, expires FROM sessions WHERE token = ?'),

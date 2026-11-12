@@ -24,7 +24,7 @@ Desktop browser with mouse and keyboard; designed for 1280×800 and up. Requires
 
 **Single-player build:** https://noahmlukinovich.github.io/cedar-clash/ (deployed by `.github/workflows/deploy.yml` on every push to `main`; Pages must be set to *Source: GitHub Actions* in the repo settings). GitHub Pages has no game server, so the game runs in offline mode there.
 
-**Multiplayer server:** see [`deploy/README.md`](deploy/README.md) for setting up a droplet.
+**Multiplayer server:** see [`deploy/README.md`](deploy/README.md) for setting up a droplet. The droplet deploys new commits on `main` by itself within about 5 minutes, once they pass the tests.
 
 ## Online multiplayer
 

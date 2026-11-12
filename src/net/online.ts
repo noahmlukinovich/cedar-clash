@@ -10,9 +10,16 @@ import type {
   RaidStartRequest,
   RaidStartResponse,
   StateMsg,
+  SyncRequest,
   SyncResponse,
   UserInfo,
 } from './protocol';
+
+function newClientId(): string {
+  const b = new Uint8Array(16);
+  crypto.getRandomValues(b);
+  return Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+}
 
 export class ApiError extends Error {
   constructor(
@@ -23,7 +30,7 @@ export class ApiError extends Error {
   }
 }
 
-export async function api<T>(path: string, body?: unknown, timeoutMs = 15000): Promise<T> {
+export async function api<T>(path: string, body?: unknown, timeoutMs = 15000, keepalive = false): Promise<T> {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), timeoutMs);
   try {
@@ -33,6 +40,8 @@ export async function api<T>(path: string, body?: unknown, timeoutMs = 15000): P
       body: body === undefined ? undefined : JSON.stringify(body),
       credentials: 'same-origin',
       signal: ctl.signal,
+      // lets the last sync finish even if the tab is closing (small bodies only)
+      keepalive,
     });
     const txt = await res.text();
     let data: unknown = null;
@@ -75,7 +84,9 @@ const POLL_SECONDS = 20;
 
 export class OnlineSession {
   private queue: Action[] = [];
-  private seq: number;
+  /** This open copy of the game; the server tracks retries per client, not per account. */
+  private readonly client = newClientId();
+  private seq = 0;
   private inFlight = false;
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
   private pollT = 0;
@@ -91,7 +102,6 @@ export class OnlineSession {
     private onError: (msg: string) => void,
     private busy: () => boolean,
   ) {
-    this.seq = me.seq;
     this.shieldUntil = me.shieldUntil;
   }
 
@@ -112,7 +122,8 @@ export class OnlineSession {
     const seq = this.seq + 1;
     this.inFlight = true;
     try {
-      const r = await api<SyncResponse>('/api/sync', { seq, actions: batch });
+      const body = JSON.stringify({ client: this.client, seq, actions: batch } satisfies SyncRequest);
+      const r = await api<SyncResponse>('/api/sync', JSON.parse(body), 15000, body.length < 60000);
       this.queue.splice(0, batch.length);
       this.seq = r.seq;
       this.shieldUntil = r.shieldUntil;

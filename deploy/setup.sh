@@ -68,6 +68,10 @@ npm ci --no-audit --no-fund
 npm run build
 
 log "Installing the build to $APP_DIR"
+# Keep the running version so we can roll back if the new one won't start.
+PREV="$APP_DIR.prev"
+rm -rf "$PREV"
+[[ -f "$APP_DIR/server.mjs" ]] && cp -a "$APP_DIR" "$PREV"
 install -d -o root -g root -m 0755 "$APP_DIR" "$APP_DIR/public"
 rsync_like() { rm -rf "$2.new" && cp -r "$1" "$2.new" && rm -rf "$2" && mv "$2.new" "$2"; }
 rsync_like dist "$APP_DIR/public"
@@ -79,7 +83,6 @@ if [[ "$MODE" != "--update" ]]; then
   install -o root -g root -m 0644 deploy/cedar-clash.service /etc/systemd/system/cedar-clash.service
   install -o root -g root -m 0755 deploy/cedar-clash-admin /usr/local/bin/cedar-clash-admin
   install -o root -g root -m 0755 deploy/backup.sh /etc/cron.daily/cedar-clash-backup
-  systemctl daemon-reload
   systemctl enable cedar-clash >/dev/null
 
   log "Caddy (HTTPS)"
@@ -97,13 +100,37 @@ if [[ "$MODE" != "--update" ]]; then
   echo "$SITE_HOST" >/opt/cedar-clash/site-host
 fi
 
+# Self-update from GitHub (also installed by --update, so existing droplets pick it up).
+log "Auto-update timer"
+install -o root -g root -m 0755 deploy/auto-update.sh /usr/local/sbin/cedar-clash-auto-update
+install -o root -g root -m 0644 deploy/cedar-clash-update.service /etc/systemd/system/cedar-clash-update.service
+install -o root -g root -m 0644 deploy/cedar-clash-update.timer /etc/systemd/system/cedar-clash-update.timer
+systemctl daemon-reload
+systemctl enable --now cedar-clash-update.timer >/dev/null
+
+healthy() {
+  for _ in $(seq 1 30); do
+    if curl -fs "http://127.0.0.1:$PORT/api/health" >/dev/null; then return 0; fi
+    sleep 0.5
+  done
+  return 1
+}
+
 log "Restarting the game server"
 systemctl restart cedar-clash
-for _ in $(seq 1 20); do
-  if curl -fs "http://127.0.0.1:$PORT/api/health" >/dev/null; then break; fi
-  sleep 0.5
-done
-curl -fs "http://127.0.0.1:$PORT/api/health" >/dev/null || { journalctl -u cedar-clash -n 40 --no-pager; echo "The game server did not start." >&2; exit 1; }
+if ! healthy; then
+  journalctl -u cedar-clash -n 40 --no-pager || true
+  if [[ -d "$PREV" ]]; then
+    echo "The new version did not start; rolling back to the previous one." >&2
+    rm -rf "$APP_DIR"
+    mv "$PREV" "$APP_DIR"
+    systemctl restart cedar-clash
+    healthy && echo "Previous version is running again." >&2
+  else
+    echo "The game server did not start." >&2
+  fi
+  exit 1
+fi
 
 if [[ "$MODE" != "--update" ]] && [[ ! -s /root/cedar-clash-first-invite.txt ]]; then
   cedar-clash-admin invite 5 "first invites" >/root/cedar-clash-first-invite.txt

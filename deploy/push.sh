@@ -5,7 +5,8 @@
 #
 # The droplet pulls the branch from GitHub (push your commits first), rebuilds, and
 # restarts only the game. Player data in /var/lib/cedar-clash is never touched.
-# The branch defaults to the one you have checked out.
+# The branch defaults to the one you have checked out. Deploying `main` keeps the droplet's
+# auto-update running; deploying any other branch pauses it until `main` is deployed again.
 set -euo pipefail
 IP="${1:?usage: deploy/push.sh <droplet-ip> [branch]}"
 BRANCH="${2:-$(git rev-parse --abbrev-ref HEAD)}"
@@ -16,8 +17,10 @@ if git rev-parse --verify -q "origin/$BRANCH" >/dev/null && [[ -n "$(git log "or
 fi
 
 echo "Deploying $BRANCH to $IP…"
-ssh "root@$IP" "set -e
+# The lock keeps this from overlapping with the droplet's own auto-update.
+ssh "root@$IP" "flock /run/cedar-clash-deploy.lock bash -c 'set -e
 cd /opt/cedar-clash/repo
-git fetch --quiet origin '$BRANCH'
-git checkout --quiet -B '$BRANCH' 'origin/$BRANCH'
-bash deploy/setup.sh --update"
+git fetch --quiet origin $BRANCH
+git checkout --quiet -B $BRANCH origin/$BRANCH
+rm -f /var/lib/cedar-clash-deploy/failed
+bash deploy/setup.sh --update'"
