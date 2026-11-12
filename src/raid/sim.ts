@@ -2,9 +2,9 @@
 // Pure game logic; the scene turns `events` into particles & sounds.
 import { BUILDINGS, blocksPath } from '../config/buildings';
 import { GRID } from '../config/balance';
-import { FAN_DEF, HEROES, TROOPS } from '../config/troops';
+import { FAN_DEF, GO_MEMBER_DEF, HEROES, TROOPS } from '../config/troops';
 import { SPELLS } from '../config/spells';
-import type { BuildingType, DefenseStats, HeroType, SpellType, TroopType, UnitType } from '../config/types';
+import type { BuildingType, DefenseStats, HeroType, SpellType, TroopDef, TroopType, UnitType } from '../config/types';
 import { dist, distToRect } from '../core/iso';
 import { Rng } from '../core/rng';
 import { BLOCKED, FREE, WALL_COST, findPath } from './pathfind';
@@ -87,6 +87,14 @@ export interface RU {
   idleT: number;
   elephant?: boolean;
   leader?: RU | null;
+  /** Config for trainable troops (undefined for heroes, fans and GO Team members). */
+  def?: TroopDef;
+  /** Hits landed (Music Major chorus). */
+  hits: number;
+  /** Seconds of uninterrupted running (Cross Country Runner momentum). */
+  runT: number;
+  /** GO Team members go home at this time (0 = never). */
+  expireAt: number;
 }
 
 export interface Projectile {
@@ -131,7 +139,10 @@ export type SimEvent =
   | { e: 'wind'; on: boolean; dir: number }
   | { e: 'wander'; u: RU }
   | { e: 'spell'; kind: SpellType; x: number; y: number; r: number }
-  | { e: 'ability'; kind: 'quiz' | 'convo'; u: RU };
+  | { e: 'ability'; kind: 'quiz' | 'convo'; u: RU }
+  | { e: 'unload'; x: number; y: number }
+  | { e: 'chorus'; x: number; y: number }
+  | { e: 'roomcheck'; u: RU };
 
 export interface RaidOptions {
   troopLevels: Record<TroopType, number>;
@@ -151,6 +162,9 @@ const WANDER_DIRS: [number, number][] = [
   [0, -1], [0.3826834324, -0.9238795325], [0.7071067812, -0.7071067812], [0.9238795325, -0.3826834324],
 ];
 
+/** What a Business Major goes for first. */
+const RESOURCE_TYPES: BuildingType[] = ['registrar', 'rinnova', 'admissions', 'coffeecart'];
+
 export class RaidSim {
   buildings: RB[] = [];
   units: RU[] = [];
@@ -158,6 +172,8 @@ export class RaidSim {
   zones: Zone[] = [];
   events: SimEvent[] = [];
   cost = new Uint8Array(GRID * GRID);
+  /** Same grid for troops that go over walls and lakes: only real buildings block. */
+  costJump = new Uint8Array(GRID * GRID);
   tileB: (RB | null)[] = new Array(GRID * GRID).fill(null);
   forbid = new Uint8Array(GRID * GRID); // deploy forbidden
   time = 0;
@@ -168,6 +184,8 @@ export class RaidSim {
   totalCount = 0;
   destroyedCount = 0;
   loot = { tuition: 0, coffee: 0 };
+  /** Extra loot earned by Business Majors. Paid to the attacker on top of `loot`; the defender does not lose it. */
+  bonusLoot = { tuition: 0, coffee: 0 };
   lootAvail = { tuition: 0, coffee: 0 };
   wallsByEngineers = 0;
   buildingsDestroyed = 0;
@@ -262,13 +280,16 @@ export class RaidSim {
 
   rebuildCost(): void {
     this.cost.fill(FREE);
+    this.costJump.fill(FREE);
     this.tileB.fill(null);
     for (const b of this.buildings) {
       if (b.dead) continue;
       if (!blocksPath(b.type)) continue;
+      const jumpable = b.isWall || b.type === 'lake';
       for (let y = b.y; y < b.y + b.size; y++)
         for (let x = b.x; x < b.x + b.size; x++) {
           this.cost[y * GRID + x] = b.isWall ? WALL_COST : BLOCKED;
+          if (!jumpable) this.costJump[y * GRID + x] = BLOCKED;
           this.tileB[y * GRID + x] = b;
         }
     }
@@ -291,7 +312,26 @@ export class RaidSim {
     const d = TROOPS[type];
     const lvl = this.opts.troopLevels[type];
     const L = d.levels[lvl - 1];
-    return this.addUnit({ type, side: 'atk', level: lvl, x, y, hp: L.hp, dps: L.dps, speed: d.speed * (this.opts.elephant ? 1.5 : 1), range: d.range, rate: d.attackRate });
+    const u = this.addUnit({ type, side: 'atk', level: lvl, x, y, hp: L.hp, dps: L.dps, speed: d.speed * (this.opts.elephant ? 1.5 : 1), range: d.range, rate: d.attackRate });
+    u.def = d;
+    return u;
+  }
+
+  /** A GO Team van parks (or is wrecked) and its team piles out. The van itself is gone either way. */
+  private unloadVan(u: RU): void {
+    const un = u.def?.unload;
+    if (!un || u.expireAt < 0) return;
+    u.expireAt = -1; // unloaded: never twice
+    u.dead = true;
+    const d = GO_MEMBER_DEF;
+    const lvl = Math.min(d.levels.length, u.level);
+    const L = d.levels[lvl - 1];
+    for (let i = 0; i < un.count; i++) {
+      const [dx, dy] = WANDER_DIRS[(i * 3 + 1) % WANDER_DIRS.length];
+      const m = this.addUnit({ type: 'gomember', side: 'atk', level: lvl, x: u.x + dx * 0.45, y: u.y + dy * 0.45, hp: L.hp, dps: L.dps, speed: d.speed, range: d.range, rate: d.attackRate });
+      m.expireAt = this.time + un.life;
+    }
+    this.events.push({ e: 'unload', x: u.x, y: u.y });
   }
 
   spawnHero(h: HeroType, x: number, y: number, hpFrac = 1): RU {
@@ -353,6 +393,9 @@ export class RaidSim {
       flash: 0,
       abilityUsed: false,
       idleT: 0,
+      hits: 0,
+      runT: 0,
+      expireAt: 0,
     };
     this.units.push(u);
     return u;
@@ -448,7 +491,7 @@ export class RaidSim {
         if (u.dead || dist(u.x, u.y, z.x, z.y) > z.r) continue;
         if (z.kind === 'allnighter' && u.side === 'atk') u.rageUntil = this.time + 0.3;
         if (z.kind === 'announcement' && u.side === 'atk') u.ignoreTrapsUntil = this.time + 0.4;
-        if (z.kind === 'swarm' && u.side === 'atk') this.damageUnit(u, z.dps * dt, 'sting');
+        if (z.kind === 'swarm' && u.side === 'atk') this.damageUnit(u, z.dps * dt * (u.def?.taunt?.trapDmg ?? 1), 'sting');
       }
     }
 
@@ -494,6 +537,12 @@ export class RaidSim {
       u.flash = Math.max(0, u.flash - dt * 5);
       u.attackT = Math.max(0, u.attackT - dt * 3);
       u.moving = false;
+      if (u.expireAt > 0 && this.time >= u.expireAt) {
+        // GO Team members head home when their trip is over
+        u.dead = true;
+        this.events.push({ e: 'death', u });
+        continue;
+      }
       if (u.frozenUntil > this.time || u.stunUntil > this.time) continue;
       if (this.windOn && u.side === 'atk') {
         // push sideways (screen-wise): along +gx/-gy
@@ -513,13 +562,16 @@ export class RaidSim {
   }
 
   // ---------- Defense behaviours ----------
-  private nearestAttacker(x: number, y: number, range: number, b?: RB): RU | null {
+  /** Nearest attacker in range. With `taunted`, an RA in range is picked ahead of anyone closer. */
+  private nearestAttacker(x: number, y: number, range: number, b?: RB, taunted = false): RU | null {
     let best: RU | null = null;
     let bd = Infinity;
     for (const u of this.units) {
       if (u.dead || u.side !== 'atk') continue;
-      const d = b ? distToRect(u.x, u.y, b.x, b.y, b.size, b.size) : dist(u.x, u.y, x, y);
-      if (d <= range && d < bd) {
+      let d = b ? distToRect(u.x, u.y, b.x, b.y, b.size, b.size) : dist(u.x, u.y, x, y);
+      if (d > range) continue;
+      if (taunted && u.def?.taunt) d -= 1000;
+      if (d < bd) {
         bd = d;
         best = u;
       }
@@ -530,7 +582,12 @@ export class RaidSim {
   private updateShooter(b: RB, dt: number): void {
     const d = b.def!;
     const inRange = (u: RU): boolean => !u.dead && distToRect(u.x, u.y, b.x, b.y, b.size, b.size) <= d.range;
-    if (!b.target || !inRange(b.target)) b.target = this.nearestAttacker(b.cx, b.cy, d.range, b);
+    if (!b.target || !inRange(b.target)) b.target = this.nearestAttacker(b.cx, b.cy, d.range, b, true);
+    else if (!b.target.def?.taunt) {
+      // an RA walking into range pulls fire off whoever was being shot at
+      const ra = this.nearestAttacker(b.cx, b.cy, d.range, b, true);
+      if (ra?.def?.taunt) b.target = ra;
+    }
     b.cd -= dt;
     if (b.target) {
       b.aim = Math.atan2(b.target.y - b.cy, b.target.x - b.cx);
@@ -636,7 +693,9 @@ export class RaidSim {
     if (!b.hidden) return;
     for (const u of this.units) {
       if (u.dead || u.side !== 'atk' || u.ignoreTrapsUntil > this.time) continue;
-      if (dist(u.x, u.y, b.cx, b.cy) < 1.2) {
+      const roomCheck = u.def?.taunt;
+      if (dist(u.x, u.y, b.cx, b.cy) < (roomCheck ? roomCheck.trapRange : 1.2)) {
+        if (roomCheck) this.events.push({ e: 'roomcheck', u });
         const L = BUILDINGS.nest.levels[b.level - 1];
         b.hidden = false;
         b.dead = true;
@@ -675,6 +734,7 @@ export class RaidSim {
     if (u.hp <= 0) {
       u.dead = true;
       this.events.push({ e: 'death', u });
+      if (u.def?.unload) this.unloadVan(u); // wrecked on the way: the team still gets out
     }
   }
 
@@ -694,6 +754,8 @@ export class RaidSim {
     if (b.hp <= 0) {
       b.dead = true;
       this.dirtyCost = true;
+      const bonus = by?.def?.lootBonus;
+      if (bonus) for (const res of ['tuition', 'coffee'] as const) this.bonusLoot[res] += b.loot[res] * bonus;
       this.events.push({ e: 'destroyed', b });
       if (b.isWall && by?.type === 'engineer') this.wallsByEngineers++;
       if (b.counts) {
@@ -749,6 +811,8 @@ export class RaidSim {
 
   private mulSpeed(u: RU): number {
     let m = 1;
+    const j = u.def?.jumps;
+    if (j) m *= 1 + Math.min(u.runT, j.maxRun) * j.speed;
     if (u.slowUntil > this.time) m *= u.slowMul;
     if (u.rageUntil > this.time) m *= 1.4;
     if (u.convoUntil > this.time) m *= 1.3;
@@ -758,7 +822,7 @@ export class RaidSim {
   }
 
   private pickTarget(u: RU): RB | null {
-    const pref = u.hero ? 'any' : u.type === 'fan' ? 'any' : TROOPS[u.type as TroopType].prefers;
+    const pref = u.def?.prefers ?? 'any';
     const choose = (filter: (b: RB) => boolean): RB | null => {
       let best: RB | null = null;
       let bd = Infinity;
@@ -773,6 +837,7 @@ export class RaidSim {
       return best;
     };
     if (pref === 'defense') return choose((b) => b.isDefense) ?? choose((b) => !b.isWall);
+    if (pref === 'resource') return choose((b) => RESOURCE_TYPES.includes(b.type)) ?? choose((b) => !b.isWall);
     if (pref === 'wall') {
       // nearest wall that stands between us and the nearest non-wall building
       const goal = choose((b) => !b.isWall);
@@ -795,6 +860,8 @@ export class RaidSim {
   }
 
   private updateAttacker(u: RU, dt: number): void {
+    const j = u.def?.jumps;
+    if (j && u.slowUntil > this.time) u.runT = 0; // soaked by a Cedar Sprayer: momentum gone
     const sp = u.speed * this.mulSpeed(u);
     // engage nearby defenders first
     if (!u.tu || u.tu.dead) {
@@ -808,6 +875,7 @@ export class RaidSim {
       }
     }
     if (u.type === 'nurse') return this.updateHealer(u, dt, sp);
+    if (u.tu && u.def?.unload) return this.unloadVan(u); // fans in the way: everybody out
     if (u.tu) {
       this.fightUnit(u, u.tu, dt, sp);
       if (u.tu?.dead) {
@@ -847,9 +915,11 @@ export class RaidSim {
     const tgt = u.wall ?? u.tb;
     const inRange = distToRect(u.x, u.y, tgt.x, tgt.y, tgt.size, tgt.size) <= u.range + 0.15;
     if (inRange) {
+      if (u.def?.unload) return this.unloadVan(u);
       this.attackBuilding(u, tgt, dt);
       return;
     }
+    if (j && u.slowUntil <= this.time) u.runT += dt;
     if (u.needsPath) {
       if (this.pathBudget <= 0) return;
       this.pathBudget--;
@@ -863,9 +933,11 @@ export class RaidSim {
     u.wall = null;
     const t = u.tb;
     if (!t) return;
-    const p = findPath(this.cost, Math.floor(u.x), Math.floor(u.y), { x: t.x, y: t.y, w: t.size, h: t.size }, Math.max(0.5, u.range - 0.2));
+    const jumps = !!u.def?.jumps;
+    const p = findPath(jumps ? this.costJump : this.cost, Math.floor(u.x), Math.floor(u.y), { x: t.x, y: t.y, w: t.size, h: t.size }, Math.max(0.5, u.range - 0.2));
     u.path = p ?? [];
     u.pathI = 0;
+    if (jumps) return; // walls are not in the way
     // does the path go through a wall? then attack that wall first
     for (let i = 0; i < u.path.length; i++) {
       const b = this.tileB[u.path[i]];
@@ -930,6 +1002,18 @@ export class RaidSim {
     u.attackT = 1;
     let dmg = u.dps * u.rate * this.mulDmg(u);
     if (b.isWall && u.type === 'engineer') dmg *= TROOPS.engineer.wallMul ?? 1;
+    const j = u.def?.jumps;
+    if (j) {
+      // the first hit after a run carries the momentum
+      dmg *= 1 + Math.min(u.runT, j.maxRun) * j.dmg;
+      u.runT = 0;
+    }
+    const ch = u.def?.chorus;
+    u.hits++;
+    if (ch && u.hits % ch.every === 0) {
+      dmg *= ch.mul;
+      this.events.push({ e: 'chorus', x: b.cx, y: b.cy });
+    }
     if (u.hero === 'prof' || (u.range > 1.5 && u.type !== 'nurse')) {
       // ranged: red pen / thrown book projectile (visual only, damage applies instantly)
       this.events.push({ e: 'hit', x: b.cx, y: b.cy, dmg, kind: 'pen' });

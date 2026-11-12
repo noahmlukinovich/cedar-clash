@@ -25,6 +25,8 @@ export type BuildingType =
   | 'health'
   | 'biblical'
   | 'callan'
+  | 'business'
+  | 'music'
   | 'ssc'
   | 'faculty'
   | 'presidents'
@@ -88,9 +90,10 @@ export interface BuildingDef {
   removable?: boolean;
 }
 
-export type TroopType = 'freshman' | 'engineer' | 'nurse' | 'theology' | 'athlete';
+export type TroopType = 'freshman' | 'engineer' | 'nurse' | 'theology' | 'athlete' | 'business' | 'music' | 'runner' | 'ra' | 'goteam';
 export type HeroType = 'prof' | 'president';
-export type UnitType = TroopType | HeroType | 'fan';
+/** 'gomember' is what a GO Team van unloads; it cannot be trained on its own. */
+export type UnitType = TroopType | HeroType | 'fan' | 'gomember';
 
 export interface TroopLevel {
   hp: number;
@@ -120,6 +123,18 @@ export interface TroopDef {
   heal?: number; // heal per second (healers)
   healRadius?: number;
   aura?: { radius: number; dmg: number; speed: number };
+  /** Extra loot (fraction of a building's loot) when this troop lands the final hit on it. */
+  lootBonus?: number;
+  /** Every Nth hit deals `mul` times the damage. */
+  chorus?: { every: number; mul: number };
+  /** Paths over walls and lakes; builds momentum while running. */
+  jumps?: { maxRun: number; speed: number; dmg: number };
+  /** Shooting defenses pick this troop first; sets off hidden traps from `trapRange` tiles at `trapDmg` damage. */
+  taunt?: { trapRange: number; trapDmg: number };
+  /** Does not fight: on reaching a target (or dying) it becomes `count` short-lived team members. */
+  unload?: { count: number; life: number };
+  /** Short label for the raid deploy bar (defaults to the first word of the name). */
+  short?: string;
   levels: TroopLevel[];
   color: string;
   size: number; // render scale

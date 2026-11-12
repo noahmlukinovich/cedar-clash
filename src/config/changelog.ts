@@ -10,6 +10,19 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 4,
+    date: 'Nov 12, 2026',
+    title: 'Five new troops',
+    items: [
+      'Business Major (School of Business, DMC 2): fast, goes straight for storages and collectors, and earns 10% bonus loot from anything it finishes off.',
+      'Music Major (Bolthouse Center for Music, DMC 3): attacks from 3 tiles away, even over a wall. Every fourth hit is the chorus, for double damage.',
+      'Cross Country Runner (Callan Lv2): runs over walls and across Cedar Lake, and hits harder the longer the run-up.',
+      'RA (Residence Hall Lv3): slow and very tough. Towers and carts shoot the RA first, and a room check sets off hidden Yellow Jacket Nests early.',
+      'GO Team (DMC Lv4): a Global Outreach van that unloads five team members at its first target.',
+      'Two new buildings in the Shop to go with them. Research all five in the Library.',
+    ],
+  },
+  {
     v: 3,
     date: 'Nov 12, 2026',
     title: 'Tougher troops, smoother training',

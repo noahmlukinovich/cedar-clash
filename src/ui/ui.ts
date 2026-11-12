@@ -408,7 +408,7 @@ export class UI {
     if ((b.type === 'admissions' || b.type === 'coffeecart') && b.level >= 1) {
       btn('Collect', icon(b.type === 'admissions' ? 'tuition' : 'coffee', 34), 'green', () => vs.doCollect(b));
     }
-    if (['reshall', 'biblical', 'callan', 'ens', 'health'].includes(b.type)) btn('Train', icon('army', 34), 'blue', () => this.openArmy());
+    if (['reshall', 'biblical', 'callan', 'ens', 'health', 'business', 'music'].includes(b.type)) btn('Train', icon('army', 34), 'blue', () => this.openArmy());
     if (b.type === 'ssc' && b.level >= 1) btn('Brew', `<span style="font-size:28px">🧪</span>`, 'purple', () => this.openArmy());
     if (b.type === 'library' && b.level >= 1) btn('Research', `<span style="font-size:28px">📚</span>`, 'blue', () => this.openLibrary());
     if (b.type === 'faculty' && b.level >= 1) btn('Prof', `<span style="font-size:28px">🎓</span>`, 'gold', () => this.openHero('prof'));

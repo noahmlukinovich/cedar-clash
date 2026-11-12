@@ -64,8 +64,10 @@ export function applyRaidOutcome(s: GameState, setup: RaidSetup, r: RaidResult):
 
   const stars = r.stars;
   const win = stars > 0;
-  const gotT = addRes(s, 'tuition', r.loot.tuition);
-  const gotC = addRes(s, 'coffee', r.loot.coffee);
+  const tuition = r.loot.tuition + (r.bonus?.tuition ?? 0);
+  const coffee = r.loot.coffee + (r.bonus?.coffee ?? 0);
+  const gotT = addRes(s, 'tuition', tuition);
+  const gotC = addRes(s, 'coffee', coffee);
   const td = trophyDelta(setup, stars);
   s.trophies = Math.max(0, s.trophies + td);
   s.bestTrophies = Math.max(s.bestTrophies, s.trophies);
@@ -91,5 +93,5 @@ export function applyRaidOutcome(s: GameState, setup: RaidSetup, r: RaidResult):
     s.events = s.events.filter((e) => e.type !== 'elephantrun');
   }
   if (setup.kind === 'campaign' && win) s.campaignDone = true;
-  return { win, stars, destruction: r.destruction, tuition: r.loot.tuition, coffee: r.loot.coffee, gotT, gotC, trophyDelta: td, chapel, cancelled: false };
+  return { win, stars, destruction: r.destruction, tuition, coffee, gotT, gotC, trophyDelta: td, chapel, cancelled: false };
 }
