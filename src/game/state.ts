@@ -23,6 +23,7 @@ export interface QueueItem<T> {
   left: number; // seconds remaining
   total: number;
   chucks?: number; // seconds stuck "in line at Chuck's"
+  paid?: number; // what was spent to queue it, refunded on cancel
 }
 
 export interface HeroState {

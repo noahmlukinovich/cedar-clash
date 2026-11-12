@@ -12,9 +12,11 @@ export const CHANGELOG: ChangeEntry[] = [
   {
     v: 3,
     date: 'Nov 12, 2026',
-    title: 'Tougher troops',
+    title: 'Tougher troops, smoother training',
     items: [
       'All five troops (Freshman, Athlete, Engineering Major, Theology Major, Nursing Student) have 10% more hitpoints at every level. Chuck\'s has started serving protein.',
+      'Army screen: hold a troop to keep recruiting, the queue groups troops with a count and shows the total time left, and a card tells you when the halls are full.',
+      'Fixed: clicks on the Army screen could be dropped, and cancelling a troop now always refunds exactly what you paid.',
       "This What's New popup. You can reread it any time from Settings.",
     ],
   },

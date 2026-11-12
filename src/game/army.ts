@@ -48,8 +48,9 @@ export function train(s: GameState, t: TroopType): string | null {
   const err = trainCheck(s, t);
   if (err) return err;
   const d = TROOPS[t];
-  spend(s, d.res, d.levels[s.troopLevels[t] - 1].cost);
-  s.trainQueue.push({ type: t, left: d.trainTime, total: d.trainTime });
+  const cost = d.levels[s.troopLevels[t] - 1].cost;
+  spend(s, d.res, cost);
+  s.trainQueue.push({ type: t, left: d.trainTime, total: d.trainTime, paid: cost });
   return null;
 }
 
@@ -57,8 +58,31 @@ export function cancelTrain(s: GameState, idx: number): void {
   const q = s.trainQueue[idx];
   if (!q) return;
   const d = TROOPS[q.type];
-  s.resources[d.res] += d.levels[s.troopLevels[q.type] - 1].cost;
+  // Refund what was paid, not today's price: research finishing in between raises the price.
+  // (Items queued before `paid` existed fall back to the current price.)
+  s.resources[d.res] += q.paid ?? d.levels[s.troopLevels[q.type] - 1].cost;
   s.trainQueue.splice(idx, 1);
+}
+
+/** The training queue as runs of the same troop, in order: what the Army screen shows. */
+export function queueRuns(s: GameState): { type: TroopType; count: number; start: number }[] {
+  const runs: { type: TroopType; count: number; start: number }[] = [];
+  s.trainQueue.forEach((q, i) => {
+    const last = runs[runs.length - 1];
+    if (last && last.type === q.type) last.count++;
+    else runs.push({ type: q.type, count: 1, start: i });
+  });
+  return runs;
+}
+
+/** Real seconds until one queue item is done (Finals Week halves training speed). */
+export function trainItemLeft(s: GameState, q: { left: number; chucks?: number }): number {
+  return (q.left + Math.max(0, q.chucks ?? 0)) * (hasEvent(s, 'finals') ? 2 : 1);
+}
+
+/** Real seconds until the whole training queue is done. */
+export function trainQueueLeft(s: GameState): number {
+  return s.trainQueue.reduce((a, q) => a + trainItemLeft(s, q), 0);
 }
 
 export function sscLevel(s: GameState): number {
