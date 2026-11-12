@@ -196,6 +196,8 @@ export class UI {
     };
     mk('gear', 'Settings & Debug', () => this.openSettings(), 'gray');
     mk('medal', 'Achievements', () => this.openAchievements(), 'gold');
+    // The leaderboard lives on the server, so it only exists when playing online.
+    if (this.game.online) mk('trophy', 'Leaderboard', () => void this.openLeaderboard(), 'blue');
     mk('chapel', 'Chapel', () => this.openChapel(), 'purple');
     const snd = mk(isMuted() ? 'mute' : 'sound', 'Toggle sound', () => {
       setMuted(!isMuted());
@@ -878,8 +880,6 @@ export class UI {
         const shield = online.shieldUntil > Date.now() ? ` · 🛡️ Shield for ${fmtTime((online.shieldUntil - Date.now()) / 1000)}` : '';
         m.body.appendChild(el('div', '', `Playing online as <b>${esc(online.user.name)}</b>${shield}`));
         const r2 = el('div', 'row');
-        const lb = el('button', 'btn small gold', '🏆 Leaderboard');
-        lb.onclick = () => void this.openLeaderboard();
         const out = el('button', 'btn small red', 'Log out');
         out.onclick = async () => {
           await online.flush();
@@ -887,7 +887,7 @@ export class UI {
           this.game.resetting = true;
           location.reload();
         };
-        r2.append(lb, out);
+        r2.append(out);
         m.body.appendChild(r2);
         m.body.appendChild(el('p', 'flavor', 'Your campus is saved on the server. Other players can raid it while you are away; a shield protects you for a while after a big raid.'));
         appendControls();
