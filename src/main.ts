@@ -17,6 +17,7 @@ import { applyRaidOutcome, localSetup, type RaidOutcome } from './raid/outcome';
 import { RaidScene } from './raid/raidScene';
 import { UI, esc, fmt } from './ui/ui';
 import { VillageScene, fmtTime } from './village/villageScene';
+import { VisitScene } from './village/visitScene';
 
 export interface Scene {
   update(dt: number, realDt: number): void;
@@ -39,6 +40,8 @@ export class Game {
   ui: UI;
   village: VillageScene;
   raid: RaidScene | null = null;
+  /** Set while looking at another player's campus (online only, read-only). */
+  visit: VisitScene | null = null;
   scene: Scene;
   resetting = false;
   private last = performance.now();
@@ -50,6 +53,7 @@ export class Game {
   private pendingNotes: Note[] = [];
   private pendingDefenses: DefenseEntry[] = [];
   private raidId: string | null = null;
+  private visiting = false;
   /** Offline, but a game server is reachable (offer "play online" in settings). */
   serverAvailable = false;
   private pushT = 0;
@@ -178,10 +182,13 @@ export class Game {
       const rows = ds
         .map(
           (d) =>
-            `<b>${esc(d.attacker)}</b> raided you: ${'★'.repeat(d.stars)}${'☆'.repeat(3 - d.stars)} ${Math.floor(d.destruction * 100)}%, took ${fmt(d.tuition)} Tuition and ${fmt(d.coffee)} Coffee (${d.trophies >= 0 ? '+' : ''}${d.trophies} trophies).`,
+            `<button class="btn small blue" data-visit="${esc(d.attacker)}">Visit</button> <b>${esc(d.attacker)}</b> raided you: ${'★'.repeat(d.stars)}${'☆'.repeat(3 - d.stars)} ${Math.floor(d.destruction * 100)}%, took ${fmt(d.tuition)} Tuition and ${fmt(d.coffee)} Coffee (${d.trophies >= 0 ? '+' : ''}${d.trophies} trophies).`,
         )
         .join('<br>');
       this.ui.popup(ds.length === 1 ? 'Your campus was raided!' : `Your campus was raided ${ds.length} times!`, rows, 'Back to work');
+      this.ui.modalBack?.querySelectorAll<HTMLElement>('[data-visit]').forEach((b) => {
+        b.onclick = () => void this.startVisit(b.dataset.visit ?? '');
+      });
     }
   }
 
@@ -190,7 +197,7 @@ export class Game {
     const h = window.innerHeight;
     this.canvas.width = Math.floor(w * this.dpr);
     this.canvas.height = Math.floor(h * this.dpr);
-    for (const s of [this.village, this.raid]) {
+    for (const s of [this.village, this.raid, this.visit]) {
       if (!s) continue;
       s.cam.width = w;
       s.cam.height = h;
@@ -278,6 +285,45 @@ export class Game {
     this.raid.cam.height = window.innerHeight;
     this.scene = this.raid;
     this.raid.enter();
+  }
+
+  /** Opens another player's campus, read-only. Online only: offline there is nobody to visit. */
+  async startVisit(name: string): Promise<void> {
+    const online = this.online;
+    if (!online || this.scene !== this.village || this.visiting) return;
+    this.visiting = true;
+    let info;
+    try {
+      await online.flush(); // syncing pauses while away, so send anything pending first
+      info = await online.visit(name);
+    } catch (e) {
+      this.ui.toast((e as Error).message, 'bad');
+      sfx('error');
+      return;
+    } finally {
+      this.visiting = false;
+    }
+    if (this.scene !== this.village) return; // something else started while we waited
+    this.ui.closeModal();
+    this.scene.exit();
+    this.ui.showVillage(false);
+    this.visit = new VisitScene(this, info);
+    this.visit.cam.width = window.innerWidth;
+    this.visit.cam.height = window.innerHeight;
+    this.scene = this.visit;
+    this.ui.showVisit(info);
+  }
+
+  endVisit(): void {
+    if (!this.visit) return;
+    this.visit.exit();
+    this.visit = null;
+    this.ui.hideVisit();
+    this.scene = this.village;
+    this.ui.showVillage(true);
+    this.village.enter();
+    this.save();
+    this.showServerNews();
   }
 
   endRaid(): void {

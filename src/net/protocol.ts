@@ -1,5 +1,6 @@
 // Request/response shapes shared by the browser client and the game server.
 import type { Action } from '../game/actions';
+import type { BuildingType } from '../config/types';
 import type { GameState } from '../game/state';
 import type { RaidInput, RaidSetup } from '../raid/engine';
 import type { RaidOutcome } from '../raid/outcome';
@@ -74,6 +75,26 @@ export interface LeaderRow {
   name: string;
   trophies: number;
   dmc: number;
+}
+
+/** A building as other players may see it: where it is and what level, nothing else. */
+export interface VisitBuilding {
+  /** Position in the list, not the owner's real building id. */
+  id: number;
+  type: BuildingType;
+  x: number;
+  y: number;
+  level: number;
+  name?: string;
+  upgrading?: boolean;
+}
+
+/** The public view of someone's campus (GET /api/visit?name=...). Hidden traps are left out. */
+export interface VisitResponse {
+  name: string;
+  trophies: number;
+  dmc: number;
+  buildings: VisitBuilding[];
 }
 
 export const NAME_RE = /^[A-Za-z0-9_][A-Za-z0-9_ .'-]{1,18}[A-Za-z0-9_.]$/;

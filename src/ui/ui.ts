@@ -42,6 +42,7 @@ import type { BuildingInst } from '../game/state';
 import { type ExtraRow, type UpgradeRow, listUpgrades } from '../game/upgrades';
 import { toWorld } from '../core/iso';
 import type { Game } from '../main';
+import type { VisitBuilding, VisitResponse } from '../net/protocol';
 import { fmtTime } from '../village/villageScene';
 import { ICONS, icon } from './icons';
 import { buildingThumb, spellThumb, unitThumb } from './thumbs';
@@ -88,6 +89,8 @@ export class UI {
   bottomRight!: HTMLElement;
   sideRight!: HTMLElement;
   toasts = el('div');
+  private visitHud: HTMLElement | null = null;
+  private visitSel: HTMLElement | null = null;
   modalBack: HTMLElement | null = null;
   refreshModal: (() => void) | null = null;
   private lastSelId = -2;
@@ -1175,10 +1178,59 @@ export class UI {
     const list = el('div', 'league-list');
     rows.forEach((r, i) => {
       const me = r.name === online.user.name;
-      list.appendChild(el('div', `league-row stroke ${me ? 'me' : ''}`, `<span>${i + 1}. ${esc(r.name)} <small>DMC ${r.dmc}</small></span><span>${icon('trophy', 18)} ${r.trophies}</span>`));
+      const row = el('div', `league-row stroke ${me ? 'me' : ''}`, `<span>${i + 1}. ${esc(r.name)} <small>DMC ${r.dmc}</small></span><span class="lb-side">${icon('trophy', 18)} ${r.trophies}</span>`);
+      if (!me) {
+        const go = el('button', 'btn small blue', 'Visit');
+        go.title = 'Look around this campus';
+        go.onclick = () => {
+          sfx('click');
+          void this.game.startVisit(r.name);
+        };
+        row.lastElementChild!.appendChild(go);
+      }
+      list.appendChild(row);
     });
     if (!rows.length) list.appendChild(el('div', 'flavor', 'Nobody here yet.'));
     m.body.appendChild(list);
+  }
+
+  // ---------- Visiting another campus ----------
+  showVisit(v: VisitResponse): void {
+    this.hideVisit();
+    const hud = el('div', 'hud');
+    const bar = el('div', 'visit-bar');
+    bar.appendChild(el('span', 'stroke', `👀 Visiting <b>${esc(v.name)}</b> <small>DMC ${v.dmc} · ${icon('trophy', 16)} ${v.trophies}</small>`));
+    const home = el('button', 'btn small gold', '🏠 Go home');
+    home.onclick = () => {
+      sfx('click');
+      this.game.endVisit();
+    };
+    bar.appendChild(home);
+    this.visitSel = el('div', 'sel-panel hidden');
+    hud.append(bar, this.visitSel);
+    this.root.appendChild(hud);
+    this.visitHud = hud;
+  }
+
+  /** Name, level and description of the building clicked while visiting (look, don't touch). */
+  visitSelect(b: VisitBuilding | null): void {
+    const p = this.visitSel;
+    if (!p) return;
+    p.classList.toggle('hidden', !b);
+    if (!b) return;
+    const def = BUILDINGS[b.type];
+    p.innerHTML = '';
+    p.style.animation = 'none';
+    void p.offsetWidth;
+    p.style.animation = '';
+    p.appendChild(el('div', 'sel-title stroke', `${esc(b.name ?? def.name)} <small>${b.level === 0 ? '(under construction)' : 'Level ' + b.level}${b.upgrading && b.level > 0 ? ' · upgrading' : ''}</small>`));
+    p.appendChild(el('div', 'visit-desc stroke', def.desc));
+  }
+
+  hideVisit(): void {
+    this.visitHud?.remove();
+    this.visitHud = null;
+    this.visitSel = null;
   }
 
   // ---------- Loading ----------

@@ -33,6 +33,7 @@ When the page is served with the game server behind it, players log in (invite-o
 - **Raids are verified by the server.** The raid simulation is deterministic: a fixed 30 Hz timestep and a seeded RNG, with no `Math.random`, `cos` or `sin` in gameplay code. The browser sends only *what you deployed, where, and on which tick*. The server replays that against the same setup and decides the stars, loot and trophies. If the browser's raid and the server's replay ever disagree, the server's result counts and the results screen says so.
 - **The server runs the economy.** Every village action (build, upgrade, collect, train…) goes through `applyAction` (`src/game/actions.ts`). The browser applies it immediately, and the server applies the same code to its copy, which is the one that counts. Action batches carry sequence numbers, so a retried request never applies twice.
 - **Defending.** While you're offline, others can raid a snapshot of your campus. You lose the loot they take: 35% of stored Tuition and Coffee, plus some of what's waiting in collectors. You get a popup next time you play. A raid with 40% or more destruction gives you a 6-hour shield (12 hours for 3 stars). Attacking a real player drops your own shield.
+- **Visiting.** The **Visit** button on the Leaderboard (and on the "you were raided" popup) opens another player's campus to look around. It is read-only, shows only the layout and building levels, and leaves out hidden traps.
 - **Abandoned raids** are settled automatically with the moves the server already received. Closing the tab mid-raid doesn't undo it.
 - **Security:**
   - Passwords are hashed with scrypt.
@@ -86,7 +87,7 @@ src/
   core/       # iso math, camera, RNG, particles, Web Audio synth, event bus
   game/       # state, save/migration, economy, army/research/heroes, events & chapel
   render/     # procedural drawing primitives, building + unit sprites, world/ground
-  village/    # village scene: placement, moving, selection, collection
+  village/    # village scene: placement, moving, selection, collection; read-only scene for visiting another campus
   raid/       # base generator, A* pathfinding, raid simulation, deterministic raid engine,
               # raid outcome rules, raid scene + HUD
   net/        # online client: login screen, API calls, state sync, shared protocol types

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { hashPassword } from '../server/auth';
 import { newPlayerState } from '../server/game';
 import { startServer } from '../server/main';
-import type { MeResponse, RaidFinishResponse, RaidStartResponse, SyncResponse } from '../src/net/protocol';
+import type { MeResponse, RaidFinishResponse, RaidStartResponse, SyncResponse, VisitResponse } from '../src/net/protocol';
 import type { GameState } from '../src/game/state';
 
 let srv: ReturnType<typeof startServer>;
@@ -204,5 +204,40 @@ describe('real raids', () => {
   it('serves a leaderboard', async () => {
     const r = await alice.call<{ name: string; trophies: number }[]>('/api/leaderboard');
     expect(r.data.map((x) => x.name).sort()).toEqual(['Alice Hall', 'Bob_U', 'Carol']);
+  });
+});
+
+describe('visiting another campus', () => {
+  const rowOf = (name: string): Record<string, unknown> => ({ ...(srv.db.st.userByName.get(name) as Record<string, unknown>) });
+
+  it('needs a login and a real player name', async () => {
+    expect((await new Client().call('/api/visit?name=Bob_U')).status).toBe(401);
+    expect((await alice.call('/api/visit?name=Nobody_Here')).status).toBe(404);
+    expect((await alice.call('/api/visit?name=' + encodeURIComponent('<img src=x>'))).status).toBe(404);
+    expect((await alice.call('/api/visit')).status).toBe(404);
+  });
+
+  it('shows only the public layout, hides traps, and leaves the visited player untouched', async () => {
+    patchState('Bob_U', (s) => {
+      s.buildings.push({ id: s.nextId++, type: 'nest', x: 5, y: 5, level: 1 }, { id: s.nextId++, type: 'wall', x: 6, y: 6, level: 1 });
+      const b = s.buildings.find((x) => x.type === 'registrar')!;
+      b.upgrade = { to: b.level + 1, end: s.clock + 1e6, total: 1e6 };
+    });
+    const before = rowOf('Bob_U');
+    const r = await alice.call<VisitResponse>('/api/visit?name=bob_u'); // names are case-insensitive
+    expect(r.status).toBe(200);
+    expect(Object.keys(r.data).sort()).toEqual(['buildings', 'dmc', 'name', 'trophies']);
+    expect(r.data.name).toBe('Bob_U');
+    expect(r.data.trophies).toBe(before.trophies);
+    const stored = JSON.parse(before.state as string) as GameState;
+    expect(r.data.buildings.length).toBe(stored.buildings.length - 1);
+    expect(r.data.buildings.some((b) => b.type === 'nest')).toBe(false);
+    expect(r.data.buildings.some((b) => b.type === 'wall' && b.x === 6 && b.y === 6)).toBe(true);
+    expect(r.data.buildings.find((b) => b.type === 'registrar')?.upgrading).toBe(true);
+    for (const b of r.data.buildings) {
+      for (const k of Object.keys(b)) expect(['id', 'type', 'x', 'y', 'level', 'name', 'upgrading']).toContain(k);
+    }
+    expect(JSON.stringify(r.data)).not.toMatch(/stored|resources|army|chapel|stats/);
+    expect(rowOf('Bob_U')).toEqual(before); // state, last_seen, shield: nothing written
   });
 });
