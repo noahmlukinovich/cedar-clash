@@ -166,13 +166,13 @@ export class RaidScene implements Scene {
       const d = el('div', `dcard ${i === this.sel ? 'sel' : ''}`);
       const n = this.count(c);
       if (c.kind === 'troop') {
-        d.appendChild(unitThumb(c.type, 72, 66));
+        d.appendChild(unitThumb(c.type, 72, 66, this.engine.setup.troopLevels[c.type] ?? 1));
         d.appendChild(el('div', 'n stroke', `x${n}`));
         d.appendChild(el('div', 'nm', TROOPS[c.type].short ?? TROOPS[c.type].name.split(' ')[0]));
         if (n <= 0) d.classList.add('empty');
       } else if (c.kind === 'hero') {
         d.classList.add('hero');
-        d.appendChild(unitThumb(c.type, 72, 66));
+        d.appendChild(unitThumb(c.type, 72, 66, this.engine.setup.heroLevels[c.type] ?? 1));
         d.appendChild(el('div', 'nm', HEROES[c.type].name.replace('The ', '')));
         const u = this.deployed(c);
         if (u) {
@@ -787,7 +787,28 @@ export class RaidScene implements Scene {
             frozen: u.frozenUntil > sim.time,
             flash: u.flash,
             stunned: u.stunUntil > sim.time,
+            level: u.level,
           }, u.side === 'def');
+          // level pips under the feet, so a troop's level reads in a crowd (heroes show a label instead)
+          if (!u.hero && u.level >= 2) {
+            const n = Math.min(5, u.level);
+            const gap = 4.2 * scale;
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = OUT;
+            ctx.fillStyle = u.side === 'atk' ? C.gold : '#ff8a7a';
+            for (let i = 0; i < n; i++) {
+              const px = p.x + (i - (n - 1) / 2) * gap;
+              const py = p.y + 6 * scale;
+              ctx.beginPath();
+              ctx.moveTo(px, py - 2.2 * scale);
+              ctx.lineTo(px + 1.9 * scale, py);
+              ctx.lineTo(px, py + 2.2 * scale);
+              ctx.lineTo(px - 1.9 * scale, py);
+              ctx.closePath();
+              ctx.fill();
+              ctx.stroke();
+            }
+          }
           if (u.pairedUntil > sim.time && Math.sin(t * 3 + u.uid) > 0.95) {
             this.particles.add({ kind: 'heart', x: p.x, y: p.y, z: 34, vz: 30, max: 0.8, size: 12, color: '#ff6fa8' });
           }

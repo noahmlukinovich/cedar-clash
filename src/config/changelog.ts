@@ -10,6 +10,17 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 5,
+    date: 'Nov 12, 2026',
+    title: 'A new look for every level',
+    items: [
+      'Buildings now look different at each level: wood at Lv1, brick at Lv2, stone trim and awnings at Lv3, a cupola and gold trim at Lv4, banners and a gold finial at Lv5 and up.',
+      'Walls change shape as well as colour, from wooden posts to gold battlements.',
+      'Troops and heroes pick up new gear as you research them. Freshmen eventually graduate.',
+      'In raids, small gold pips under a troop show its level.',
+    ],
+  },
+  {
     v: 4,
     date: 'Nov 12, 2026',
     title: 'Five new troops',
