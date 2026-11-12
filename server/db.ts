@@ -122,6 +122,7 @@ export function openDb(path: string) {
     invite: db.prepare('SELECT * FROM invites WHERE code = ?'),
     useInvite: db.prepare('UPDATE invites SET uses_left = uses_left - 1 WHERE code = ? AND uses_left > 0'),
     listInvites: db.prepare('SELECT * FROM invites WHERE uses_left > 0 ORDER BY created'),
+    setInviteUses: db.prepare('UPDATE invites SET uses_left = ? WHERE code = ?'),
 
     insertRaid: db.prepare('INSERT INTO raids (id, attacker, defender, setup, created) VALUES (?, ?, ?, ?, ?)'),
     raid: db.prepare('SELECT * FROM raids WHERE id = ?'),
