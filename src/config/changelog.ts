@@ -14,7 +14,7 @@ export const CHANGELOG: ChangeEntry[] = [
     date: 'Nov 13, 2026',
     title: 'Campus buildings, rebuilt',
     items: [
-      'The DMC is now a multi-wing complex with a spire, growing a wing with each upgrade and a columned entrance at Lv4.',
+      'The DMC has its real shape: stepped brick tiers, the dark spire with its mast and ball, and a columned entrance under a wide pediment.',
       'Residence Halls, the Admissions Office and the Registrar\'s Office have new designs: gabled bays, columned fronts, framed and lit windows.',
       'Every building gets paved lots, hedges and trees, cream stone trim and banner lamp posts as it levels up.',
     ],

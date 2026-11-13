@@ -42,7 +42,7 @@ export function getBuildingSprite(type: BuildingType, level: number, variant = 0
   const size = BUILDINGS[type].size;
   const w = size * 64 + 48;
   // headroom above the footprint, by footprint size (the DMC steeple is the tallest thing on campus)
-  const top = type === 'dmc' ? 210 : size === 1 ? 46 : size === 2 ? 80 : size === 3 ? 150 : 140;
+  const top = type === 'dmc' ? 240 : size === 1 ? 46 : size === 2 ? 80 : size === 3 ? 150 : 140;
   const h = size * 32 + top + 12;
   const canvas = document.createElement('canvas');
   canvas.width = w * SCALE;
@@ -564,79 +564,162 @@ function drawScaffold(ctx: Ctx, size: number): void {
 }
 
 /**
- * The DMC grows from a single hall into a multi-wing complex: a spire tower at Lv2, a back wing
- * at Lv3, an east wing and a columned entrance at Lv4, then a taller gold-capped spire.
+ * The DMC, in its recognisable shape: stepped brick tiers rising to a dark faceted spire with a
+ * mast and ball, and a wide cream pediment over a columned entrance at the front corner (so it
+ * sits centred on screen). It starts as a small hall and gains a tier, the entrance, a third
+ * tier and gold details as it levels up.
  */
 function dmc(ctx: Ctx, L: number): void {
   site(ctx, L, 4);
-  const h = 34 + L * 4;
-  // back wing
-  if (L >= 3) {
-    walls(ctx, L, -1.75, -1.75, -0.25, -0.2, 4, h - 6, C.brick);
-    panes(ctx, 'L', -1.65, -0.35, -0.2, 10, h - 12, 3, 1);
-    flatRoof(ctx, L, -1.75, -1.75, -0.25, -0.2, h - 6, false);
-  }
-  // spire tower, behind the main hall
-  const th = h + 34 + L * 7;
+  const SPIRE = L >= 5 ? '#2a3152' : '#333a55';
+  const a = 1.55; // half-width of the ground tier
+  const h1 = 31 + L * 2.5; // ground tier
+  walls(ctx, L, -a, -a, a, a, 4, h1, C.brick);
   if (L >= 2) {
-    walls(ctx, L, -0.4, -1.3, 0.5, -0.4, 4, th, C.brick);
-    glassWall(ctx, 'L', -0.3, 0.4, -0.4, th - 30, th - 6, 3, 2);
-    glassWall(ctx, 'R', -1.2, -0.5, 0.5, th - 30, th - 6, 3, 2);
-    box(ctx, -0.46, -1.36, 0.56, -0.34, th, th + 4, CREAM);
-    pyramid(ctx, -0.46, -1.36, 0.56, -0.34, th + 4, 30, L >= 5 ? C.gold : SLATE);
+    panes(ctx, 'L', -a + 0.1, 0.25, a, 9, h1 - 5, 4, 1);
+    panes(ctx, 'R', -a + 0.1, 0.25, a, 9, h1 - 5, 4, 1, 4);
   } else {
-    box(ctx, -0.25, -1.15, 0.35, -0.55, 4, th - 20, WOOD);
-    pyramid(ctx, -0.3, -1.2, 0.4, -0.5, th - 20, 20, C.roofBlue);
+    windowsL(ctx, -a + 0.15, a - 0.15, a, 9, h1 - 5, 5, 1);
+    windowsR(ctx, -a + 0.15, a - 0.15, a, 9, h1 - 5, 5, 1);
   }
-  {
-    // mast: a white ball, then the cross
-    const top = L >= 2 ? th + 34 : th;
-    const [x, y] = P(0.05, -0.85, top);
-    ctx.strokeStyle = OUT;
-    ctx.lineWidth = 2;
-    line(ctx, [x, y], [x, y - (L >= 2 ? 16 : 6)]);
-    if (L >= 2) {
-      ctx.beginPath();
-      ctx.arc(x, y - 18, 4.5, 0, Math.PI * 2);
-      ctx.fillStyle = L >= 6 ? C.gold : '#f4f7f8';
-      ctx.fill();
-      ctx.lineWidth = 1.6;
-      ctx.stroke();
-    }
-    cross(ctx, x, y - (L >= 2 ? 22 : 6), L >= 5 ? 20 : 16);
+  trim(ctx, L, -a, -a, a, a, h1);
+  flatRoof(ctx, L, -a, -a, a, a, h1, false);
+  let top = h1 + (L >= 2 ? 5 : 3);
+
+  // second tier, set back, with a band of dark glass
+  if (L >= 2) {
+    const b = 1.0;
+    const h2 = top + 19 + L * 2;
+    walls(ctx, L, -b, -b, b, b, top, h2, C.brick);
+    // brick piers at the corners, dark glass between
+    glassWall(ctx, 'L', -b + 0.32, b - 0.32, b, top + 5, h2 - 4, 4, 1);
+    glassWall(ctx, 'R', -b + 0.32, b - 0.32, b, top + 5, h2 - 4, 4, 1);
+    flatRoof(ctx, L, -b, -b, b, b, h2, false);
+    top = h2 + 5;
+    // rooftop units on the lower roof, either side
+    box(ctx, -a + 0.2, a - 0.75, -a + 0.5, a - 0.45, h1 + 5, h1 + 11, '#c9cdd3');
+    box(ctx, a - 0.75, -a + 0.2, a - 0.45, -a + 0.5, h1 + 5, h1 + 11, '#c9cdd3');
   }
-  // east wing
+  // third tier: the brick core the spire stands on
   if (L >= 4) {
-    walls(ctx, L, 0.55, -1.6, 1.75, 0.2, 4, h - 4, C.brick);
-    panes(ctx, 'R', -1.5, 0.1, 1.75, 10, h - 10, 4, 1);
-    flatRoof(ctx, L, 0.55, -1.6, 1.75, 0.2, h - 4);
+    const c = 0.52;
+    const h3 = top + 15;
+    walls(ctx, L, -c, -c, c, c, top, h3, C.brick);
+    panes(ctx, 'L', -c + 0.08, c - 0.08, c, top + 3, h3 - 2, 2, 1, 1);
+    panes(ctx, 'R', -c + 0.08, c - 0.08, c, top + 3, h3 - 2, 2, 1, 1);
+    box(ctx, -c - 0.05, -c - 0.05, c + 0.05, c + 0.05, h3, h3 + 4, CREAM);
+    top = h3 + 4;
   }
-  // main hall
-  walls(ctx, L, -1.6, -0.25, 1.35, 1.35, 4, h, C.brick);
+
+  // the spire: a dark faceted prism that flares, then tapers to the mast
+  {
+    const r0 = L >= 2 ? 0.34 : 0.4;
+    const r1 = L >= 2 ? 0.58 : 0.4;
+    const flare = L >= 2 ? 14 + L : 0;
+    const rise = L >= 2 ? 28 + L * 4 : 24;
+    if (flare) {
+      poly(ctx, [P(-r0, r0, top), P(r0, r0, top), P(r1, r1, top + flare), P(-r1, r1, top + flare)], shade(SPIRE, 0.12));
+      poly(ctx, [P(r0, r0, top), P(r0, -r0, top), P(r1, -r1, top + flare), P(r1, r1, top + flare)], shade(SPIRE, -0.25));
+      // glass glints on the facets
+      ctx.strokeStyle = 'rgba(160,200,255,0.5)';
+      ctx.lineWidth = 1.2;
+      line(ctx, P(-r0 * 0.3, r0, top + 2), P(-r1 * 0.3, r1, top + flare - 2));
+      line(ctx, P(r0 * 0.4, r0, top + 2), P(r1 * 0.4, r1, top + flare - 2));
+    }
+    pyramid(ctx, -r1, -r1, r1, r1, top + flare, rise, L >= 2 ? SPIRE : C.roofBlue);
+    if (L >= 5) {
+      // gold band where the spire turns
+      ctx.strokeStyle = C.gold;
+      ctx.lineWidth = 2;
+      line(ctx, P(-r1, r1, top + flare), P(r1, r1, top + flare));
+      line(ctx, P(r1, r1, top + flare), P(r1, -r1, top + flare));
+    }
+    // mast and ball
+    const [x, y] = P(0, 0, top + flare + rise);
+    const mast = L >= 2 ? 16 + L : 8;
+    ctx.strokeStyle = OUT;
+    ctx.lineWidth = 2.2;
+    line(ctx, [x, y + 2], [x, y - mast]);
+    ctx.beginPath();
+    ctx.arc(x, y - mast - 4, L >= 2 ? 5 : 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = L >= 6 ? C.gold : '#f4f7f8';
+    ctx.fill();
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+  }
+
+  // entrance at the front corner
+  const e = a + 0.28; // outer line of the porch
+  const eh = h1 - 9;
   if (L >= 2) {
-    glassWall(ctx, 'L', -1.45, -0.6, 1.35, 10, h - 7, 3, 2);
-    glassWall(ctx, 'L', 0.45, 1.2, 1.35, 10, h - 7, 3, 2);
-    panes(ctx, 'R', -0.15, 1.25, 1.35, 10, h - 7, 3, 2);
+    // dark glass doors on both faces by the corner
+    glassWall(ctx, 'L', 0.55, a - 0.12, a, 4, eh - 5, 3, 1);
+    glassWall(ctx, 'R', 0.55, a - 0.12, a, 4, eh - 5, 3, 1);
   } else {
-    windowsL(ctx, -1.45, 1.2, 1.35, 10, h - 7, 5, 1);
-    windowsR(ctx, -0.15, 1.25, 1.35, 10, h - 7, 3, 1);
+    door(ctx, 1.0, a, 0.5, 15, '#3a3346');
   }
-  trim(ctx, L, -1.6, -0.25, 1.35, 1.35, h);
-  flatRoof(ctx, L, -1.6, -0.25, 1.35, 1.35, h);
-  // entrance: plain doors, then a colonnade carrying the name
-  const eh = Math.min(h - 10, 26);
-  entry(ctx, L, -0.1, 1.35, 0.7, eh - 4, '#3a3346');
-  if (L >= 4) colonnade(ctx, -0.75, 0.55, 1.35, 0.42, eh, L >= 5 ? 5 : 4);
-  levelFlags(ctx, L, -1.5, 1.25, h + 5);
+  if (L >= 3) {
+    const from = 0.35;
+    // porch floor and beam on each side, then the columns
+    box(ctx, a, from, e, a, 4, 7, C.stone);
+    box(ctx, from, a, e, e, 4, 7, C.stone);
+    const cols = L >= 5 ? 4 : 3;
+    for (let i = 0; i < cols; i++) {
+      const q = from + 0.12 + ((a - from - 0.1) * i) / cols;
+      box(ctx, e - 0.14, q - 0.05, e - 0.04, q + 0.05, 7, eh, CREAM_LIGHT); // right face
+    }
+    for (let i = 0; i < cols; i++) {
+      const q = from + 0.12 + ((a - from - 0.1) * i) / cols;
+      box(ctx, q - 0.05, e - 0.14, q + 0.05, e - 0.04, 7, eh, CREAM_LIGHT); // left face
+    }
+    box(ctx, e - 0.14, e - 0.14, e - 0.02, e - 0.02, 7, eh, CREAM_LIGHT); // corner column
+    box(ctx, a, from - 0.05, e, a, eh, eh + 5, CREAM);
+    box(ctx, from - 0.05, a, e, e, eh, eh + 5, CREAM);
+    // the pediment: two cream slopes meeting above the corner
+    // the corner is the nearest point, so the peak has to rise well above it to read as a gable
+    const peak = eh + 5 + (L >= 5 ? 46 : 42);
+    poly(ctx, [P(e, from - 0.05, eh + 5), P(e, e, eh + 5), P(e, e, peak)], shade(CREAM, -0.14), true, 2);
+    poly(ctx, [P(from - 0.05, e, eh + 5), P(e, e, eh + 5), P(e, e, peak)], CREAM, true, 2);
+    if (L >= 5) {
+      const [gx, gy] = P(e, e, eh + 30);
+      star5(ctx, gx, gy, 5, C.gold);
+    }
+  }
+
+  levelFlags(ctx, L, -a + 0.1, a - 0.1, h1 + 5);
   if (L >= 2) {
-    const [x, y] = P(1.25, 1.25, h + 5);
-    flag(ctx, x, y, 18, C.gold);
+    const [fx, fy] = P(a - 0.1, -a + 0.1, h1 + 5);
+    flag(ctx, fx, fy, 18, C.gold);
   }
-  grounds(ctx, L, 4);
-  // the name goes on last so the hedges never cover it
-  const [sx, sy] = P(-0.1, L >= 4 ? 1.77 : 1.35, eh + (L >= 4 ? 10 : 9));
-  if (L >= 3) plaque(ctx, sx, sy, 'DIXON MINISTRY CENTER', 7, true);
-  else plaque(ctx, sx, sy, 'DMC', 11);
+
+  // landscaping that leaves the corner entrance open: hedges on the outer halves, trees at the
+  // sides, lamp posts flanking the porch
+  const s = 2;
+  if (L >= 2) {
+    shrub(ctx, -s + 0.3, s - 0.17, L >= 3);
+    shrub(ctx, s - 0.17, -s + 0.3, L >= 3);
+  }
+  if (L >= 3) {
+    for (let q = -s + 0.7; q <= -0.5; q += 0.42) {
+      shrub(ctx, q, s - 0.17, (Math.round(q * 10) & 1) === 0);
+      shrub(ctx, s - 0.17, q, false);
+    }
+    tree(ctx, -s + 0.22, s - 0.5, 0.9);
+    tree(ctx, s - 0.5, -s + 0.22, 0.9);
+  }
+  if (L >= 4) {
+    lamp(ctx, 0.15, s - 0.14, true);
+    lamp(ctx, s - 0.14, 0.15, true);
+  }
+
+  // the name, centred over the entrance
+  if (L >= 3) {
+    const [sx, sy] = P(e, e, eh + 3);
+    plaque(ctx, sx, sy, 'DIXON MINISTRY CENTER', 7, true);
+  } else {
+    const [sx, sy] = P(0.2, a, h1 - 7);
+    plaque(ctx, sx, sy, 'DMC', 10);
+  }
 }
 
 function shed(ctx: Ctx): void {
