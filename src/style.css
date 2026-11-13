@@ -56,10 +56,27 @@ canvas#game.dragging {
   display: none !important;
 }
 
+/*
+ * Text rules. Three treatments, chosen by where the text sits:
+ *  - .stroke: headline text straight over the campus or a raid. A true outline drawn behind
+ *    the letters, scaled to the text size, so it is even all round and never swallows them.
+ *  - text on a dark panel or coloured chip: no outline, at most a faint shadow (.plain-text
+ *    and the per-panel rules at the end of this file).
+ *  - text on light panels and anything small: plain, in a colour picked for contrast.
+ * Nothing readable is smaller than 12px.
+ */
 .stroke {
-  text-shadow:
-    -2px -2px 0 var(--out), 2px -2px 0 var(--out), -2px 2px 0 var(--out), 2px 2px 0 var(--out),
-    0 3px 0 var(--out);
+  -webkit-text-stroke: min(0.22em, 7px) var(--out);
+  paint-order: stroke fill;
+  text-shadow: 0 0.07em 0 var(--out);
+}
+/* Things inside outlined text or buttons that must render normally. */
+kbd,
+.stroke kbd,
+.btn kbd,
+.plain-text {
+  -webkit-text-stroke: 0;
+  text-shadow: none;
 }
 
 .ic {
@@ -86,7 +103,9 @@ canvas#game.dragging {
   cursor: pointer;
   background: linear-gradient(#7ad35c, #3f9c2e);
   box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.25), inset 0 3px 0 rgba(255, 255, 255, 0.35), 0 4px 0 var(--out);
-  text-shadow: -1.5px -1.5px 0 var(--out), 1.5px -1.5px 0 var(--out), -1.5px 1.5px 0 var(--out), 1.5px 1.5px 0 var(--out), 0 2px 0 var(--out);
+  -webkit-text-stroke: min(0.2em, 5px) var(--out);
+  paint-order: stroke fill;
+  text-shadow: 0 0.09em 0 var(--out);
   transition: transform 0.06s;
   display: inline-flex;
   align-items: center;
@@ -190,21 +209,23 @@ canvas#game.dragging {
 .resbar .ic.bump {
   transform: scale(1.35);
 }
-.resbar .val {
+.resbar .nums {
   position: absolute;
   right: 10px;
-  top: 6px;
-  font-weight: 900;
-  font-size: 17px;
+  top: 5px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
   z-index: 2;
+  font-weight: 900;
+}
+.resbar .val {
+  font-size: 17px;
 }
 .resbar .cap {
-  position: absolute;
-  right: 10px;
-  top: -14px;
-  font-size: 11px;
-  font-weight: 900;
-  opacity: 0.95;
+  font-size: 12px;
+  opacity: 0.9;
 }
 
 .builders {
@@ -245,7 +266,7 @@ canvas#game.dragging {
   box-sizing: border-box;
 }
 .builders small {
-  font-size: 11px;
+  font-size: 12px;
   opacity: 0.85;
   display: block;
   margin-top: -2px;
@@ -274,7 +295,7 @@ canvas#game.dragging {
   font-size: 20px;
 }
 .trophy-box .league {
-  font-size: 12px;
+  font-size: 13px;
 }
 .event-chips {
   display: flex;
@@ -578,11 +599,14 @@ canvas#game.dragging {
 }
 .flavor {
   font-style: italic;
-  color: #6a5f7a;
+  color: #564b66;
   font-size: 13px;
 }
 .price.bad {
-  color: var(--red);
+  color: #bd261e; /* darker than --red: this is text on a light panel */
+}
+.btn .price.bad {
+  color: #ffb3ad; /* on a button the price is outlined, so it can stay light */
 }
 
 .row {
@@ -622,6 +646,13 @@ canvas#game.dragging {
   color: #fff;
   font-size: 13px;
   line-height: 16px;
+  -webkit-text-stroke: 3px var(--out);
+  paint-order: stroke fill;
+  text-shadow: none;
+}
+.capbar + .flavor,
+.row + .flavor {
+  margin-top: 8px;
 }
 .queue {
   display: flex;
@@ -665,7 +696,7 @@ canvas#game.dragging {
   left: 0;
   right: 0;
   text-align: center;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 900;
   background: rgba(0, 0, 0, 0.6);
   color: #fff;
@@ -723,14 +754,14 @@ canvas#game.dragging {
   color: var(--navy);
 }
 .next {
-  color: #2f9a2f;
+  color: #1f7a1f;
   font-weight: 900;
 }
 
 /* ---------- Upgrades list ---------- */
 .section-title small {
   font-size: 13px;
-  color: #6a5f7a;
+  color: #564b66;
 }
 .up-list {
   display: grid;
@@ -817,7 +848,7 @@ button.up-main:hover {
 .up-why {
   font-size: 12px;
   font-weight: 900;
-  color: #6a5f7a;
+  color: #564b66;
   max-width: 130px;
   text-align: right;
 }
@@ -999,7 +1030,7 @@ button.up-main:hover {
   font-size: 34px;
 }
 .raid-timer .lbl {
-  font-size: 13px;
+  font-size: 15px;
 }
 .raid-stars {
   position: absolute;
@@ -1056,10 +1087,14 @@ button.up-main:hover {
 }
 .dcard .n {
   position: absolute;
-  top: 2px;
-  left: 6px;
+  top: 3px;
+  left: 3px;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: var(--navy);
   font-weight: 900;
-  font-size: 16px;
+  font-size: 13px;
+  line-height: 18px;
   color: #fff;
 }
 .dcard .nm {
@@ -1068,7 +1103,7 @@ button.up-main:hover {
   left: 0;
   right: 0;
   text-align: center;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 900;
   color: var(--navy);
 }
@@ -1097,6 +1132,8 @@ button.up-main:hover {
   font-weight: 900;
   font-size: 13px;
   color: #fff;
+  -webkit-text-stroke: 3px var(--out);
+  paint-order: stroke fill;
   animation: pulse 0.8s infinite alternate;
 }
 @keyframes pulse {
@@ -1205,7 +1242,15 @@ button.up-main:hover {
   border: 3px solid var(--out);
   border-radius: 12px;
   font-weight: 900;
-  color: #fff;
+  font-size: 16px;
+  background: var(--panel-d);
+  color: var(--out);
+}
+.league-row small {
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0.75;
+  margin-left: 4px;
 }
 .league-row.me {
   outline: 4px solid var(--gold);
@@ -1243,7 +1288,7 @@ button.up-main:hover {
 .news-head small {
   margin-left: auto;
   font-size: 12px;
-  color: #6a5f7a;
+  color: #564b66;
 }
 .news-tag {
   background: linear-gradient(#ff7a6b, #c9332b);
@@ -1251,7 +1296,7 @@ button.up-main:hover {
   border: 2px solid var(--out);
   border-radius: 8px;
   padding: 0 6px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 900;
 }
 .news ul {
@@ -1289,8 +1334,12 @@ button.up-main:hover {
 .visit-desc {
   max-width: min(560px, 90vw);
   text-align: center;
-  font-weight: 900;
+  font-weight: 700;
   font-size: 14px;
+  background: rgba(20, 18, 30, 0.75);
+  border: 2.5px solid var(--out);
+  border-radius: 12px;
+  padding: 5px 12px;
 }
 kbd {
   background: #fff;
@@ -1402,4 +1451,26 @@ kbd {
 }
 .update-bar.stale {
   background: linear-gradient(#e0623a, #a8361f);
+}
+
+/* ---------- Text on panels: no outline ---------- */
+/* These carry .stroke for history; on a solid panel or chip the outline only smears the text. */
+.builders.stroke,
+.trophy-box.stroke,
+.chip.stroke,
+.toast.stroke,
+.hint.stroke,
+.raid-top.stroke,
+.raid-stars.stroke,
+.visit-bar .stroke,
+.visit-desc.stroke,
+.update-bar .stroke,
+#loading .tip.stroke {
+  -webkit-text-stroke: 0;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+}
+/* The red count badge on the Facilities Crew counter is its own solid chip. */
+.up-badge {
+  text-shadow: none;
+  font-size: 13px;
 }
