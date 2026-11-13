@@ -97,6 +97,7 @@ export function openDb(path: string) {
     userByName: db.prepare('SELECT * FROM users WHERE name = ?'),
     insertUser: db.prepare('INSERT INTO users (name, pass, created, state, last_seen) VALUES (?, ?, ?, ?, ?)'),
     saveUser: db.prepare('UPDATE users SET state = ?, seq = ?, trophies = ?, dmc = ?, shield_until = ?, locked_until = ?, last_seen = ? WHERE id = ?'),
+    setName: db.prepare('UPDATE users SET name = ? WHERE id = ?'),
     setPass: db.prepare('UPDATE users SET pass = ? WHERE id = ?'),
     listUsers: db.prepare('SELECT id, name, trophies, dmc, created, last_seen FROM users ORDER BY id'),
     deleteUser: db.prepare('DELETE FROM users WHERE id = ?'),

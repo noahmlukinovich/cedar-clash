@@ -9,6 +9,7 @@ import type {
   RaidFinishResponse,
   RaidStartRequest,
   RaidStartResponse,
+  RenameResponse,
   StateMsg,
   SyncRequest,
   SyncResponse,
@@ -189,6 +190,13 @@ export class OnlineSession {
 
   leaderboard(): Promise<LeaderRow[]> {
     return api<LeaderRow[]>('/api/leaderboard');
+  }
+
+  async rename(name: string): Promise<string> {
+    await this.flush();
+    const r = await api<RenameResponse>('/api/rename', { name });
+    this.user.name = r.name;
+    return r.name;
   }
 
   visit(name: string): Promise<VisitResponse> {

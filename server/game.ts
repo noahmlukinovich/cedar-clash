@@ -10,7 +10,7 @@ import { dmcLevel, hasEvent, spend, tickEconomy } from '../src/game/economy';
 import { checkChapelSkip, tickEvents } from '../src/game/events';
 import { migrate } from '../src/game/save';
 import { type GameState, newGame } from '../src/game/state';
-import { type DefenseEntry, NAME_RE, type Note, type StateMsg, type VisitResponse } from '../src/net/protocol';
+import { type DefenseEntry, NAME_RE, NAME_RULES, type Note, type RenameResponse, type StateMsg, type VisitResponse, validCampusName } from '../src/net/protocol';
 import type { BaseLayout, BasePiece } from '../src/raid/basegen';
 import { MAX_INPUTS, type RaidInput, type RaidResult, type RaidSetup, SCOUT_TIME, replayRaid } from '../src/raid/engine';
 import { type RaidOutcome, applyRaidOutcome, localSetup, trophyDelta } from '../src/raid/outcome';
@@ -116,6 +116,23 @@ function takeNotes(): Note[] {
   const n = notes;
   notes = [];
   return n;
+}
+
+/** POST /api/rename: changes a campus name, once per account. */
+export function renameUser(db: DB, userId: number, now: number, name: unknown): RenameResponse {
+  if (!validCampusName(name)) throw new GameError(NAME_RULES);
+  return db.tx(() => {
+    const u = load(db, userId, now, true);
+    if (u.state.nameChanged) throw new GameError('You have already used your one-time rename.', 409);
+    if (name === u.row.name) throw new GameError('That is already your name.');
+    const other = db.st.userByName.get(name) as UserRow | undefined;
+    if (other && other.id !== userId) throw new GameError('That campus name is taken', 409);
+    db.st.setName.run(name, userId);
+    u.state.playerName = name;
+    u.state.nameChanged = true;
+    save(db, u, now);
+    return { name };
+  });
 }
 
 /** GET /api/me */

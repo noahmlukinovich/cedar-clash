@@ -1,10 +1,10 @@
 // Cedar Clash game server: a small JSON API on 127.0.0.1, behind Caddy (which serves the
 // built game and terminates HTTPS). Also a tiny admin CLI (invites, users, passwords).
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { NAME_RE } from '../src/net/protocol';
+import { NAME_RULES, validCampusName } from '../src/net/protocol';
 import { DUMMY_HASH, RateLimiter, hashPassword, newInviteCode, newToken, tokenHash, verifyPassword } from './auth';
 import { type DB, type UserRow, openDb } from './db';
-import { GameError, finishRaid, me, newPlayerState, raidInputs, settleStaleRaids, startRaid, sync, visit } from './game';
+import { GameError, finishRaid, me, newPlayerState, raidInputs, renameUser, settleStaleRaids, startRaid, sync, visit } from './game';
 
 const SESSION_DAYS = 30;
 const COOKIE = 'cc_session';
@@ -109,9 +109,7 @@ export function createApp(db: DB, cfg: ServerConfig) {
   async function signup(req: IncomingMessage, res: ServerResponse, body: Record<string, unknown>): Promise<unknown> {
     const ip = clientIp(req);
     const { username, password, invite } = body;
-    if (typeof username !== 'string' || !NAME_RE.test(username) || /\s{2,}/.test(username)) {
-      throw new HttpError(400, "Campus names are 3–20 letters, numbers, spaces, or _ . ' - (no leading/trailing spaces)");
-    }
+    if (!validCampusName(username)) throw new HttpError(400, NAME_RULES);
     if (typeof password !== 'string' || password.length < 8 || password.length > 200) throw new HttpError(400, 'Passwords need at least 8 characters');
     if (typeof invite !== 'string' || invite.length > 40) throw new HttpError(400, 'Invite code required');
     if (!signups.hit(ip)) throw new HttpError(429, 'Too many sign-ups from here. Try again later.');
@@ -202,6 +200,7 @@ export function createApp(db: DB, cfg: ServerConfig) {
       requireUser(req);
       return visit(db, now, url.searchParams.get('name'));
     }
+    if (post('/api/rename')) return renameUser(db, requireUser(req), now, body.name);
     if (post('/api/sync')) return sync(db, requireUser(req), now, body.client, body.seq, body.actions);
     if (post('/api/raid/start')) return startRaid(db, requireUser(req), now, body.kind);
     if (post('/api/raid/inputs')) {

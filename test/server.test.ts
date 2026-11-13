@@ -306,3 +306,29 @@ describe('reserve army on the server', () => {
     expect(fin.data.state.trainQueue).toHaveLength(1);
   });
 });
+
+describe('rename', () => {
+  it('lets a player rename once, keeping state and name in sync', async () => {
+    const c = new Client();
+    // inserted directly: the per-IP sign-up limit is already used up by earlier tests
+    const now = Date.now();
+    srv.db.st.insertUser.run('Renamer', await hashPassword('renamepass1'), now, JSON.stringify(newPlayerState('Renamer', now)), now);
+    expect((await c.call('/api/login', { username: 'Renamer', password: 'renamepass1' })).status).toBe(200);
+    expect((await c.call('/api/rename', { name: '<b>x</b>' })).status).toBe(400);
+    expect((await c.call('/api/rename', { name: 'Alice Hall' })).status).toBe(409); // taken
+    expect((await c.call('/api/rename', { name: 'Renamer' })).status).toBe(400); // unchanged
+    const ok = await c.call<{ name: string }>('/api/rename', { name: 'Fresh Name' });
+    expect(ok.status).toBe(200);
+    const me = await c.call<MeResponse>('/api/me');
+    expect(me.data.user.name).toBe('Fresh Name');
+    expect(me.data.state.playerName).toBe('Fresh Name');
+    expect(me.data.state.nameChanged).toBe(true);
+    expect((await c.call('/api/rename', { name: 'Another One' })).status).toBe(409); // used up
+    expect((await new Client().call('/api/login', { username: 'fresh name', password: 'renamepass1' })).status).toBe(200);
+    expect((await new Client().call('/api/login', { username: 'Renamer', password: 'renamepass1' })).status).toBe(401);
+  });
+
+  it('requires login', async () => {
+    expect((await new Client().call('/api/rename', { name: 'Whoever' })).status).toBe(401);
+  });
+});

@@ -50,7 +50,7 @@ import type { BuildingInst } from '../game/state';
 import { type ExtraRow, type UpgradeRow, listUpgrades } from '../game/upgrades';
 import { toWorld } from '../core/iso';
 import type { Game } from '../main';
-import type { VisitBuilding, VisitResponse } from '../net/protocol';
+import { NAME_RULES, type VisitBuilding, type VisitResponse, validCampusName } from '../net/protocol';
 import { fmtTime } from '../village/villageScene';
 import { ICONS, icon } from './icons';
 import { buildingThumb, spellThumb, unitThumb } from './thumbs';
@@ -1249,6 +1249,33 @@ export class UI {
         m.body.appendChild(el('div', 'section-title', 'Account'));
         const shield = online.shieldUntil > Date.now() ? ` · 🛡️ Shield for ${fmtTime((online.shieldUntil - Date.now()) / 1000)}` : '';
         m.body.appendChild(el('div', '', `Playing online as <b>${esc(online.user.name)}</b>${shield}`));
+        const nameRow = el('div', 'row');
+        const nameIn = el('input');
+        nameIn.type = 'text';
+        nameIn.maxLength = 20;
+        nameIn.value = online.user.name;
+        nameIn.disabled = !!s.nameChanged;
+        nameIn.style.flex = '1';
+        const nameBtn = el('button', 'btn small', s.nameChanged ? '🔒 Name locked' : '✏️ Rename (once!)');
+        nameBtn.disabled = !!s.nameChanged;
+        nameBtn.onclick = async () => {
+          const name = nameIn.value.trim();
+          if (!validCampusName(name)) return this.toast(NAME_RULES, 'bad');
+          if (!confirm(`Rename your campus to "${name}"? Other players will see it, and you can only do this once.`)) return;
+          nameBtn.disabled = true;
+          try {
+            await online.rename(name);
+            s.playerName = name;
+            s.nameChanged = true;
+            this.toast('Name updated!', 'good');
+          } catch (e) {
+            this.toast((e as Error).message, 'bad');
+          }
+          render();
+        };
+        nameRow.append(nameIn, nameBtn);
+        m.body.appendChild(nameRow);
+        if (!s.nameChanged) m.body.appendChild(el('div', 'flavor', 'You get one rename. Choose wisely.'));
         const r2 = el('div', 'row');
         const out = el('button', 'btn small red', 'Log out');
         out.onclick = async () => {

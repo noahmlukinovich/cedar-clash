@@ -98,3 +98,14 @@ export interface VisitResponse {
 }
 
 export const NAME_RE = /^[A-Za-z0-9_][A-Za-z0-9_ .'-]{1,18}[A-Za-z0-9_.]$/;
+
+export const NAME_RULES = "Campus names are 3–20 letters, numbers, spaces, or _ . ' - (no leading/trailing spaces)";
+
+/** A name the server will accept for sign-up or the one-time rename. */
+export function validCampusName(n: unknown): n is string {
+  return typeof n === 'string' && NAME_RE.test(n) && !/\s{2,}/.test(n);
+}
+
+export interface RenameResponse {
+  name: string;
+}
