@@ -670,6 +670,20 @@ canvas#game.dragging {
   background: rgba(0, 0, 0, 0.6);
   color: #fff;
 }
+.qitem.ready {
+  border-color: #2f9a2f;
+  background: #e9f8e4;
+}
+.qitem.ready .t {
+  background: #2f9a2f;
+}
+.cap-label {
+  color: var(--navy);
+  min-width: 128px;
+}
+.capbar.reserve > div {
+  background: linear-gradient(#7fb6f5, #2e63b8);
+}
 .qitem .x {
   position: absolute;
   top: 0;

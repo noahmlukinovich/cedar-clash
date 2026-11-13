@@ -10,6 +10,16 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 7,
+    date: 'Nov 12, 2026',
+    title: 'Faster training and a reserve army',
+    items: [
+      'Every troop now trains in half the time.',
+      'You can train a second army ahead of time. Once the Residence Halls are full, trained troops wait in the queue marked Ready.',
+      'After a raid, the reserve moves into the halls straight away, and the rest of the queue keeps training.',
+    ],
+  },
+  {
     v: 6,
     date: 'Nov 12, 2026',
     title: 'The Bible Prof gets a crossbow',

@@ -49,7 +49,7 @@ When the page is served with the game server behind it, players log in (invite-o
 
 1. **Collect** Tuition (Admissions Office) and Coffee (Coffee Cart) by clicking the bubbles over them, or use the green "collect all" button.
 2. **Build and upgrade** from the **Shop**. Each job ties up a Facilities Crew builder; build more sheds for more builders. Click the **Facilities Crew** counter for a list of every upgrade you can do right now (its badge shows how many). The **DMC** level caps everything else.
-3. **Train** troops in the **Army** menu. Residence halls set your army capacity. Click a troop to recruit one, or hold to keep recruiting; click a tile in the queue to cancel one for a full refund.
+3. **Train** troops in the **Army** menu. Residence halls set your army capacity, and you can train a second, reserve army ahead of time: its troops wait in the queue once trained and move into the halls as soon as a raid frees up room. Click a troop to recruit one, or hold to keep recruiting; click a tile in the queue to cancel one for a full refund.
 4. **Attack!** Start with the hand-built tutorial base, *Rival State U*, then use **Find a Rival** for procedurally generated campuses. You earn stars, loot, and trophies.
 5. Unlock the **Library** (research), **The Hive**, the **Brew Lab** (spells), and the heroes **The Bible Prof** and **The President** as the DMC levels up.
 

@@ -2,7 +2,7 @@
 // the server (which runs it on the verified replay result).
 import { THREE_STAR_CHAPEL } from '../config/balance';
 import type { HeroType, SpellType, TroopType } from '../config/types';
-import { heroAvailable } from '../game/army';
+import { fillArmy, heroAvailable } from '../game/army';
 import { addRes, bump, dmcLevel, hasEvent, unlock } from '../game/economy';
 import type { GameState } from '../game/state';
 import { generateBase, rivalStateU } from './basegen';
@@ -93,5 +93,6 @@ export function applyRaidOutcome(s: GameState, setup: RaidSetup, r: RaidResult):
     s.events = s.events.filter((e) => e.type !== 'elephantrun');
   }
   if (setup.kind === 'campaign' && win) s.campaignDone = true;
+  fillArmy(s); // the reserve army moves into the space the raid just freed
   return { win, stars, destruction: r.destruction, tuition, coffee, gotT, gotC, trophyDelta: td, chapel, cancelled: false };
 }
