@@ -174,7 +174,7 @@ export class RaidScene implements Scene {
       const n = this.count(c);
       if (c.kind === 'troop') {
         d.appendChild(unitThumb(c.type, 72, 66, this.engine.setup.troopLevels[c.type] ?? 1));
-        d.appendChild(el('div', 'n stroke', `x${n}`));
+        d.appendChild(el('div', 'n', `×${n}`));
         d.appendChild(el('div', 'nm', TROOPS[c.type].short ?? TROOPS[c.type].name.split(' ')[0]));
         if (n <= 0) d.classList.add('empty');
       } else if (c.kind === 'hero') {
@@ -185,13 +185,13 @@ export class RaidScene implements Scene {
         if (u) {
           const hp = el('div', 'hpbar', `<div style="width:${Math.max(0, (u.hp / u.maxHp) * 100)}%"></div>`);
           d.appendChild(hp);
-          if (!u.abilityUsed && !u.dead) d.appendChild(el('div', 'ability stroke', HEROES[c.type].ability.name));
+          if (!u.abilityUsed && !u.dead) d.appendChild(el('div', 'ability', HEROES[c.type].ability.name));
           else d.classList.add('empty');
         }
       } else {
         d.classList.add('spell');
         d.appendChild(spellThumb(c.type, 72, 66));
-        d.appendChild(el('div', 'n stroke', `x${n}`));
+        d.appendChild(el('div', 'n', `×${n}`));
         d.appendChild(el('div', 'nm', SPELLS[c.type].name));
         if (n <= 0) d.classList.add('empty');
       }
@@ -296,7 +296,7 @@ export class RaidScene implements Scene {
       if (c.kind === 'troop' || c.kind === 'spell') {
         const n = d.querySelector('.n');
         const k = this.count(c);
-        if (n) n.textContent = `x${k}`;
+        if (n) n.textContent = `×${k}`;
         d.classList.toggle('empty', k <= 0);
       }
       d.classList.toggle('sel', i === this.sel);

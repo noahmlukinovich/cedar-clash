@@ -66,6 +66,18 @@ export function esc(t: string): string {
   return t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 }
 
+/** Dark or white text, whichever reads better on a solid `#rrggbb` background. */
+export function textOn(hex: string): string {
+  const n = parseInt(hex.slice(1), 16);
+  const lin = (c: number): number => {
+    const v = c / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  const L = 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+  // contrast against the game's dark ink (#1e1b2b) vs white
+  return (L + 0.05) / 0.0616 > 1.05 / (L + 0.05) ? '#1e1b2b' : '#ffffff';
+}
+
 export function fmt(n: number): string {
   n = Math.floor(n);
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
@@ -175,9 +187,12 @@ export class UI {
       track.appendChild(fill);
       const ic = el('span', 'ic', ICONS[r]);
       ic.style.width = ic.style.height = '36px';
+      // value and maximum sit together inside the bar, so neither can be clipped by the screen edge
+      const nums = el('div', 'nums');
       const val = el('div', 'val stroke', '0');
-      const cap = el('div', 'cap stroke', '');
-      bar.append(track, ic, val, cap);
+      const cap = el('div', 'cap', '');
+      nums.append(val, cap);
+      bar.append(track, ic, nums);
       stack.appendChild(bar);
       this.resEls[r] = { val, fill, cap, ic };
     }
@@ -281,7 +296,7 @@ export class UI {
     for (const r of ['tuition', 'coffee', 'chapel'] as ResourceId[]) {
       const e = this.resEls[r];
       e.val.textContent = fmt(s.resources[r]);
-      e.cap.textContent = `Max: ${fmt(cp[r])}`;
+      e.cap.textContent = `/ ${fmt(cp[r])}`;
       e.fill.style.width = `${Math.min(100, (s.resources[r] / Math.max(1, cp[r])) * 100)}%`;
     }
     const bl = builders(s);
@@ -1142,8 +1157,9 @@ export class UI {
     const cur = leagueFor(s.trophies);
     const list = el('div', 'league-list');
     for (const l of [...LEAGUES].reverse()) {
-      const r = el('div', `league-row stroke ${l === cur ? 'me' : ''}`, `<span>${l.name}</span><span>${icon('trophy', 18)} ${l.min}+</span>`);
+      const r = el('div', `league-row ${l === cur ? 'me' : ''}`, `<span>${l.name}</span><span>${icon('trophy', 18)} ${l.min}+</span>`);
       r.style.background = l.color;
+      r.style.color = textOn(l.color);
       list.appendChild(r);
     }
     m.body.appendChild(el('div', '', `Trophies: <b>${s.trophies}</b> (best ${s.bestTrophies}). Win raids to climb; lose them and slide back toward "Prospective Student."`));
@@ -1351,7 +1367,7 @@ export class UI {
     const list = el('div', 'league-list');
     rows.forEach((r, i) => {
       const me = r.name === online.user.name;
-      const row = el('div', `league-row stroke ${me ? 'me' : ''}`, `<span>${i + 1}. ${esc(r.name)} <small>DMC ${r.dmc}</small></span><span class="lb-side">${icon('trophy', 18)} ${r.trophies}</span>`);
+      const row = el('div', `league-row ${me ? 'me' : ''}`, `<span>${i + 1}. ${esc(r.name)} <small>DMC ${r.dmc}</small></span><span class="lb-side">${icon('trophy', 18)} ${r.trophies}</span>`);
       if (!me) {
         const go = el('button', 'btn small blue', 'Visit');
         go.title = 'Look around this campus';

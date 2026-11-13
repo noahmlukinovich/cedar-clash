@@ -10,6 +10,16 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 8,
+    date: 'Nov 13, 2026',
+    title: 'Easier-to-read text',
+    items: [
+      'Cleaner outlines on headline text, and none at all on small text or text that sits on a panel.',
+      'The League Ladder, Leaderboard, toasts, event chips and raid cards are much easier to read.',
+      'Resource bars now show the amount and the maximum together, like 6,200 / 17.5K.',
+    ],
+  },
+  {
     v: 7,
     date: 'Nov 12, 2026',
     title: 'Faster training and a reserve army',
