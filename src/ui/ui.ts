@@ -9,6 +9,7 @@ import { isMuted, setMuted, sfx } from '../core/audio';
 import { bus } from '../core/bus';
 import { pick } from '../core/rng';
 import {
+  ARMIES,
   armyCapacity,
   armyUsed,
   brewCheck,
@@ -16,8 +17,10 @@ import {
   heroUnlocked,
   heroUpgradeCheck,
   libraryLevel,
+  isReady,
   queueRuns,
   queueUsed,
+  reserveReady,
   researchCheck,
   spellCapacity,
   spellsUsed,
@@ -635,7 +638,9 @@ export class UI {
       const q = queueUsed(s);
       const finals = hasEvent(s, 'finals');
       const runs = queueRuns(s);
-      const head = s.trainQueue[0];
+      const ready = reserveReady(s);
+      // the troop being trained right now: the first one that isn't already trained and waiting
+      const head = s.trainQueue.find((x) => !isReady(x));
       const inLine = !!head && (head.chucks ?? 0) > 0;
       const sc = spellCapacity(s);
       const hs = heroTypes.filter((h) => heroUnlocked(s, h));
@@ -646,7 +651,7 @@ export class UI {
         used,
         q,
         finals,
-        runs.map((r) => [r.type, r.count]),
+        runs.map((r) => [r.type, r.count, r.ready]),
         inLine,
         TROOP_ORDER.map((t) => [s.troopLevels[t], s.army[t] ?? 0, trainCheck(s, t)]),
         sc,
@@ -663,8 +668,15 @@ export class UI {
       const scroll = m.body.scrollTop;
       m.body.innerHTML = '';
       const capRow = el('div', 'row');
-      capRow.innerHTML = `<b style="color:#1c3d7a">Residence Halls</b><div class="capbar"><div style="width:${Math.min(100, ((used + q) / Math.max(1, cap)) * 100)}%"></div><span class="stroke">${used} trained + ${q} in training / ${cap}</span></div>`;
+      capRow.innerHTML = `<b class="cap-label">Residence Halls</b><div class="capbar"><div style="width:${Math.min(100, (used / Math.max(1, cap)) * 100)}%"></div><span class="stroke">${used} / ${cap} ready to raid</span></div>`;
       m.body.appendChild(capRow);
+      // The second army: trained troops waiting for room, plus whatever is still training.
+      const resRow = el('div', 'row');
+      resRow.style.marginTop = '6px';
+      const over = Math.max(0, used + q - cap); // how much of the queue will not fit in the halls yet
+      resRow.innerHTML = `<b class="cap-label">Reserve army</b><div class="capbar reserve"><div style="width:${Math.min(100, (over / Math.max(1, cap)) * 100)}%"></div><span class="stroke">${q ? `${ready} ready + ${q - ready} training` : 'empty'} · room for ${Math.max(0, cap * 2 - used - q)} more</span></div>`;
+      resRow.title = 'Train a second army ahead of time. Trained troops wait here and move into the halls as soon as there is room, such as after a raid.';
+      m.body.appendChild(resRow);
       if (finals) m.body.appendChild(el('div', 'flavor', '📚 Finals Week: training is 50% slower. Everyone is "studying."'));
 
       // queue
@@ -674,24 +686,29 @@ export class UI {
         const total = el('small');
         qTitle.append(` `, total);
         const upd = (): void => {
-          total.textContent = `(${this.state.trainQueue.length} in line · ⏱ ${fmtTime(trainQueueLeft(this.state))} left)`;
+          const st = this.state;
+          const rdy = st.trainQueue.filter(isReady).length;
+          const training = st.trainQueue.length - rdy;
+          total.textContent = `(${[training ? `${training} training · ⏱ ${fmtTime(trainQueueLeft(st))} left` : '', rdy ? `${rdy} ready, waiting for room` : ''].filter(Boolean).join(' · ')})`;
         };
         upd();
         ticks.push(upd);
       }
       const qd = el('div', 'queue');
-      if (!runs.length) qd.appendChild(el('span', 'flavor', 'Nobody in training. Click a troop below to recruit, or hold to recruit several.'));
+      if (!runs.length) qd.appendChild(el('span', 'flavor', 'Nobody in training. Click a troop below to recruit, or hold to recruit several. You can train a second army ahead of time; it waits here until the halls have room.'));
+      const firstTraining = runs.findIndex((r) => !r.ready);
       runs.forEach((r, i) => {
-        const qi = el('div', 'qitem');
+        const qi = el('div', `qitem ${r.ready ? 'ready' : ''}`);
         qi.appendChild(unitThumb(r.type, 62, 62, s.troopLevels[r.type]));
         if (r.count > 1) qi.appendChild(el('div', 'n', `×${r.count}`));
         qi.appendChild(el('div', 'x', '✖'));
-        if (i === 0) {
+        if (r.ready) qi.appendChild(el('div', 't', '✓ Ready'));
+        if (i === firstTraining) {
           const pr = el('div', 'prog');
           const tm = el('div', 't');
           qi.append(pr, tm);
           const upd = (): void => {
-            const it = this.state.trainQueue[0];
+            const it = this.state.trainQueue.find((x) => !isReady(x));
             if (!it) return;
             pr.style.width = `${(1 - it.left / it.total) * 100}%`;
             tm.textContent = (it.chucks ?? 0) > 0 ? '🍽️ line' : fmtTime(trainItemLeft(this.state, it));
@@ -699,7 +716,7 @@ export class UI {
           upd();
           ticks.push(upd);
         }
-        qi.title = `${TROOPS[r.type].name}${r.count > 1 ? ` ×${r.count}` : ''}: click to cancel one (full refund)`;
+        qi.title = `${TROOPS[r.type].name}${r.count > 1 ? ` ×${r.count}` : ''}${r.ready ? ': trained, waiting for room in the halls' : ''}: click to cancel one (full refund)`;
         qi.onpointerdown = press(() => cancelOne(runs.length - 1 - i, r.type));
         qd.appendChild(qi);
       });
@@ -715,7 +732,7 @@ export class UI {
         const cost = d.levels[lvl - 1].cost;
         const unlocked = troopUnlocked(s, t);
         const err = trainCheck(s, t);
-        const full = unlocked && armyUsed(s) + queueUsed(s) + d.housing > cap;
+        const full = unlocked && armyUsed(s) + queueUsed(s) + d.housing > cap * ARMIES;
         const card = el('div', `card ${unlocked ? (err ? 'dim' : '') : 'locked'}`);
         card.dataset.troop = t;
         card.appendChild(unitThumb(t, 100, 90, lvl));
@@ -723,7 +740,7 @@ export class UI {
         card.appendChild(el('div', 'badge', `Lv${lvl}`));
         card.appendChild(el('div', 'count', `×${s.army[t] ?? 0}`));
         if (unlocked) {
-          card.appendChild(el('div', 'meta', full ? '<b class="bad">🏠 Halls full</b>' : `🏠 ${d.housing} · ⏱ ${fmtTime(d.trainTime * (finals ? 2 : 1))}`));
+          card.appendChild(el('div', 'meta', full ? '<b class="bad">🏠 Both armies full</b>' : `🏠 ${d.housing} · ⏱ ${fmtTime(d.trainTime * (finals ? 2 : 1))}`));
           card.appendChild(el('div', '', costHtml(d.res, cost, canAfford(s, d.res, cost))));
         } else {
           card.appendChild(el('div', 'meta', `🔒 ${BUILDINGS[d.barracks].name} Lv${d.barracksLevel}`));

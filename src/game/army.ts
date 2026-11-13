@@ -6,6 +6,9 @@ import { bus } from '../core/bus';
 import { bump, canAfford, hasEvent, resName, spend, unlock } from './economy';
 import type { GameState } from './state';
 
+/** How many armies' worth of troops can be trained and queued in total. */
+export const ARMIES = 2;
+
 export function armyCapacity(s: GameState): number {
   let c = 0;
   for (const b of s.buildings) {
@@ -38,7 +41,8 @@ export function troopUnlocked(s: GameState, t: TroopType): boolean {
 export function trainCheck(s: GameState, t: TroopType): string | null {
   const d = TROOPS[t];
   if (!troopUnlocked(s, t)) return `Requires ${BUILDINGS[d.barracks].name} Lv${d.barracksLevel}`;
-  if (armyUsed(s) + queueUsed(s) + d.housing > armyCapacity(s)) return 'Residence halls are full!';
+  // Two armies: one in the halls, one in reserve (training, or trained and waiting for room).
+  if (armyUsed(s) + queueUsed(s) + d.housing > armyCapacity(s) * ARMIES) return 'Both armies are full!';
   const cost = d.levels[s.troopLevels[t] - 1].cost;
   if (!canAfford(s, d.res, cost)) return `Not enough ${resName(d.res)}`;
   return null;
@@ -64,19 +68,49 @@ export function cancelTrain(s: GameState, idx: number): void {
   s.trainQueue.splice(idx, 1);
 }
 
-/** The training queue as runs of the same troop, in order: what the Army screen shows. */
-export function queueRuns(s: GameState): { type: TroopType; count: number; start: number }[] {
-  const runs: { type: TroopType; count: number; start: number }[] = [];
+/** A queue item that has finished training and is waiting for room in the halls. */
+export function isReady(q: { left: number }): boolean {
+  return q.left <= 0.0001;
+}
+
+/** Housing taken by trained troops waiting in the queue (the ready part of the reserve army). */
+export function reserveReady(s: GameState): number {
+  return s.trainQueue.reduce((a, q) => a + (isReady(q) ? TROOPS[q.type].housing : 0), 0);
+}
+
+/**
+ * Moves trained troops from the queue into the halls while they fit, in queue order. A troop
+ * too big for the space left is skipped for a smaller one behind it, and moves in later.
+ */
+export function fillArmy(s: GameState): void {
+  const cap = armyCapacity(s);
+  let used = armyUsed(s);
+  for (let i = 0; i < s.trainQueue.length; ) {
+    const q = s.trainQueue[i];
+    const h = TROOPS[q.type].housing;
+    if (isReady(q) && used + h <= cap) {
+      s.trainQueue.splice(i, 1);
+      s.army[q.type] = (s.army[q.type] ?? 0) + 1;
+      used += h;
+    } else i++;
+  }
+}
+
+/** The training queue as runs of the same troop and state, in order: what the Army screen shows. */
+export function queueRuns(s: GameState): { type: TroopType; count: number; start: number; ready: boolean }[] {
+  const runs: { type: TroopType; count: number; start: number; ready: boolean }[] = [];
   s.trainQueue.forEach((q, i) => {
     const last = runs[runs.length - 1];
-    if (last && last.type === q.type) last.count++;
-    else runs.push({ type: q.type, count: 1, start: i });
+    const ready = isReady(q);
+    if (last && last.type === q.type && last.ready === ready) last.count++;
+    else runs.push({ type: q.type, count: 1, start: i, ready });
   });
   return runs;
 }
 
 /** Real seconds until one queue item is done (Finals Week halves training speed). */
 export function trainItemLeft(s: GameState, q: { left: number; chucks?: number }): number {
+  if (isReady(q)) return 0;
   return (q.left + Math.max(0, q.chucks ?? 0)) * (hasEvent(s, 'finals') ? 2 : 1);
 }
 
@@ -182,9 +216,12 @@ export function heroUpgrade(s: GameState, h: HeroType, dmc: number): string | nu
 export function tickArmy(s: GameState, dt: number): void {
   const finals = hasEvent(s, 'finals');
   let budget = dt * (finals ? 0.5 : 1);
-  // Training queue (one at a time, offline-safe loop)
-  while (budget > 0 && s.trainQueue.length) {
-    const q = s.trainQueue[0];
+  // Training queue (one at a time, offline-safe loop). Trained troops go into the halls while
+  // there is room; after that they stay in the queue, ready, and training carries on behind them.
+  fillArmy(s);
+  while (budget > 0) {
+    const q = s.trainQueue.find((x) => !isReady(x));
+    if (!q) break;
     if (q.left === q.total && q.chucks === undefined) {
       // first time this item starts: maybe it's stuck in line at Chuck's
       q.chucks = Math.random() < 0.18 ? 3 + Math.random() * 3 : 0;
@@ -198,12 +235,13 @@ export function tickArmy(s: GameState, dt: number): void {
     const use = Math.min(budget, q.left);
     q.left -= use;
     budget -= use;
-    if (q.left <= 0.0001) {
-      s.trainQueue.shift();
-      s.army[q.type] = (s.army[q.type] ?? 0) + 1;
+    if (isReady(q)) {
+      q.left = 0;
+      q.chucks = 0;
       bump(s, 'trained_' + q.type);
       if ((s.stats['trained_freshman'] ?? 0) >= 15) unlock(s, 'freshman15');
       bus.emit('trained', q.type);
+      fillArmy(s);
     }
   }
   // Spells

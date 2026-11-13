@@ -264,3 +264,45 @@ describe('visiting another campus', () => {
     expect(rowOf('Bob_U')).toEqual(before); // state, last_seen, shield: nothing written
   });
 });
+
+describe('reserve army on the server', () => {
+  it('holds trained troops until a raid frees room, then refills in the raid result', async () => {
+    // Bob's campus, reset to full halls (20 at Residence Hall Lv1) and an empty queue
+    const dana = bob;
+    const full = 20;
+    patchState('Bob_U', (s) => {
+      s.army = { freshman: full };
+      s.trainQueue = [];
+      s.resources.coffee = 1000;
+    });
+    const me = await dana.call<MeResponse>('/api/me');
+    expect(me.data.state.army.freshman).toBe(full);
+    const r1 = await dana.call<SyncResponse>('/api/sync', { client: 'bob-reserve', seq: me.data.seq + 1, actions: [{ k: 'train', type: 'freshman' }, { k: 'train', type: 'freshman' }, { k: 'train', type: 'freshman' }] });
+    expect(r1.data.errors).toEqual([]);
+    expect(r1.data.state.trainQueue).toHaveLength(3);
+    // a minute passes on the server: all three are trained, none can move in
+    patchState('Bob_U', (s) => {
+      s.lastReal -= 60_000;
+      s.campaignDone = false; // so the tutorial raid is available
+    });
+    const later = await dana.call<MeResponse>('/api/me');
+    expect(later.data.state.army.freshman).toBe(full);
+    expect(later.data.state.trainQueue).toHaveLength(3);
+    expect(later.data.state.trainQueue.every((q) => q.left === 0)).toBe(true);
+    // a raid that uses two troops: the result already has two reserve troops in the halls
+    const start = await dana.call<RaidStartResponse>('/api/raid/start', { kind: 'campaign' });
+    expect(start.status).toBe(200);
+    const fin = await dana.call<RaidFinishResponse>('/api/raid/finish', {
+      raidId: start.data.raidId,
+      inputs: [
+        { t: 0, k: 'troop', type: 'freshman', x: 1, y: 1 },
+        { t: 1, k: 'troop', type: 'freshman', x: 1, y: 1 },
+        { t: 2, k: 'end' },
+      ],
+    });
+    expect(fin.status).toBe(200);
+    expect(fin.data.outcome.cancelled).toBe(false);
+    expect(fin.data.state.army.freshman).toBe(full);
+    expect(fin.data.state.trainQueue).toHaveLength(1);
+  });
+});
