@@ -65,6 +65,30 @@ export interface GameState {
   lastRaidClock: number;
   nextTicketCheck: number;
   playerName: string;
+  /** True once the player has spent their one-time rename. */
+  nameChanged?: boolean;
+}
+
+export const MAX_NAME_LEN = 20;
+
+/** Trim, collapse whitespace, strip control chars/angle brackets. Returns '' if invalid. */
+export function cleanName(raw: string): string {
+  return raw
+    .replace(/[\u0000-\u001f\u007f<>]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, MAX_NAME_LEN);
+}
+
+/** Renames the player once. Returns an error message, or null on success. */
+export function renamePlayer(s: GameState, raw: string): string | null {
+  if (s.nameChanged) return 'You have already used your one-time rename.';
+  const name = cleanName(raw);
+  if (name.length < 2) return 'Name must be at least 2 characters.';
+  if (name === s.playerName) return 'That is already your name.';
+  s.playerName = name;
+  s.nameChanged = true;
+  return null;
 }
 
 export const SAVE_VERSION = 3;
