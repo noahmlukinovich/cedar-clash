@@ -44,6 +44,7 @@ import {
 } from '../game/economy';
 import { attendChapel, canAttendChapel, chapelReward, startEvent } from '../game/events';
 import { exportSave, resetSave, saveGame } from '../game/save';
+import { MAX_NAME_LEN, cleanName, renamePlayer } from '../game/state';
 import type { BuildingInst } from '../game/state';
 import type { Game } from '../main';
 import { fmtTime } from '../village/villageScene';
@@ -872,6 +873,31 @@ export class UI {
       };
       row1.append(mute, save);
       m.body.appendChild(row1);
+
+      m.body.appendChild(el('div', 'section-title', 'Campus name'));
+      const nameRow = el('div', 'row');
+      const nameIn = el('input');
+      nameIn.type = 'text';
+      nameIn.maxLength = MAX_NAME_LEN;
+      nameIn.value = s.playerName;
+      nameIn.disabled = !!s.nameChanged;
+      nameIn.style.flex = '1';
+      const nameBtn = el('button', 'btn small', s.nameChanged ? '🔒 Name locked' : '✏️ Rename (once!)');
+      nameBtn.disabled = !!s.nameChanged;
+      nameBtn.onclick = () => {
+        const name = cleanName(nameIn.value);
+        if (!confirm(`Rename your campus to "${name}"? You can only do this once.`)) return;
+        const err = renamePlayer(s, nameIn.value);
+        if (err) this.toast(err, 'bad');
+        else {
+          saveGame(s);
+          this.toast('Name updated!', 'good');
+          render();
+        }
+      };
+      nameRow.append(nameIn, nameBtn);
+      m.body.appendChild(nameRow);
+      if (!s.nameChanged) m.body.appendChild(el('div', 'flavor', 'You get one rename. Choose wisely.'));
 
       m.body.appendChild(el('div', 'section-title', 'Debug'));
       const dr = el('div', 'debug-row');
