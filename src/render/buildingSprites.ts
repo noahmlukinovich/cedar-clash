@@ -42,7 +42,7 @@ export function getBuildingSprite(type: BuildingType, level: number, variant = 0
   const size = BUILDINGS[type].size;
   const w = size * 64 + 48;
   // headroom above the footprint, by footprint size (the DMC steeple is the tallest thing on campus)
-  const top = type === 'dmc' ? 210 : size === 1 ? 46 : size === 2 ? 80 : size === 3 ? 150 : 140;
+  const top = type === 'dmc' ? 240 : size === 1 ? 46 : size === 2 ? 80 : size === 3 ? 150 : 140;
   const h = size * 32 + top + 12;
   const canvas = document.createElement('canvas');
   canvas.width = w * SCALE;
@@ -67,6 +67,12 @@ export function getBuildingSprite(type: BuildingType, level: number, variant = 0
 //   4 donor-funded gold cornice, rooftop cupola, lamp post, flag
 //   5+ flagship    gold finial, navy-and-gold banners, pale stone lot
 const WOOD = '#b98652';
+/** Cream stone used for parapets, cornices, columns and window frames. */
+const CREAM = '#f1e4c6';
+/** A lighter cream for columns and top-level parapets (a hex literal: box() shades hex colours only). */
+const CREAM_LIGHT = '#f8f0dc';
+const SLATE = '#4f5262';
+const LIT = '#ffd870';
 
 function line(ctx: Ctx, a: [number, number], b: [number, number]): void {
   ctx.beginPath();
@@ -80,11 +86,20 @@ function site(ctx: Ctx, L: number, size: number, color?: string): void {
   const base = color ?? (L <= 1 ? '#c9b48a' : L >= 5 ? '#e6dfd0' : C.concrete);
   pad(ctx, size, base);
   const s = size / 2 - 0.06;
+  if (L >= 2 && !color) {
+    // paver tiles
+    ctx.strokeStyle = 'rgba(90,70,40,0.13)';
+    ctx.lineWidth = 1;
+    for (let k = -s + 0.5; k < s - 0.01; k += 0.5) {
+      line(ctx, P(k, -s, 4), P(k, s, 4));
+      line(ctx, P(-s, k, 4), P(s, k, 4));
+    }
+  }
   if (L >= 3) {
-    // paved border
-    const i = s - 0.14;
-    ctx.strokeStyle = 'rgba(0,0,0,0.16)';
-    ctx.lineWidth = 1.2;
+    // cream border course
+    const i = s - 0.12;
+    ctx.strokeStyle = color ? 'rgba(0,0,0,0.16)' : shade(CREAM, -0.12);
+    ctx.lineWidth = color ? 1.2 : 2;
     ctx.beginPath();
     const pts = [P(-i, -i, 4), P(i, -i, 4), P(i, i, 4), P(-i, i, 4)];
     ctx.moveTo(pts[0][0], pts[0][1]);
@@ -99,6 +114,11 @@ function site(ctx: Ctx, L: number, size: number, color?: string): void {
     line(ctx, P(-s, s, 4), P(s, s, 4));
     line(ctx, P(s, s, 4), P(s, -s, 4));
   }
+  // Trees at the back corners go in with the lot, so the building is drawn in front of them.
+  const half = size / 2;
+  const k = size >= 4 ? 1 : 0.85;
+  if (L >= 3) tree(ctx, -half + 0.3, -half + 0.3, k);
+  if (L >= 5) tree(ctx, half - 0.3, -half + 0.3, k);
 }
 
 /** Main walls in the level's material: wood planks at Lv1, coursed masonry after, stone base from Lv3. */
@@ -126,8 +146,175 @@ function walls(ctx: Ctx, L: number, u0: number, v0: number, u1: number, v1: numb
   if (L >= 3) {
     poly(ctx, [P(u0, v1, z0), P(u1, v1, z0), P(u1, v1, z0 + 6), P(u0, v1, z0 + 6)], C.stone, true, 1.4);
     poly(ctx, [P(u1, v1, z0), P(u1, v0, z0), P(u1, v0, z0 + 6), P(u1, v1, z0 + 6)], C.stoneDark, true, 1.4);
+    // cream pilasters on the three corners you can see
+    const w = Math.min(0.09, (u1 - u0) * 0.08);
+    poly(ctx, [P(u0, v1, z0 + 6), P(u0 + w, v1, z0 + 6), P(u0 + w, v1, h), P(u0, v1, h)], CREAM, true, 1.2);
+    poly(ctx, [P(u1 - w, v1, z0 + 6), P(u1, v1, z0 + 6), P(u1, v1, h), P(u1 - w, v1, h)], CREAM, true, 1.2);
+    poly(ctx, [P(u1, v1, z0 + 6), P(u1, v1 - w, z0 + 6), P(u1, v1 - w, h), P(u1, v1, h)], shade(CREAM, -0.18), true, 1.2);
+    poly(ctx, [P(u1, v0 + w, z0 + 6), P(u1, v0, z0 + 6), P(u1, v0, h), P(u1, v0 + w, h)], shade(CREAM, -0.18), true, 1.2);
   }
 }
+
+/**
+ * Flat roof with a cream parapet and, from Lv2, a rooftop unit: the look of a finished campus
+ * building. At Lv1 it is a plain tar-paper lid.
+ */
+function flatRoof(ctx: Ctx, L: number, u0: number, v0: number, u1: number, v1: number, h: number, unit = true): void {
+  if (L <= 1) {
+    box(ctx, u0 - 0.04, v0 - 0.04, u1 + 0.04, v1 + 0.04, h, h + 3, '#6b5a48');
+    return;
+  }
+  const o = 0.05;
+  box(ctx, u0 - o, v0 - o, u1 + o, v1 + o, h, h + 5, L >= 4 ? CREAM_LIGHT : CREAM);
+  const i = 0.1;
+  poly(ctx, [P(u0 + i, v0 + i, h + 5), P(u1 - i, v0 + i, h + 5), P(u1 - i, v1 - i, h + 5), P(u0 + i, v1 - i, h + 5)], SLATE, true, 1.4);
+  if (unit) {
+    const cu = (u0 + u1) / 2 + (u1 - u0) * 0.12;
+    const cv = (v0 + v1) / 2 - (v1 - v0) * 0.12;
+    box(ctx, cu - 0.16, cv - 0.16, cu + 0.16, cv + 0.16, h + 5, h + 12, '#c9cdd3');
+  }
+  if (L >= 4) {
+    // gold coping line on the two front edges
+    ctx.strokeStyle = C.gold;
+    ctx.lineWidth = 1.6;
+    line(ctx, P(u0 - o, v1 + o, h + 5), P(u1 + o, v1 + o, h + 5));
+    line(ctx, P(u1 + o, v1 + o, h + 5), P(u1 + o, v0 - o, h + 5));
+  }
+}
+
+/** Framed windows with mullions on the left face ('L', along u) or right face ('R', along v). Some are lit. */
+function panes(ctx: Ctx, face: 'L' | 'R', a0: number, a1: number, fixed: number, z0: number, z1: number, cols: number, rows: number, lit = 3): void {
+  const d = (a1 - a0) / cols;
+  const dz = (z1 - z0) / rows;
+  const pt = (a: number, z: number): [number, number] => (face === 'L' ? P(a, fixed, z) : P(fixed, a, z));
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const p0 = a0 + d * c + d * 0.2;
+      const p1 = a0 + d * (c + 1) - d * 0.2;
+      const q0 = z0 + dz * r + dz * 0.2;
+      const q1 = z0 + dz * (r + 1) - dz * 0.14;
+      const e = d * 0.07;
+      poly(ctx, [pt(p0 - e, q0 - 1.5), pt(p1 + e, q0 - 1.5), pt(p1 + e, q1 + 1.2), pt(p0 - e, q1 + 1.2)], face === 'L' ? CREAM : shade(CREAM, -0.18), true, 1.3);
+      const on = lit > 0 && (c * 5 + r * 3 + cols) % lit === 0;
+      const glass = on ? LIT : C.glass;
+      poly(ctx, [pt(p0, q0), pt(p1, q0), pt(p1, q1), pt(p0, q1)], face === 'L' ? glass : shade(glass, -0.22), false);
+      ctx.strokeStyle = 'rgba(30,27,43,0.55)';
+      ctx.lineWidth = 1;
+      line(ctx, pt((p0 + p1) / 2, q0), pt((p0 + p1) / 2, q1));
+      line(ctx, pt(p0, (q0 + q1) / 2), pt(p1, (q0 + q1) / 2));
+    }
+  }
+}
+
+/** A glass curtain wall: one sheet of glazing with a grid of frames and a few lit bays. */
+function glassWall(ctx: Ctx, face: 'L' | 'R', a0: number, a1: number, fixed: number, z0: number, z1: number, cols: number, rows: number): void {
+  const pt = (a: number, z: number): [number, number] => (face === 'L' ? P(a, fixed, z) : P(fixed, a, z));
+  const glass = face === 'L' ? '#7cc4ea' : shade('#7cc4ea', -0.25);
+  poly(ctx, [pt(a0, z0), pt(a1, z0), pt(a1, z1), pt(a0, z1)], glass, true, 1.6);
+  const d = (a1 - a0) / cols;
+  const dz = (z1 - z0) / rows;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if ((c * 3 + r * 2) % 5 !== 0) continue;
+      poly(ctx, [pt(a0 + d * c, z0 + dz * r), pt(a0 + d * (c + 1), z0 + dz * r), pt(a0 + d * (c + 1), z0 + dz * (r + 1)), pt(a0 + d * c, z0 + dz * (r + 1))], face === 'L' ? LIT : shade(LIT, -0.2), false);
+    }
+  }
+  ctx.strokeStyle = 'rgba(30,27,43,0.6)';
+  ctx.lineWidth = 1.1;
+  for (let c = 1; c < cols; c++) line(ctx, pt(a0 + d * c, z0), pt(a0 + d * c, z1));
+  for (let r = 1; r < rows; r++) line(ctx, pt(a0, z0 + dz * r), pt(a1, z0 + dz * r));
+}
+
+/** Navy wall plaque with cream lettering and a cream edge. `light` flips it to cream with dark letters. */
+function plaque(ctx: Ctx, x: number, y: number, text: string, size = 8, light = false): void {
+  ctx.font = `900 ${size}px "Trebuchet MS", system-ui, sans-serif`;
+  const w = ctx.measureText(text).width + 10;
+  const h = size + 7;
+  ctx.beginPath();
+  ctx.roundRect(x - w / 2, y - h / 2, w, h, 3);
+  ctx.fillStyle = light ? CREAM : C.navy;
+  ctx.fill();
+  ctx.lineWidth = 2.6;
+  ctx.strokeStyle = OUT;
+  ctx.stroke();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = light ? shade(CREAM, -0.25) : CREAM;
+  ctx.stroke();
+  ctx.fillStyle = light ? OUT : CREAM;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y + 0.5);
+  ctx.textBaseline = 'alphabetic';
+}
+
+/** A row of cream columns along the left face, standing on a step, carrying a beam at height `h`. */
+function colonnade(ctx: Ctx, u0: number, u1: number, v: number, depth: number, h: number, n: number): void {
+  box(ctx, u0 - 0.05, v, u1 + 0.05, v + depth, 4, 7, C.stone);
+  for (let i = 0; i < n; i++) {
+    const u = n === 1 ? (u0 + u1) / 2 : u0 + ((u1 - u0) * i) / (n - 1);
+    box(ctx, u - 0.055, v + depth - 0.15, u + 0.055, v + depth - 0.04, 7, h, CREAM_LIGHT);
+  }
+  box(ctx, u0 - 0.08, v, u1 + 0.08, v + depth, h, h + 5, CREAM);
+}
+
+function tree(ctx: Ctx, u: number, v: number, k = 1): void {
+  const [x, y] = P(u, v, 4);
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 3.2;
+  line(ctx, [x, y], [x, y - 9 * k]);
+  ctx.strokeStyle = C.woodDark;
+  ctx.lineWidth = 1.6;
+  line(ctx, [x, y], [x, y - 9 * k]);
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 1.6;
+  for (const [dx, dy, r, col] of [
+    [-5, -13, 7, C.grassDark],
+    [5, -13, 7, C.grassDark],
+    [0, -19, 8, '#5fae3c'],
+  ] as [number, number, number, string][]) {
+    ctx.beginPath();
+    ctx.arc(x + dx * k, y + dy * k, r * k, 0, Math.PI * 2);
+    ctx.fillStyle = col;
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#8fd66a';
+  ctx.beginPath();
+  ctx.arc(x - 2 * k, y - 21 * k, 2.6 * k, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/** Lamp post; with `banner` it carries a navy pennant with a gold star. */
+function lamp(ctx: Ctx, u: number, v: number, banner: boolean): void {
+  const [x, y] = P(u, v, 4);
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 2.4;
+  line(ctx, [x, y], [x, y - 26]);
+  if (banner) {
+    ctx.fillStyle = C.navy;
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    ctx.rect(x + 1.5, y - 22, 7, 12);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = C.gold;
+    ctx.beginPath();
+    ctx.arc(x + 5, y - 16, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.beginPath();
+  ctx.arc(x, y - 29, 7, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,233,168,0.35)';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x, y - 29, 3.6, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffe9a8';
+  ctx.fill();
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = OUT;
+  ctx.stroke();
+}
+
 
 /** Cornice under the roofline: white from Lv3, gold from Lv4. */
 function trim(ctx: Ctx, level: number, u0: number, v0: number, u1: number, v1: number, z: number): void {
@@ -230,27 +417,28 @@ function shrub(ctx: Ctx, u: number, v: number, flowers: boolean): void {
   }
 }
 
-/** Landscaping along the front of the lot. Drawn last so it sits in front of the walls. */
+/**
+ * Landscaping around the lot, drawn last so it sits in front of the walls: shrubs at Lv2, hedge
+ * rows from Lv3 and banner lamp posts from Lv4 (the trees go in with the lot). The middle of the
+ * front edge is left clear so doors and signs stay visible.
+ */
 function grounds(ctx: Ctx, L: number, size: number): void {
   const s = size / 2;
-  if (L >= 2) shrub(ctx, -s + 0.3, s - 0.17, L >= 3);
-  if (L >= 3) shrub(ctx, s - 0.17, -s + 0.3, true);
+  if (L < 2) return;
+  if (L === 2) {
+    shrub(ctx, -s + 0.3, s - 0.17, false);
+    return;
+  }
+  // hedge rows on both front edges, skipping the middle third of the left-front edge
+  const step = 0.36;
+  for (let u = -s + 0.28; u <= s - 0.5; u += step) {
+    if (Math.abs(u + 0.05) < size * 0.27) continue;
+    shrub(ctx, u, s - 0.17, (Math.round(u * 10) & 1) === 0);
+  }
+  for (let v = s - 0.55; v >= -s + 0.6; v -= step * 1.35) shrub(ctx, s - 0.17, v, false);
   if (L >= 4) {
-    // lamp post on the front corner
-    const [x, y] = P(s - 0.16, s - 0.16, 4);
-    ctx.strokeStyle = OUT;
-    ctx.lineWidth = 2.2;
-    line(ctx, [x, y], [x, y - 24]);
-    ctx.beginPath();
-    ctx.arc(x, y - 27, 7, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255,233,168,0.35)';
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(x, y - 27, 3.6, 0, Math.PI * 2);
-    ctx.fillStyle = '#ffe9a8';
-    ctx.fill();
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+    lamp(ctx, s - 0.16, s - 0.16, true);
+    if (size >= 4) lamp(ctx, -s + 0.16, s - 0.16, true);
   }
 }
 
@@ -375,46 +563,345 @@ function drawScaffold(ctx: Ctx, size: number): void {
   ctx.fillRect(x - 3, y - 9, 6, 3);
 }
 
+// ---------- Screen-facing blocks ----------
+// Boxes on the tile grid always show two slanted faces meeting at a front corner. To draw a
+// building that faces the viewer, plans here are given in (p, d): p runs left to right across the
+// screen and d runs from the back toward the viewer. A wall along p is flat to the screen.
+
+type PD = [number, number];
+
+/** (p, d, height) to sprite pixels. */
+function Q(p: number, d: number, z = 0): [number, number] {
+  return P(d + p, d - p, z);
+}
+
+/** The sides of an outline that face the viewer, far to near, with how far each leans left (-1) or right (+1). */
+function frontEdges(plan: PD[]): { a: PD; b: PD; lean: number }[] {
+  let area = 0;
+  for (let i = 0; i < plan.length; i++) {
+    const a = plan[i];
+    const b = plan[(i + 1) % plan.length];
+    area += a[0] * b[1] - b[0] * a[1];
+  }
+  const sign = area > 0 ? 1 : -1;
+  const out: { a: PD; b: PD; lean: number }[] = [];
+  for (let i = 0; i < plan.length; i++) {
+    const a = plan[i];
+    const b = plan[(i + 1) % plan.length];
+    const nx = (b[1] - a[1]) * sign;
+    const nd = -(b[0] - a[0]) * sign;
+    if (nd <= 0.001) continue; // faces away
+    out.push({ a, b, lean: nx / Math.hypot(nx, nd) });
+  }
+  return out.sort((e, f) => e.a[1] + e.b[1] - (f.a[1] + f.b[1]));
+}
+
+/** An extruded block with any outline: the sides facing the viewer, shaded by which way they lean, then the top. */
+function prism(ctx: Ctx, plan: PD[], z0: number, z1: number, color: string, top?: string): void {
+  for (const e of frontEdges(plan)) {
+    poly(ctx, [Q(e.a[0], e.a[1], z0), Q(e.b[0], e.b[1], z0), Q(e.b[0], e.b[1], z1), Q(e.a[0], e.a[1], z1)], shade(color, -0.2 - 0.11 * e.lean));
+  }
+  poly(ctx, plan.map(([pp, dd]) => Q(pp, dd, z1)), top ?? shade(color, 0.12));
+}
+
+/** A brick block with a screen-facing outline: level wall texture, cream parapet and a dark inset roof. */
+function block45(ctx: Ctx, L: number, plan: PD[], z0: number, h: number, base: string): void {
+  prism(ctx, plan, z0, h, L <= 1 ? WOOD : base);
+  ctx.strokeStyle = L <= 1 ? 'rgba(60,35,10,0.3)' : 'rgba(0,0,0,0.14)';
+  ctx.lineWidth = 1;
+  for (const e of frontEdges(plan)) {
+    if (L <= 1) {
+      const n = Math.max(2, Math.round(Math.hypot(e.b[0] - e.a[0], e.b[1] - e.a[1]) / 0.16));
+      for (let i = 1; i < n; i++) {
+        const k = i / n;
+        const pp = e.a[0] + (e.b[0] - e.a[0]) * k;
+        const dd = e.a[1] + (e.b[1] - e.a[1]) * k;
+        line(ctx, Q(pp, dd, z0), Q(pp, dd, h));
+      }
+    } else {
+      for (let z = z0 + 6; z < h - 2; z += 6) line(ctx, Q(e.a[0], e.a[1], z), Q(e.b[0], e.b[1], z));
+    }
+  }
+  if (L <= 1) {
+    prism(ctx, plan, h, h + 3, '#6b5a48');
+    return;
+  }
+  prism(ctx, plan, h, h + 4, L >= 5 ? CREAM_LIGHT : CREAM);
+  const cp = plan.reduce((s, q) => s + q[0], 0) / plan.length;
+  const cd = plan.reduce((s, q) => s + q[1], 0) / plan.length;
+  poly(ctx, plan.map(([pp, dd]) => Q(cp + (pp - cp) * 0.86, cd + (dd - cd) * 0.8, h + 4)), SLATE, true, 1.3);
+  if (L >= 5) {
+    ctx.strokeStyle = C.gold;
+    ctx.lineWidth = 1.5;
+    for (const e of frontEdges(plan)) line(ctx, Q(e.a[0], e.a[1], h + 4), Q(e.b[0], e.b[1], h + 4));
+  }
+}
+
+/** A plain rectangular plan. */
+function rectPD(p0: number, p1: number, d0: number, d1: number): PD[] {
+  return [
+    [p0, d1],
+    [p1, d1],
+    [p1, d0],
+    [p0, d0],
+  ];
+}
+
+/** Windows on a wall that is flat to the screen at depth d: cream frames, some lit. `dark` gives slit windows with no frame. */
+function frontWindows(ctx: Ctx, p0: number, p1: number, d: number, z0: number, z1: number, cols: number, rows: number, lit = 3, dark = false): void {
+  const w = (p1 - p0) / cols;
+  const hz = (z1 - z0) / rows;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const a = Q(p0 + w * c + w * 0.2, d, z0 + hz * r + hz * 0.18);
+      const b = Q(p0 + w * (c + 1) - w * 0.2, d, z0 + hz * (r + 1) - hz * 0.14);
+      const on = lit > 0 && (c * 5 + r * 3 + cols) % lit === 0;
+      ctx.beginPath();
+      ctx.rect(a[0], b[1], b[0] - a[0], a[1] - b[1]);
+      ctx.fillStyle = on ? LIT : dark ? '#27314f' : C.glass;
+      ctx.fill();
+      ctx.lineWidth = dark ? 1.2 : 2.6;
+      ctx.strokeStyle = dark ? OUT : CREAM;
+      ctx.stroke();
+      if (!dark) {
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = OUT;
+        ctx.stroke();
+      }
+    }
+  }
+}
+
+/** A sheet of dark-blue glazing on a wall that is flat to the screen, with a grid of frames. */
+function frontGlass(ctx: Ctx, p0: number, p1: number, d: number, z0: number, z1: number, cols: number, rows: number, lit = 0): void {
+  const a = Q(p0, d, z0);
+  const b = Q(p1, d, z1);
+  ctx.beginPath();
+  ctx.rect(a[0], b[1], b[0] - a[0], a[1] - b[1]);
+  ctx.fillStyle = '#2c4a86';
+  ctx.fill();
+  const w = (b[0] - a[0]) / cols;
+  const hz = (a[1] - b[1]) / rows;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const k = (c * 3 + r * 2) % 7;
+      if (lit && k % lit === 0) ctx.fillStyle = LIT;
+      else if (k === 1 || k === 4) ctx.fillStyle = '#3b63a8';
+      else continue;
+      ctx.fillRect(a[0] + w * c, b[1] + hz * r, w, hz);
+    }
+  }
+  ctx.strokeStyle = 'rgba(20,26,50,0.75)';
+  ctx.lineWidth = 1;
+  for (let c = 1; c < cols; c++) line(ctx, [a[0] + w * c, b[1]], [a[0] + w * c, a[1]]);
+  for (let r = 1; r < rows; r++) line(ctx, [a[0], b[1] + hz * r], [b[0], b[1] + hz * r]);
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 1.8;
+  ctx.strokeRect(a[0], b[1], b[0] - a[0], a[1] - b[1]);
+}
+
+/** A round cream column standing at (p, d). */
+function column(ctx: Ctx, p: number, d: number, z0: number, z1: number): void {
+  const [x, y] = Q(p, d, z0);
+  const hgt = z1 - z0;
+  const g = ctx.createLinearGradient(x - 3, 0, x + 3, 0);
+  g.addColorStop(0, '#fbf5e4');
+  g.addColorStop(1, '#d6c59b');
+  ctx.beginPath();
+  ctx.roundRect(x - 2.8, y - hgt, 5.6, hgt, 1.5);
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = OUT;
+  ctx.stroke();
+  // base
+  ctx.beginPath();
+  ctx.roundRect(x - 3.8, y - 2.5, 7.6, 3, 1);
+  ctx.fillStyle = CREAM;
+  ctx.fill();
+  ctx.stroke();
+}
+
+/**
+ * The Dixon Ministry Center, facing the viewer: a wide, low entrance under a long name band and
+ * a brick gable, a cluster of flat-roofed brick blocks of different heights behind it, and a
+ * square brick tower in the middle with a slate cap, a mast and a white ball.
+ * It is built up by level: wooden hall (1), brick hall and tower (2), the entrance and the tall
+ * glass block (3), the stepped side blocks (4), the last blocks and gold trim (5), a gold ball (6).
+ */
 function dmc(ctx: Ctx, L: number): void {
   site(ctx, L, 4);
-  const h = 40 + L * 6;
-  // back wing (level 3+)
+  const hh = L <= 1 ? 26 : 40; // entrance hall wall height
+  const roof = hh + (L <= 1 ? 3 : 4);
+  const fd = 0.8; // depth of the hall's front wall
+
+  // 1-2. blocks behind the hall
   if (L >= 3) {
-    walls(ctx, L, -1.7, -1.75, -0.2, -0.3, 4, h - 10, C.brick);
-    windowsL(ctx, -1.6, -0.3, -0.3, 10, h - 14, 3, 1);
+    block45(ctx, L, rectPD(-1.0, -0.12, -0.92, -0.3), 4, 90, C.brick);
+    frontGlass(ctx, -0.9, -0.24, -0.3, 52, 84, 4, 3);
+    if (L >= 4) {
+      const [fx, fy] = Q(-0.9, -0.82, 94);
+      flag(ctx, fx, fy, 16, L >= 6 ? C.gold : C.roofBlue);
+    }
   }
-  // steeple tower
-  const th = h + 40 + L * 8;
-  box(ctx, 0.35, -1.75, 1.35, -0.75, 4, th, C.white);
-  windowsL(ctx, 0.45, 1.25, -0.75, th - 26, th - 6, 1, 1, '#ffe9a8');
-  windowsR(ctx, -1.65, -0.85, 1.35, th - 26, th - 6, 1, 1, '#ffe9a8');
   if (L >= 5) {
-    dome(ctx, 0.85, -1.25, 0.55, th, C.gold);
-    const [x, y] = P(0.85, -1.25, th + 26);
-    cross(ctx, x, y, 22);
-  } else {
-    pyramid(ctx, 0.35, -1.75, 1.35, -0.75, th, 26, C.roofBlue);
-    const [x, y] = P(0.85, -1.25, th + 26);
-    cross(ctx, x, y, 18);
+    block45(ctx, L, rectPD(0.24, 1.02, -0.88, -0.3), 4, 76, C.brick);
+    frontWindows(ctx, 0.34, 0.92, -0.3, 58, 70, 3, 1, 2, true);
   }
-  // main hall
-  walls(ctx, L, -1.5, -0.9, 1.4, 1.5, 4, h, C.brick);
-  // glass atrium on the front (left face)
-  windowsL(ctx, -1.35, 1.25, 1.5, 8, h - 6, 5, 2, '#8fd8f5');
-  windowsR(ctx, -0.8, 1.4, 1.4, 10, h - 8, 3, 2);
-  trim(ctx, L, -1.5, -0.9, 1.4, 1.5, h);
-  // flat roof with blue band
-  box(ctx, -1.35, -0.75, 1.25, 1.35, h, h + 6, C.roofBlue);
-  // entrance
-  entry(ctx, L, -0.1, 1.5, 0.6, 22, '#3a3346');
-  const [sx, sy] = P(-0.1, 1.5, 34);
-  sign(ctx, sx, sy, 'DMC', C.navy, C.gold, 12);
-  levelFlags(ctx, L, -1.4, 1.4, h + 6);
+
+  // 5. the entrance hall: straight across the front, ends angling back
+  const hall: PD[] = [
+    [-0.76, fd],
+    [0.76, fd],
+    [1.5, fd - 0.74],
+    [1.2, fd - 1.04],
+    [-1.2, fd - 1.04],
+    [-1.5, fd - 0.74],
+  ];
+  block45(ctx, L, hall, 4, hh, C.brick);
+  // windows on the angled ends (these are ordinary tile-aligned walls)
   if (L >= 2) {
-    const [x, y] = P(1.3, 1.4, h + 6);
-    flag(ctx, x, y, 18, C.gold);
+    panes(ctx, 'L', -1.36, 0.0, 1.56, 9, hh - 5, 3, 1, 2);
+    panes(ctx, 'R', -1.36, 0.0, 1.56, 9, hh - 5, 3, 1, 3);
+  } else {
+    windowsL(ctx, -1.36, 0.0, 1.56, 8, hh - 4, 3, 1);
+    windowsR(ctx, -1.36, 0.0, 1.56, 8, hh - 4, 3, 1);
   }
-  grounds(ctx, L, 4);
+
+  // 4. stepped blocks standing on the hall roof
+  if (L >= 4) {
+    block45(ctx, L, rectPD(-1.14, -0.46, -0.2, 0.34), roof, roof + 21, C.brick);
+    frontWindows(ctx, -1.06, -0.54, 0.34, roof + 6, roof + 16, 4, 1, 0, true);
+    block45(ctx, L, rectPD(0.46, 1.14, -0.2, 0.3), roof, roof + 15, C.brick);
+    frontWindows(ctx, 0.54, 1.06, 0.3, roof + 4, roof + 11, 3, 1, 0, true);
+  }
+
+  // 3. the tower: a square brick shaft with its corner toward the viewer
+  {
+    const th = L <= 1 ? roof + 18 : 100 + L * 4;
+    const u0 = -0.36;
+    const u1 = 0.36;
+    const v0 = -0.46;
+    const v1 = 0.26;
+    if (L <= 1) {
+      box(ctx, u0 + 0.06, v0 + 0.06, u1 - 0.06, v1 - 0.06, roof, th, WOOD);
+      pyramid(ctx, u0, v0, u1, v1, th, 14, C.roofBlue);
+    } else {
+      walls(ctx, 2, u0, v0, u1, v1, roof, th, C.brick);
+      // slate cap: a dark V down the front corner, under a low dark roof
+      const drop = 26 + L;
+      poly(ctx, [P(u0, v1, th), P(u1, v1, th), P(u1, v1, th - drop)], shade(SLATE, 0.1), true, 1.8);
+      poly(ctx, [P(u1, v1, th), P(u1, v0, th), P(u1, v1, th - drop)], shade(SLATE, -0.25), true, 1.8);
+      box(ctx, u0 - 0.04, v0 - 0.04, u1 + 0.04, v1 + 0.04, th, th + 3, L >= 5 ? C.gold : CREAM);
+      pyramid(ctx, u0 - 0.04, v0 - 0.04, u1 + 0.04, v1 + 0.04, th + 3, 15, SLATE);
+    }
+    const [x, y] = P((u0 + u1) / 2, (v0 + v1) / 2, th + (L <= 1 ? 14 : 18));
+    const mast = L <= 1 ? 7 : 17;
+    ctx.strokeStyle = OUT;
+    ctx.lineWidth = 2.4;
+    line(ctx, [x, y + 2], [x, y - mast - 6]);
+    ctx.beginPath();
+    ctx.arc(x, y - mast, L <= 1 ? 3.5 : 7.5, 0, Math.PI * 2);
+    ctx.fillStyle = L >= 6 ? C.gold : '#f7f8f5';
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    if (L >= 2) {
+      // highlight on the ball
+      ctx.beginPath();
+      ctx.arc(x - 2, y - mast - 2, 1.8, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.fill();
+    }
+  }
+
+  // a small lit block stepping down at the right front
+  if (L >= 5) {
+    block45(ctx, L, rectPD(0.52, 1.02, 0.3, 0.5), roof, roof + 8, C.brick);
+    frontWindows(ctx, 0.58, 0.96, 0.5, roof + 1.5, roof + 6.5, 3, 1, 1, true);
+  }
+
+  // doors across the front of the hall
+  if (L >= 2) frontGlass(ctx, -0.68, 0.68, fd, 5, hh - 19, 9, 1, 3);
+  else {
+    const a = Q(-0.12, fd, 4);
+    ctx.fillStyle = '#3a3346';
+    ctx.strokeStyle = OUT;
+    ctx.lineWidth = 1.8;
+    ctx.fillRect(a[0], a[1] - 14, 16, 14);
+    ctx.strokeRect(a[0], a[1] - 14, 16, 14);
+    frontWindows(ctx, -0.68, -0.2, fd, 9, 21, 2, 1, 0);
+    frontWindows(ctx, 0.2, 0.68, fd, 9, 21, 2, 1, 0);
+  }
+
+  // 6-7. the entrance: columns, the name band, and the brick gable over the middle
+  const od = fd + 0.28; // outer line of the porch
+  if (L >= 3) {
+    const porch: PD[] = [
+      [-0.86, od],
+      [0.86, od],
+      [1.16, od - 0.3],
+      [0.92, fd - 0.16],
+      [0.76, fd],
+      [-0.76, fd],
+      [-0.92, fd - 0.16],
+      [-1.16, od - 0.3],
+    ];
+    prism(ctx, porch, 4, 6, C.stone);
+    const colTop = hh - 18;
+    const n = L >= 5 ? 6 : 5;
+    column(ctx, 1.06, od - 0.3, 6, colTop);
+    column(ctx, -1.06, od - 0.3, 6, colTop);
+    for (let i = 0; i < n; i++) column(ctx, -0.78 + (1.56 * i) / (n - 1), od - 0.07, 6, colTop);
+    // name band
+    prism(ctx, porch, colTop, colTop + 12, CREAM, CREAM_LIGHT);
+    const [tx, ty] = Q(0, od, colTop + 6);
+    ctx.fillStyle = OUT;
+    ctx.font = '900 7.6px "Trebuchet MS", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('DIXON MINISTRY CENTER', tx, ty + 0.5);
+    ctx.textBaseline = 'alphabetic';
+    // brick gable with a cream edge
+    const g0 = Q(-0.7, od, colTop + 12);
+    const g1 = Q(0.7, od, colTop + 12);
+    const gt = Q(0, od, colTop + 12 + 21);
+    poly(ctx, [g0, g1, gt], C.brick, true, 2);
+    ctx.strokeStyle = CREAM;
+    ctx.lineWidth = 2.2;
+    line(ctx, [g0[0] + 3, g0[1] - 1.5], [gt[0], gt[1] + 2.5]);
+    line(ctx, [g1[0] - 3, g1[1] - 1.5], [gt[0], gt[1] + 2.5]);
+    if (L >= 5) star5(ctx, gt[0], gt[1] + 10, 3.6, C.gold);
+  } else {
+    const [sx, sy] = Q(0, fd, hh - 8);
+    plaque(ctx, sx, sy, 'DMC', 10);
+  }
+
+  // forecourt: round bushes at the ends of the wings, lamp posts by the entrance
+  const at = (pp: number, dd: number): [number, number] => [dd + pp, dd - pp];
+  if (L >= 2) {
+    for (const s of [-1, 1]) {
+      const [bu, bv] = at(s * 1.66, 0.14);
+      shrub(ctx, bu, bv, L >= 3);
+    }
+  }
+  if (L >= 3) {
+    for (const s of [-1, 1]) {
+      for (const [pp, dd] of [
+        [1.42, 0.42],
+        [1.18, 0.68],
+      ]) {
+        const [bu, bv] = at(s * pp, dd);
+        shrub(ctx, bu, bv, s > 0);
+      }
+    }
+  }
+  if (L >= 4) {
+    for (const s of [-1, 1]) {
+      const [lu, lv] = at(s * 1.0, 0.92);
+      lamp(ctx, lu, lv, true);
+    }
+  }
 }
 
 function shed(ctx: Ctx): void {
@@ -538,20 +1025,36 @@ function hive(ctx: Ctx, L: number): void {
   }
 }
 
+/** Admissions: a welcome office with a columned, pedimented front that gets grander by level. */
 function admissions(ctx: Ctx, L: number): void {
   site(ctx, L, 3);
-  const h = 30 + L * 4;
-  walls(ctx, L, -1.1, -1.1, 0.9, 0.9, 4, h, C.brick);
-  windowsL(ctx, -1.0, 0.8, 0.9, 8, h - 6, 3, 1);
-  windowsR(ctx, -1.0, 0.8, 0.9, 8, h - 6, 2, 1);
-  trim(ctx, L, -1.1, -1.1, 0.9, 0.9, h);
-  gable(ctx, -1.2, -1.2, 1.0, 1.0, h, 18, C.white, 'v');
-  const [x, y] = P(-0.1, 0.9, h + 12);
-  sign(ctx, x - 8, y + 4, 'ADMISSIONS', C.navy, C.gold, 8);
-  roofTop(ctx, L, -0.1, -0.55, h + 18);
-  entry(ctx, L, -0.1, 0.9, 0.4, 16, C.navy);
-  levelFlags(ctx, L, 0.9, 0.9, h);
+  const h = 28 + L * 4;
+  walls(ctx, L, -1.1, -1.1, 0.9, 0.85, 4, h, C.brick);
+  if (L >= 2) {
+    panes(ctx, 'L', -1.02, -0.5, 0.85, 9, h - 6, 1, L >= 4 ? 2 : 1, 2);
+    panes(ctx, 'L', 0.3, 0.82, 0.85, 9, h - 6, 1, L >= 4 ? 2 : 1, 2);
+    panes(ctx, 'R', -1.0, 0.75, 0.9, 9, h - 6, 3, L >= 4 ? 2 : 1);
+  } else {
+    windowsL(ctx, -1.0, 0.8, 0.85, 8, h - 6, 3, 1);
+    windowsR(ctx, -1.0, 0.8, 0.9, 8, h - 6, 2, 1);
+  }
+  trim(ctx, L, -1.1, -1.1, 0.9, 0.85, h);
+  flatRoof(ctx, L, -1.1, -1.1, 0.9, 0.85, h);
+  const ph = Math.min(h - 6, 24);
+  entry(ctx, L, -0.1, 0.85, 0.42, ph - 6, C.navy);
+  if (L >= 2) {
+    colonnade(ctx, -0.5, 0.3, 0.85, 0.38, ph, L >= 4 ? 4 : 2);
+    // pediment over the columns
+    poly(ctx, [P(-0.6, 1.23, ph + 5), P(0.4, 1.23, ph + 5), P(-0.1, 1.23, ph + 19)], CREAM, true, 1.8);
+    if (L >= 4) {
+      const [gx, gy] = P(-0.1, 1.23, ph + 10);
+      star5(ctx, gx, gy, 4, C.gold);
+    }
+  }
+  levelFlags(ctx, L, 0.85, 0.8, h + 5);
   grounds(ctx, L, 3);
+  const [x, y] = P(-0.1, L >= 2 ? 1.23 : 0.85, L >= 2 ? ph + 1 : h - 6);
+  plaque(ctx, x, y + (L >= 2 ? 4 : 0), 'ADMISSIONS', 7, L >= 2);
 }
 
 function coffeeCart(ctx: Ctx, L: number): void {
@@ -672,13 +1175,30 @@ function coffeeCart(ctx: Ctx, L: number): void {
   }
 }
 
+/** Registrar: the Tuition vault. The roof is an open coin bin (filled in by the live overlay). */
 function registrar(ctx: Ctx, L: number): void {
   site(ctx, L, 3);
   const h = 30 + L * 5;
   walls(ctx, L, -1.15, -1.15, 1.1, 1.0, 4, h, C.brick);
-  windowsR(ctx, -1.0, 0.9, 1.1, 10, h - 6, 3, 1);
+  if (L >= 2) panes(ctx, 'R', -1.0, 0.9, 1.1, 10, h - 6, 3, L >= 4 ? 2 : 1);
+  else windowsR(ctx, -1.0, 0.9, 1.1, 10, h - 6, 3, 1);
+  if (L >= 2) {
+    // narrow windows either side of the vault
+    panes(ctx, 'L', -1.05, -0.62, 1.0, 10, h - 8, 1, 1, 0);
+    panes(ctx, 'L', 0.6, 1.02, 1.0, 10, h - 8, 1, 1, 2);
+  }
   // vault door on left face
-  const [vx, vy] = P(0, 1.0, h * 0.45);
+  const [vx, vy] = P(0, 1.0, h * 0.42);
+  if (L >= 3) {
+    // cream surround
+    ctx.beginPath();
+    ctx.ellipse(vx, vy, 20, 19, 0, 0, Math.PI * 2);
+    ctx.fillStyle = CREAM;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = OUT;
+    ctx.stroke();
+  }
   ctx.beginPath();
   ctx.ellipse(vx, vy, 16, 15, 0, 0, Math.PI * 2);
   ctx.fillStyle = L >= 4 ? C.gold : L <= 1 ? '#8a8f96' : '#c9cdd3';
@@ -699,10 +1219,11 @@ function registrar(ctx: Ctx, L: number): void {
     ctx.stroke();
   }
   trim(ctx, L, -1.15, -1.15, 1.1, 1.0, h);
-  // open-top bin for coins (filled dynamically)
-  box(ctx, -1.0, -1.0, 0.95, 0.85, h, h + 6, C.stoneDark);
-  const [sx, sy] = P(-0.6, 1.0, h - 4);
-  sign(ctx, sx, sy, 'REGISTRAR', C.navy, C.gold, 7);
+  // parapet around the open-top coin bin
+  if (L >= 2) box(ctx, -1.2, -1.2, 1.15, 1.05, h, h + 3, CREAM);
+  box(ctx, -1.0, -1.0, 0.95, 0.85, h + (L >= 2 ? 3 : 0), h + 6, C.stoneDark);
+  const [sx, sy] = P(0, 1.0, h - 5);
+  plaque(ctx, sx, sy, 'REGISTRAR', 7);
   levelFlags(ctx, L, 1.05, 0.95, h + 6);
   grounds(ctx, L, 3);
 }
@@ -741,30 +1262,57 @@ function rinnova(ctx: Ctx, L: number): void {
   grounds(ctx, L, 3);
 }
 
+/** Residence hall: a long slate-roofed hall with gabled bays on the front, taller with each upgrade. */
 function reshall(ctx: Ctx, L: number): void {
   site(ctx, L, 4);
   const floors = 2 + Math.min(3, Math.floor((L + 1) / 2));
   const h = 14 + floors * 15;
-  walls(ctx, L, -1.7, -1.4, 1.6, 1.3, 4, h, C.brick);
-  windowsL(ctx, -1.6, 1.5, 1.3, 8, h - 4, 6, floors);
-  windowsR(ctx, -1.3, 1.2, 1.6, 8, h - 4, 4, floors);
-  trim(ctx, L, -1.7, -1.4, 1.6, 1.3, h);
-  gable(ctx, -1.8, -1.5, 1.7, 1.4, h, 20, '#5d6170');
-  roofTop(ctx, L, 0.7, -0.05, h + 20);
-  if (L >= 3) roofTop(ctx, 2, -0.9, -0.05, h + 20); // a second chimney once the hall grows
-  entry(ctx, L, 0, 1.3, 0.5, 16, C.navy);
+  walls(ctx, L, -1.7, -1.4, 1.6, 1.2, 4, h, C.brick);
+  if (L >= 2) {
+    panes(ctx, 'L', -0.55, 0.45, 1.2, 8, h - 4, 2, floors);
+    panes(ctx, 'R', -1.3, 1.1, 1.6, 8, h - 4, 4, floors);
+  } else {
+    windowsL(ctx, -1.6, 1.5, 1.2, 8, h - 4, 6, floors);
+    windowsR(ctx, -1.3, 1.1, 1.6, 8, h - 4, 4, floors);
+  }
+  trim(ctx, L, -1.7, -1.4, 1.6, 1.2, h);
+  gable(ctx, -1.8, -1.5, 1.7, 1.3, h, 22, SLATE);
+  roofTop(ctx, L, 0.0, -0.1, h + 22);
+  if (L >= 2) {
+    // gabled bays standing proud of the front
+    for (const [a, b] of [
+      [-1.55, -0.65],
+      [0.55, 1.45],
+    ]) {
+      walls(ctx, L, a, 1.2, b, 1.42, 4, h, C.brick);
+      panes(ctx, 'L', a + 0.06, b - 0.06, 1.42, 8, h - 4, 2, floors, 4);
+      gable(ctx, a - 0.07, 1.0, b + 0.07, 1.48, h, 17, SLATE, 'v');
+      poly(ctx, [P(a - 0.07, 1.48, h), P(b + 0.07, 1.48, h), P((a + b) / 2, 1.48, h + 17)], CREAM, true, 1.8);
+      if (L >= 4) {
+        const [ox, oy] = P((a + b) / 2, 1.48, h + 6);
+        ctx.beginPath();
+        ctx.arc(ox, oy, 3, 0, Math.PI * 2);
+        ctx.fillStyle = L >= 5 ? C.gold : C.glass;
+        ctx.fill();
+        ctx.lineWidth = 1.3;
+        ctx.strokeStyle = OUT;
+        ctx.stroke();
+      }
+    }
+  }
+  entry(ctx, L, -0.05, 1.2, 0.5, 16, C.navy);
   if (L >= 2) {
     // bike rack out front
-    const [bx, by] = P(-1.0, 1.75, 4);
+    const [bx, by] = P(-0.35, 1.8, 4);
     ctx.strokeStyle = OUT;
     ctx.lineWidth = 1.8;
     for (let i = 0; i < 3; i++) {
       ctx.beginPath();
-      ctx.arc(bx + i * 7 - i * 0, by - 3 + i * 3.5, 4, Math.PI, 0);
+      ctx.arc(bx + i * 7, by - 3 + i * 3.5, 4, Math.PI, 0);
       ctx.stroke();
     }
   }
-  levelFlags(ctx, L, 1.55, 1.25, h);
+  levelFlags(ctx, L, 1.55, 1.15, h);
   grounds(ctx, L, 4);
 }
 
