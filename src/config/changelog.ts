@@ -14,7 +14,7 @@ export const CHANGELOG: ChangeEntry[] = [
     date: 'Nov 13, 2026',
     title: 'Campus buildings, rebuilt',
     items: [
-      'The DMC has its real shape: stepped brick tiers, the dark spire with its mast and ball, and a columned entrance under a wide pediment.',
+      'The DMC has its real shape: a wide columned entrance under the Dixon Ministry Center name, a cluster of brick blocks behind it, and the brick tower with its slate cap, mast and ball.',
       'Residence Halls, the Admissions Office and the Registrar\'s Office have new designs: gabled bays, columned fronts, framed and lit windows.',
       'Every building gets paved lots, hedges and trees, cream stone trim and banner lamp posts as it levels up.',
     ],
