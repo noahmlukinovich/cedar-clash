@@ -38,6 +38,12 @@ export interface ActiveEvent {
   y?: number;
 }
 
+export interface Layout {
+  name: string;
+  /** building id -> top-left tile */
+  pos: Record<number, { x: number; y: number }>;
+}
+
 export interface GameState {
   version: number;
   clock: number;
@@ -64,9 +70,12 @@ export interface GameState {
   lastRaidClock: number;
   nextTicketCheck: number;
   playerName: string;
+  /** Saved base layouts (3 slots). The active slot always mirrors the live campus. */
+  layouts: (Layout | null)[];
+  activeLayout: number;
 }
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 export function newGame(): GameState {
   const s: GameState = {
@@ -94,6 +103,8 @@ export function newGame(): GameState {
     lastRaidClock: 0,
     nextTicketCheck: 240,
     playerName: 'Your Campus',
+    layouts: [null, null, null],
+    activeLayout: 0,
   };
   const add = (type: BuildingType, x: number, y: number, level = 1): void => {
     const b: BuildingInst = { id: s.nextId++, type, x, y, level };
@@ -113,5 +124,6 @@ export function newGame(): GameState {
   add('safetycart', 21, 14);
   add('safetycart', 15, 23);
   add('lake', 11, 27);
+  s.layouts[0] = { name: 'Layout 1', pos: Object.fromEntries(s.buildings.map((b) => [b.id, { x: b.x, y: b.y }])) };
   return s;
 }

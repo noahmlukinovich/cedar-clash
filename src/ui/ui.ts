@@ -43,6 +43,7 @@ import {
   upgradeCheck,
 } from '../game/economy';
 import { attendChapel, canAttendChapel, chapelReward, startEvent } from '../game/events';
+import { activate, defaultName, isComplete, snapshot } from '../game/layouts';
 import { exportSave, resetSave, saveGame } from '../game/save';
 import type { BuildingInst } from '../game/state';
 import type { Game } from '../main';
@@ -87,6 +88,7 @@ export class UI {
   bottomRight!: HTMLElement;
   sideRight!: HTMLElement;
   toasts = el('div');
+  editorHud = el('div', 'hud hidden');
   modalBack: HTMLElement | null = null;
   refreshModal: (() => void) | null = null;
   private lastSelId = -2;
@@ -99,6 +101,8 @@ export class UI {
     document.body.appendChild(this.toasts);
     this.root.appendChild(this.village);
     this.buildVillageHud();
+    this.root.appendChild(this.editorHud);
+    for (const ev of ['selection', 'mode', 'changed']) bus.on(ev, () => this.renderEditor());
     bus.on('toast', (d: { text: string; kind: 'info' | 'good' | 'bad' | 'event' }) => this.toast(d.text, d.kind));
     bus.on('selection', () => this.renderSelection(true));
     bus.on('mode', () => this.renderSelection(true));
@@ -198,6 +202,8 @@ export class UI {
     mk('gear', 'Settings & Debug', () => this.openSettings(), 'gray');
     mk('medal', 'Achievements', () => this.openAchievements(), 'gold');
     mk('chapel', 'Chapel', () => this.openChapel(), 'purple');
+    const lay = mk('', 'Base layouts', () => this.openLayouts(), 'blue');
+    lay.innerHTML = '<span style="font-size:26px">🗺️</span>';
     const snd = mk(isMuted() ? 'mute' : 'sound', 'Toggle sound', () => {
       setMuted(!isMuted());
       this.state.settings.muted = isMuted();
@@ -945,6 +951,143 @@ export class UI {
       m.body.appendChild(el('p', 'flavor', 'Cedarville Clash is an unofficial, affectionate fan parody. Not affiliated with or endorsed by any university or game studio. All art is procedurally drawn.'));
     };
     render();
+  }
+
+  // ---------- Base layouts ----------
+  openLayouts(): void {
+    const m = this.modal('Base Layouts', { narrow: true, headIcon: '<span style="font-size:30px">🗺️</span>' });
+    const s = this.state;
+    const render = (): void => {
+      m.body.innerHTML = '';
+      m.body.appendChild(el('p', 'flavor', 'Save up to three campus layouts and switch between them any time. Moving buildings on campus updates the active layout.'));
+      const list = el('div', 'layout-list');
+      for (let i = 0; i < s.layouts.length; i++) {
+        const l = s.layouts[i];
+        const active = i === s.activeLayout;
+        const complete = !!l && isComplete(s, i);
+        const row = el('div', `layout-row ${active ? 'active' : ''}`);
+        const status = active ? 'Active' : !l ? 'Empty' : complete ? 'Saved' : 'Needs new buildings placed';
+        const info = el('div', 'layout-info');
+        info.append(el('div', 'name', ''), el('div', 'meta', status));
+        info.firstElementChild!.textContent = l?.name ?? defaultName(i);
+        const btns = el('div', 'layout-btns');
+        const btn = (label: string, cls: string, fn: () => void): void => {
+          const b = el('button', `btn small ${cls}`, label);
+          b.onclick = () => {
+            sfx('click');
+            fn();
+          };
+          btns.appendChild(b);
+        };
+        btn('✏️ Edit', 'gold', () => this.game.startEditor(i));
+        if (!active && l) {
+          btn('✔ Use', '', () => {
+            if (activate(s, i)) {
+              this.game.village.syncWanderers();
+              this.game.save();
+              this.toast(`${l.name} is now your campus.`, 'good');
+              sfx('place');
+              render();
+            } else {
+              this.toast('Place your new buildings first.', 'info');
+              this.game.startEditor(i);
+            }
+          });
+        }
+        if (l) {
+          btn('Rename', 'blue', () => {
+            const n = prompt('Layout name', l.name)?.trim().slice(0, 24);
+            if (n) {
+              l.name = n;
+              render();
+            }
+          });
+        }
+        if (!active) {
+          btn('Copy current', 'blue', () => {
+            if (l && !confirm(`Overwrite ${l.name} with your current campus?`)) return;
+            s.layouts[i] = { name: l?.name ?? defaultName(i), pos: snapshot(s.buildings) };
+            render();
+          });
+          if (l) {
+            btn('Clear', 'red', () => {
+              if (!confirm(`Clear ${l.name}?`)) return;
+              s.layouts[i] = null;
+              render();
+            });
+          }
+        }
+        row.append(info, btns);
+        list.appendChild(row);
+      }
+      m.body.appendChild(list);
+    };
+    render();
+  }
+
+  showEditor(show: boolean): void {
+    this.editorHud.classList.toggle('hidden', !show);
+    if (show) this.renderEditor();
+  }
+
+  renderEditor(): void {
+    const ed = this.game.editor;
+    if (!ed || this.game.scene !== ed) return;
+    const h = this.editorHud;
+    h.innerHTML = '';
+    const top = el('div', 'editor-top');
+    const title = el('div', 'hint stroke');
+    title.textContent = `✏️ Editing: ${ed.slotName}`;
+    const mkBtn = (label: string, cls: string, fn: () => void): HTMLButtonElement => {
+      const b = el('button', `btn ${cls}`, label);
+      b.onclick = () => {
+        sfx('click');
+        fn();
+      };
+      return b;
+    };
+    const removeAll = mkBtn('Remove all', 'small blue', () => ed.removeAll());
+    const cancel = mkBtn('✖ Cancel', 'small red', () => {
+      if (ed.dirty && !confirm('Discard your changes to this layout?')) return;
+      this.game.endEditor(false);
+    });
+    const save = mkBtn('✔ Save', 'small', () => {
+      if (this.game.endEditor(true)) this.toast(`${ed.slotName} saved.`, 'good');
+    });
+    save.disabled = ed.tray.length > 0;
+    if (save.disabled) save.title = 'Place every building from the tray first';
+    top.append(title, removeAll, cancel, save);
+    h.appendChild(top);
+
+    const bottom = el('div', 'editor-bottom');
+    const sel = ed.selected();
+    const placing = ed.mode.kind === 'placing' ? ed.mode.type : null;
+    let hint = 'Drag a selected building to move it. Wheel to zoom, drag the ground to pan.';
+    if (placing) hint = `Placing ${BUILDINGS[placing].name}: click to place. <kbd>Esc</kbd> cancels.`;
+    else if (ed.tray.length) hint = 'Pick a building from the tray to place it.';
+    const hintRow = el('div', 'editor-hint');
+    hintRow.appendChild(el('div', 'hint stroke', hint));
+    if (sel && !placing) hintRow.appendChild(mkBtn(`To tray: ${sel.name ?? BUILDINGS[sel.type].name}`, 'small blue', () => ed.removeSelected()));
+    if (placing) hintRow.appendChild(mkBtn('✖ Stop', 'small red', () => ed.cancelMode()));
+    bottom.appendChild(hintRow);
+    if (ed.tray.length) {
+      const tray = el('div', 'editor-tray');
+      const groups = new Map<BuildingType, BuildingInst[]>();
+      for (const b of ed.tray) groups.set(b.type, [...(groups.get(b.type) ?? []), b]);
+      for (const [type, list] of groups) {
+        const card = el('div', `tray-card ${type === placing ? 'active' : ''}`);
+        card.title = BUILDINGS[type].name;
+        card.appendChild(buildingThumb(type, Math.max(1, list[0].level), 60, 50));
+        card.appendChild(el('div', 'count', `×${list.length}`));
+        card.onclick = () => {
+          sfx('click');
+          ed.startPlacing(type);
+        };
+        tray.appendChild(card);
+      }
+      bottom.appendChild(tray);
+    }
+    h.appendChild(bottom);
   }
 
   // ---------- Loading ----------

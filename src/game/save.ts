@@ -1,3 +1,4 @@
+import { ensureLayouts } from './layouts';
 import { GameState, SAVE_VERSION, newGame } from './state';
 
 const KEY = 'cedarville-clash-save';
@@ -23,6 +24,7 @@ type AnySave = Record<string, unknown> & { version?: number };
  * Migrations: each entry upgrades a save FROM version n to n+1.
  * v1 (prototype) used "gold"/"elixir"/"darkElixir" resource names.
  * v2 lacked heroes / spells / events.
+ * v3 lacked base layouts.
  */
 const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
   1: (s) => {
@@ -44,6 +46,13 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
     s.version = 3;
     return s;
   },
+  3: (s) => {
+    // Slot 1 becomes the current campus (filled in by ensureLayouts below).
+    s.layouts = [null, null, null];
+    s.activeLayout = 0;
+    s.version = 4;
+    return s;
+  },
 };
 
 export function migrate(raw: AnySave): GameState {
@@ -63,6 +72,7 @@ export function migrate(raw: AnySave): GameState {
   const g = s as unknown as GameState;
   g.troopLevels = { ...newGame().troopLevels, ...g.troopLevels };
   g.settings = { ...newGame().settings, ...g.settings };
+  ensureLayouts(g);
   g.version = SAVE_VERSION;
   return g;
 }

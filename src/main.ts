@@ -10,6 +10,8 @@ import { BUILD_TIME, checkStale, loadGame, saveGame, staleSave } from './game/sa
 import type { GameState } from './game/state';
 import { RaidScene, type RaidKind } from './raid/raidScene';
 import { UI } from './ui/ui';
+import { syncActive } from './game/layouts';
+import { EditorScene } from './village/editorScene';
 import { VillageScene, fmtTime } from './village/villageScene';
 
 export interface Scene {
@@ -33,6 +35,7 @@ export class Game {
   ui: UI;
   village: VillageScene;
   raid: RaidScene | null = null;
+  editor: EditorScene | null = null;
   scene: Scene;
   resetting = false;
   private last = performance.now();
@@ -68,6 +71,11 @@ export class Game {
     bus.on('ticket', (d: { text: string; fine: number }) => {
       this.ui.toast(`🚓 ${d.text} −${d.fine} Tuition`, 'bad', 4000);
       sfx('whistle');
+    });
+    // The active layout slot always mirrors the live campus.
+    bus.on('changed', () => {
+      if (this.scene === this.village) syncActive(this.state);
+      else if (this.scene === this.editor) this.editor?.markDirty();
     });
     bus.on('researchDone', (t: string) => {
       this.ui.toast(`📚 Research complete: ${t} upgraded!`, 'good');
@@ -120,7 +128,7 @@ export class Game {
     const h = window.innerHeight;
     this.canvas.width = Math.floor(w * this.dpr);
     this.canvas.height = Math.floor(h * this.dpr);
-    for (const s of [this.village, this.raid]) {
+    for (const s of [this.village, this.raid, this.editor]) {
       if (!s) continue;
       s.cam.width = w;
       s.cam.height = h;
@@ -176,6 +184,38 @@ export class Game {
     this.raid.cam.height = window.innerHeight;
     this.scene = this.raid;
     this.raid.enter();
+  }
+
+  /** Open the layout editor on a slot (0-2). */
+  startEditor(slot: number): void {
+    this.scene.exit();
+    this.ui.closeModal();
+    this.ui.showVillage(false);
+    this.editor ??= new EditorScene(this);
+    this.editor.cam.width = window.innerWidth;
+    this.editor.cam.height = window.innerHeight;
+    this.editor.open(slot);
+    this.scene = this.editor;
+    this.ui.showEditor(true);
+    this.editor.enter();
+    this.editor.dirty = false;
+  }
+
+  /** Leave the editor; pass save=true to keep the draft. Returns false if it couldn't be saved. */
+  endEditor(save: boolean): boolean {
+    const ed = this.editor;
+    if (!ed || this.scene !== ed) return true;
+    if (save && !ed.save()) return false;
+    ed.exit();
+    this.village.cam.x = ed.cam.x;
+    this.village.cam.y = ed.cam.y;
+    this.village.cam.zoom = ed.cam.zoom;
+    this.scene = this.village;
+    this.ui.showEditor(false);
+    this.ui.showVillage(true);
+    this.village.enter();
+    this.save();
+    return true;
   }
 
   endRaid(): void {

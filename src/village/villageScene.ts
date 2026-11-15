@@ -51,6 +51,8 @@ export class VillageScene implements Scene {
   private lastMouse = { x: 0, y: 0 };
   private keys = new Set<string>();
   time = 0;
+  /** True in the layout editor: no collecting, timers or wandering students. */
+  protected editing = false;
 
   constructor(public game: Game) {
     const c = toWorld(20, 20);
@@ -58,7 +60,7 @@ export class VillageScene implements Scene {
     this.cam.y = c.y;
     this.cam.zoom = 0.85;
     bus.on('buildingDone', (b: BuildingInst) => {
-      if (this.game.scene !== this) return;
+      if (this.game.scene !== this || this.editing) return;
       this.pop(b.id);
       const sz = BUILDINGS[b.type].size;
       const w = toWorld(b.x + sz / 2, b.y + sz / 2);
@@ -160,6 +162,11 @@ export class VillageScene implements Scene {
     this.mode = { kind: 'idle' };
     bus.emit('mode', 'idle');
     this.select(res.id);
+  }
+
+  /** Level shown on the placement ghost. */
+  protected placingLevel(_type: BuildingType): number {
+    return 1;
   }
 
   select(id: number): void {
@@ -342,7 +349,7 @@ export class VillageScene implements Scene {
       if (this.selectedId !== -1) this.select(-1);
       return;
     }
-    if ((b.type === 'admissions' || b.type === 'coffeecart') && (b.stored ?? 0) >= 1 && b.level >= 1) {
+    if (!this.editing && (b.type === 'admissions' || b.type === 'coffeecart') && (b.stored ?? 0) >= 1 && b.level >= 1) {
       if (this.doCollect(b)) {
         this.selectedId = b.id;
         bus.emit('selection', b);
@@ -444,7 +451,7 @@ export class VillageScene implements Scene {
     const s = this.state;
     const t = this.time;
     this.cam.apply(ctx, dpr);
-    const showGrid = this.mode.kind !== 'idle';
+    const showGrid = this.editing || this.mode.kind !== 'idle';
     drawGround(ctx, { grid: showGrid, border: BORDER });
     const ct = constructionTile(s);
     if (ct) drawConstructionFence(ctx, ct.x, ct.y, t);
@@ -519,14 +526,14 @@ export class VillageScene implements Scene {
       list.push({
         depth: 10000,
         fn: () =>
-          drawBuildingAt(ctx, { type: m.type, level: 1, x: m.gx, y: m.gy, t, ghost: ok ? 'ok' : 'bad', alpha: 0.8, squash: 0 }),
+          drawBuildingAt(ctx, { type: m.type, level: this.placingLevel(m.type), x: m.gx, y: m.gy, t, ghost: ok ? 'ok' : 'bad', alpha: 0.8, squash: 0 }),
       });
     }
     list.sort((a, b) => a.depth - b.depth);
     for (const d of list) d.fn();
 
     // overlays: timers, collect bubbles
-    for (const b of s.buildings) {
+    for (const b of this.editing ? [] : s.buildings) {
       const sz = BUILDINGS[b.type].size;
       const c = toWorld(b.x + sz / 2, b.y + sz / 2);
       const top = c.y - 40 - sz * 22;
