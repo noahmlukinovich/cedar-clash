@@ -4,7 +4,8 @@ import { sfx } from '../core/audio';
 import { bus, toast } from '../core/bus';
 import { toWorld } from '../core/iso';
 import { canPlace } from '../game/economy';
-import { activate, defaultName, relocateFence, resolve, snapshot, syncActive } from '../game/layouts';
+import { type Action, type ActionResult, applyAction } from '../game/actions';
+import { defaultName, resolve, snapshot } from '../game/layouts';
 import type { BuildingInst, GameState } from '../game/state';
 import type { Game } from '../main';
 import { VillageScene } from './villageScene';
@@ -23,11 +24,16 @@ export class EditorScene extends VillageScene {
   constructor(game: Game) {
     super(game);
     this.editing = true;
-    this.shadow = { ...game.state, buildings: [], events: [] };
+    this.shadow = { ...game.state, buildings: [], events: [], layouts: [null, null, null], activeLayout: 0 };
   }
 
   override get state(): GameState {
     return this.shadow;
+  }
+
+  /** Moves made while editing change the draft, not the real campus. */
+  protected override act(a: Action): ActionResult {
+    return applyAction(this.shadow, a);
   }
 
   /** Load a slot into the scratch campus. Empty slots start from the live layout. */
@@ -44,7 +50,8 @@ export class EditorScene extends VillageScene {
         b.y = p.y;
       }
     }
-    this.shadow = { ...real, buildings: clones.filter((b) => !gone.has(b.id)), events: [] };
+    // Own layout fields: actions on the draft must never write into the real slots.
+    this.shadow = { ...real, buildings: clones.filter((b) => !gone.has(b.id)), events: [], layouts: [null, null, null], activeLayout: 0 };
     this.tray = missing;
     this.dirty = false;
     this.mode = { kind: 'idle' };
@@ -149,13 +156,10 @@ export class EditorScene extends VillageScene {
   /** Write the draft into its slot. Returns false while buildings are still in the tray. */
   save(): boolean {
     if (this.tray.length) return false;
-    const real = this.game.state;
-    real.layouts[this.slot] = { name: this.slotName, pos: snapshot(this.shadow.buildings) };
-    if (this.slot === real.activeLayout) {
-      activate(real, this.slot);
-    } else {
-      syncActive(real);
-      relocateFence(real);
+    const r = this.game.act({ k: 'layoutSave', slot: this.slot, pos: snapshot(this.shadow.buildings) });
+    if (r.err) {
+      toast(r.err, 'bad');
+      return false;
     }
     this.dirty = false;
     return true;

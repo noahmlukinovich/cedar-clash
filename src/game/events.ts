@@ -7,7 +7,7 @@ import {
   EVENT_CHECK_INTERVAL,
   GRID,
 } from '../config/balance';
-import { ACHIEVEMENTS, CHAPEL_SKIP_LINES, CONSTRUCTION_LINES, EVENT_INFO, TICKET_LINES } from '../config/humor';
+import { CHAPEL_SKIP_LINES, CONSTRUCTION_LINES, EVENT_INFO, TICKET_LINES } from '../config/humor';
 import { bus, toast } from '../core/bus';
 import { pick } from '../core/rng';
 import { armyCapacity, armyUsed } from './army';
@@ -131,11 +131,6 @@ export function checkChapelSkip(s: GameState): string | null {
     return pick(CHAPEL_SKIP_LINES);
   }
   return null;
-}
-
-export function claimAchievementReward(s: GameState, id: string): void {
-  const a = ACHIEVEMENTS.find((x) => x.id === id);
-  if (a) addRes(s, 'chapel', a.reward);
 }
 
 export function constructionTile(s: GameState): { x: number; y: number } | null {

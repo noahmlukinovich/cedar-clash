@@ -23,6 +23,7 @@ export interface QueueItem<T> {
   left: number; // seconds remaining
   total: number;
   chucks?: number; // seconds stuck "in line at Chuck's"
+  paid?: number; // what was spent to queue it, refunded on cancel
 }
 
 export interface HeroState {
@@ -73,6 +74,30 @@ export interface GameState {
   /** Saved base layouts (3 slots). The active slot always mirrors the live campus. */
   layouts: (Layout | null)[];
   activeLayout: number;
+  /** True once the player has spent their one-time rename. */
+  nameChanged?: boolean;
+}
+
+export const MAX_NAME_LEN = 20;
+
+/** Trim, collapse whitespace, strip control chars/angle brackets. Returns '' if invalid. */
+export function cleanName(raw: string): string {
+  return raw
+    .replace(/[\u0000-\u001f\u007f<>]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, MAX_NAME_LEN);
+}
+
+/** Renames the player once. Returns an error message, or null on success. */
+export function renamePlayer(s: GameState, raw: string): string | null {
+  if (s.nameChanged) return 'You have already used your one-time rename.';
+  const name = cleanName(raw);
+  if (name.length < 2) return 'Name must be at least 2 characters.';
+  if (name === s.playerName) return 'That is already your name.';
+  s.playerName = name;
+  s.nameChanged = true;
+  return null;
 }
 
 export const SAVE_VERSION = 4;
@@ -89,7 +114,7 @@ export function newGame(): GameState {
     trainQueue: [],
     spells: {},
     spellQueue: [],
-    troopLevels: { freshman: 1, engineer: 1, nurse: 1, theology: 1, athlete: 1 },
+    troopLevels: { freshman: 1, engineer: 1, nurse: 1, theology: 1, athlete: 1, business: 1, music: 1, runner: 1, ra: 1, goteam: 1 },
     heroes: { prof: { level: 1, hpFrac: 1 }, president: { level: 1, hpFrac: 1 } },
     trophies: 0,
     bestTrophies: 0,

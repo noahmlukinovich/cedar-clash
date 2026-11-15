@@ -8,14 +8,13 @@ import { toGrid, toWorld } from '../core/iso';
 import { Particles } from '../core/particles';
 import {
   BORDER,
-  buildNew,
   canPlace,
   caps,
-  collect,
   collectorCap,
   occupancy,
 } from '../game/economy';
 import { constructionTile } from '../game/events';
+import type { Action, ActionResult } from '../game/actions';
 import type { BuildingInst, GameState } from '../game/state';
 import { drawBar, drawBuildingAt, drawConstructionFence, drawGround, drawLabel, drawTree, borderTrees, type TreeSpot } from '../render/world';
 import { drawUnit } from '../render/unitSprites';
@@ -136,7 +135,8 @@ export class VillageScene implements Scene {
   confirmPlace(): void {
     if (this.mode.kind !== 'placing') return;
     const { type, gx, gy } = this.mode;
-    const res = buildNew(this.state, type, gx, gy);
+    const r = this.act({ k: 'build', type, x: gx, y: gy });
+    const res = r.building ?? r.err ?? 'Error';
     if (typeof res === 'string') {
       toast(res, 'bad');
       sfx('error');
@@ -164,6 +164,11 @@ export class VillageScene implements Scene {
     this.select(res.id);
   }
 
+  /** Player actions go through the game (and the server); the editor redirects them to its draft. */
+  protected act(a: Action): ActionResult {
+    return this.game.act(a);
+  }
+
   /** Level shown on the placement ghost. */
   protected placingLevel(_type: BuildingType): number {
     return 1;
@@ -182,7 +187,7 @@ export class VillageScene implements Scene {
   removeSelected(): void {
     const b = this.selected();
     if (!b || !BUILDINGS[b.type].removable) return;
-    this.state.buildings = this.state.buildings.filter((x) => x.id !== b.id);
+    if (this.act({ k: 'remove', id: b.id }).err) return;
     const sz = BUILDINGS[b.type].size;
     const w = toWorld(b.x + sz / 2, b.y + sz / 2);
     this.particles.poof(w.x, w.y, 1.5);
@@ -191,7 +196,7 @@ export class VillageScene implements Scene {
   }
 
   doCollect(b: BuildingInst): boolean {
-    const got = collect(this.state, b);
+    const got = this.act({ k: 'collect', id: b.id }).got ?? 0;
     if (got <= 0) return false;
     const isT = b.type === 'admissions';
     const sz = BUILDINGS[b.type].size;
@@ -320,9 +325,7 @@ export class VillageScene implements Scene {
       const b = this.state.buildings.find((q) => q.id === m.id);
       if (b) {
         if (canPlace(this.state, b.type, m.gx, m.gy, b.id)) {
-          if (b.x !== m.gx || b.y !== m.gy) {
-            b.x = m.gx;
-            b.y = m.gy;
+          if ((b.x !== m.gx || b.y !== m.gy) && !this.act({ k: 'move', id: b.id, x: m.gx, y: m.gy }).err) {
             sfx('place');
             this.pop(b.id);
             const sz = BUILDINGS[b.type].size;
@@ -516,7 +519,7 @@ export class VillageScene implements Scene {
         depth: w.x + w.y,
         fn: () => {
           const p = toWorld(w.x, w.y);
-          drawUnit(ctx, p.x, p.y, w.type, { t: w.t, facing: w.face, moving: w.wait <= 0, attacking: 0, scale: 0.85 * TROOPS[w.type].size });
+          drawUnit(ctx, p.x, p.y, w.type, { t: w.t, facing: w.face, moving: w.wait <= 0, attacking: 0, scale: 0.85 * TROOPS[w.type].size, level: this.state.troopLevels[w.type] });
         },
       });
     }

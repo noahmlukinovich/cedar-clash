@@ -1,0 +1,13 @@
+[Unit]
+Description=Cedar Clash: deploy new commits on main
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# One deploy at a time (deploy/push.sh takes the same lock).
+ExecStart=/usr/bin/flock --nonblock --conflict-exit-code 0 /run/cedar-clash-deploy.lock /usr/local/sbin/cedar-clash-auto-update
+# Builds and tests run at low priority so the game stays responsive.
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=20min

@@ -1,5 +1,6 @@
 import { BUILDINGS, SHOP_TABS, maxCount, maxLevelForDmc } from '../config/buildings';
 import { DEBUG_SPEEDS, SCOUT_COST_PER_DMC } from '../config/balance';
+import { CHANGELOG, LATEST_CHANGE } from '../config/changelog';
 import { ACHIEVEMENTS, EVENT_INFO, LEAGUES, LOADING_TIPS, leagueFor, CHAPEL_ATTEND_LINES, CHUCKS_LINE } from '../config/humor';
 import { HEROES, TROOPS, TROOP_ORDER } from '../config/troops';
 import { SPELLS, SPELL_ORDER } from '../config/spells';
@@ -8,23 +9,24 @@ import { isMuted, setMuted, sfx } from '../core/audio';
 import { bus } from '../core/bus';
 import { pick } from '../core/rng';
 import {
+  ARMIES,
   armyCapacity,
   armyUsed,
-  brew,
   brewCheck,
-  cancelTrain,
   heroAvailable,
   heroUnlocked,
-  heroUpgrade,
   heroUpgradeCheck,
   libraryLevel,
+  isReady,
+  queueRuns,
   queueUsed,
+  reserveReady,
   researchCheck,
   spellCapacity,
   spellsUsed,
-  startResearch,
-  train,
   trainCheck,
+  trainItemLeft,
+  trainQueueLeft,
   troopUnlocked,
 } from '../game/army';
 import {
@@ -34,19 +36,22 @@ import {
   caps,
   countOf,
   dmcLevel,
-  finishNow,
   finishNowCost,
   hasEvent,
   nextLevelInfo,
   resName,
-  startUpgrade,
   upgradeCheck,
 } from '../game/economy';
-import { attendChapel, canAttendChapel, chapelReward, startEvent } from '../game/events';
-import { activate, defaultName, isComplete, snapshot } from '../game/layouts';
-import { exportSave, resetSave, saveGame } from '../game/save';
+import { defaultName, isComplete, snapshot } from '../game/layouts';
+import { canAttendChapel, chapelReward, startEvent } from '../game/events';
+import { exportSave, resetSave, saveGame, staleSave } from '../game/save';
+import { MAX_NAME_LEN, cleanName, renamePlayer } from '../game/state';
+import { setPrefersOffline } from '../net/login';
 import type { BuildingInst } from '../game/state';
+import { type ExtraRow, type UpgradeRow, listUpgrades } from '../game/upgrades';
+import { toWorld } from '../core/iso';
 import type { Game } from '../main';
+import { NAME_RULES, type VisitBuilding, type VisitResponse, validCampusName } from '../net/protocol';
 import { fmtTime } from '../village/villageScene';
 import { ICONS, icon } from './icons';
 import { buildingThumb, spellThumb, unitThumb } from './thumbs';
@@ -56,6 +61,23 @@ export function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', html
   if (cls) e.className = cls;
   if (html) e.innerHTML = html;
   return e;
+}
+
+/** Escapes text for safe use inside innerHTML (player-chosen names come from other people). */
+export function esc(t: string): string {
+  return t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+}
+
+/** Dark or white text, whichever reads better on a solid `#rrggbb` background. */
+export function textOn(hex: string): string {
+  const n = parseInt(hex.slice(1), 16);
+  const lin = (c: number): number => {
+    const v = c / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  const L = 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+  // contrast against the game's dark ink (#1e1b2b) vs white
+  return (L + 0.05) / 0.0616 > 1.05 / (L + 0.05) ? '#1e1b2b' : '#ffffff';
 }
 
 export function fmt(n: number): string {
@@ -75,6 +97,25 @@ export function costHtml(res: ResourceId, amt: number, ok = true): string {
   return `<span class="price ${ok ? '' : 'bad'}">${icon(res, 18)} ${amt > 0 ? fmt(amt) : 'Free'}</span>`;
 }
 
+const SEEN_KEY = 'cedarville-clash-whatsnew';
+
+/** Newest What's New entry this browser has shown (0 if none, or if storage is unavailable). */
+function seenChange(): number {
+  try {
+    return Number(localStorage.getItem(SEEN_KEY) ?? 0) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function markChangeSeen(): void {
+  try {
+    localStorage.setItem(SEEN_KEY, String(LATEST_CHANGE));
+  } catch {
+    /* private mode: the popup may show again next time, which is harmless */
+  }
+}
+
 export class UI {
   root = document.getElementById('ui')!;
   village = el('div', 'hud');
@@ -89,12 +130,17 @@ export class UI {
   sideRight!: HTMLElement;
   toasts = el('div');
   editorHud = el('div', 'hud hidden');
+  private visitHud: HTMLElement | null = null;
+  private visitSel: HTMLElement | null = null;
   modalBack: HTMLElement | null = null;
   refreshModal: (() => void) | null = null;
   private lastSelId = -2;
   private chipSig = '';
   private lastSelSig = '';
   private tick = 0;
+  private buildersSig = '';
+  /** Set at start-up when this browser hasn't seen the newest What's New entry yet. */
+  whatsNewPending = false;
 
   constructor(public game: Game) {
     this.toasts.id = 'toasts';
@@ -146,16 +192,29 @@ export class UI {
       track.appendChild(fill);
       const ic = el('span', 'ic', ICONS[r]);
       ic.style.width = ic.style.height = '36px';
+      // value and maximum sit together inside the bar, so neither can be clipped by the screen edge
+      const nums = el('div', 'nums');
       const val = el('div', 'val stroke', '0');
-      const cap = el('div', 'cap stroke', '');
-      bar.append(track, ic, val, cap);
+      const cap = el('div', 'cap', '');
+      nums.append(val, cap);
+      bar.append(track, ic, nums);
       stack.appendChild(bar);
       this.resEls[r] = { val, fill, cap, ic };
     }
     v.appendChild(stack);
 
     this.buildersEl = el('div', 'builders stroke');
-    this.buildersEl.title = 'Facilities Crew (builders). Build more sheds to work on more things at once.';
+    this.buildersEl.title = 'Facilities Crew (builders). Click to list every upgrade you can do.';
+    this.buildersEl.setAttribute('role', 'button');
+    this.buildersEl.tabIndex = 0;
+    const openList = (): void => {
+      sfx('click');
+      this.openUpgrades();
+    };
+    this.buildersEl.onclick = openList;
+    this.buildersEl.onkeydown = (e) => {
+      if (e.key === 'Enter') openList();
+    };
     v.appendChild(this.buildersEl);
 
     const prof = el('div', 'profile');
@@ -201,6 +260,8 @@ export class UI {
     };
     mk('gear', 'Settings & Debug', () => this.openSettings(), 'gray');
     mk('medal', 'Achievements', () => this.openAchievements(), 'gold');
+    // The leaderboard lives on the server, so it only exists when playing online.
+    if (this.game.online) mk('trophy', 'Leaderboard', () => void this.openLeaderboard(), 'blue');
     mk('chapel', 'Chapel', () => this.openChapel(), 'purple');
     const lay = mk('', 'Base layouts', () => this.openLayouts(), 'blue');
     lay.innerHTML = '<span style="font-size:26px">🗺️</span>';
@@ -242,11 +303,17 @@ export class UI {
     for (const r of ['tuition', 'coffee', 'chapel'] as ResourceId[]) {
       const e = this.resEls[r];
       e.val.textContent = fmt(s.resources[r]);
-      e.cap.textContent = `Max: ${fmt(cp[r])}`;
+      e.cap.textContent = `/ ${fmt(cp[r])}`;
       e.fill.style.width = `${Math.min(100, (s.resources[r] / Math.max(1, cp[r])) * 100)}%`;
     }
     const bl = builders(s);
-    this.buildersEl.innerHTML = `${icon('builder', 30)}<div>${bl.total - bl.busy}/${bl.total}<small>Facilities Crew</small></div>`;
+    // Rewritten only when it changes, so a click on it is never lost to a re-render.
+    const ups = listUpgrades(s).count;
+    const bsig = `${bl.total - bl.busy}/${bl.total}:${ups}`;
+    if (bsig !== this.buildersSig) {
+      this.buildersSig = bsig;
+      this.buildersEl.innerHTML = `${icon('builder', 30)}<div>${bl.total - bl.busy}/${bl.total}<small>Facilities Crew</small></div>${ups > 0 ? `<span class="up-badge" title="${ups} upgrade${ups === 1 ? '' : 's'} available">${ups}</span>` : ''}`;
+    }
     const lg = leagueFor(s.trophies);
     this.trophyEl.innerHTML = `${icon('trophy', 34)}<div><div class="num">${s.trophies}</div><div class="league" style="color:${lg.color}">${lg.name}</div></div>`;
     // event chips (rebuild only when the set of events changes; otherwise just update timers)
@@ -270,6 +337,11 @@ export class UI {
     });
     this.renderSelection(false);
     if (this.refreshModal && this.tick % 12 === 0) this.refreshModal();
+    // Wait for any other start-up popup (welcome back, raided, chapel) to be closed first.
+    if (this.whatsNewPending && !this.isModalOpen()) {
+      this.whatsNewPending = false;
+      this.openWhatsNew(seenChange());
+    }
   }
 
   // ---------- Selection panel ----------
@@ -329,7 +401,7 @@ export class UI {
     if (b.upgrade) {
       const c = finishNowCost(s, b);
       btn('Finish', icon('clock', 30), 'purple', () => {
-        const err = finishNow(s, b);
+        const err = this.game.act({ k: 'finish', id: b.id }).err;
         if (err) {
           this.toast(err, 'bad');
           sfx('error');
@@ -344,7 +416,7 @@ export class UI {
           `<span style="font-size:28px">⬆️</span>`,
           err ? 'gray' : 'gold',
           () => {
-            const e2 = startUpgrade(s, b);
+            const e2 = this.game.act({ k: 'upgrade', id: b.id }).err;
             if (e2) {
               this.toast(e2, 'bad');
               sfx('error');
@@ -361,7 +433,7 @@ export class UI {
     if ((b.type === 'admissions' || b.type === 'coffeecart') && b.level >= 1) {
       btn('Collect', icon(b.type === 'admissions' ? 'tuition' : 'coffee', 34), 'green', () => vs.doCollect(b));
     }
-    if (['reshall', 'biblical', 'callan', 'ens', 'health'].includes(b.type)) btn('Train', icon('army', 34), 'blue', () => this.openArmy());
+    if (['reshall', 'biblical', 'callan', 'ens', 'health', 'business', 'music'].includes(b.type)) btn('Train', icon('army', 34), 'blue', () => this.openArmy());
     if (b.type === 'ssc' && b.level >= 1) btn('Brew', `<span style="font-size:28px">🧪</span>`, 'purple', () => this.openArmy());
     if (b.type === 'library' && b.level >= 1) btn('Research', `<span style="font-size:28px">📚</span>`, 'blue', () => this.openLibrary());
     if (b.type === 'faculty' && b.level >= 1) btn('Prof', `<span style="font-size:28px">🎓</span>`, 'gold', () => this.openHero('prof'));
@@ -518,77 +590,200 @@ export class UI {
   // ---------- Army ----------
   openArmy(): void {
     const m = this.modal('Army Training', { headIcon: icon('army', 36) });
-    const render = (): void => {
+    const heroTypes = ['prof', 'president'] as HeroType[];
+    let sig = '';
+    let ticks: (() => void)[] = [];
+    const fail = (err: string): void => {
+      this.toast(err, 'bad');
+      sfx('error');
+    };
+    // Everything here acts on press, not on click: the screen is rebuilt whenever a troop
+    // finishes, and a click whose press and release straddle a rebuild would be lost.
+    const press =
+      (fn: () => void) =>
+      (e: PointerEvent): void => {
+        if (e.button === 0) fn();
+      };
+    const tryTrain = (t: TroopType): boolean => {
+      const err = this.game.act({ k: 'train', type: t }).err;
+      if (err) fail(err);
+      else sfx('deploy');
+      render();
+      return !err;
+    };
+    // Press and hold a troop to keep recruiting. The cards are rebuilt as the queue changes,
+    // so the hold lives here and is ended by window-level events, not by the card's own.
+    let hold: { type: TroopType; timer: number } | null = null;
+    const stopHold = (): void => {
+      if (hold) clearTimeout(hold.timer);
+      hold = null;
+      window.removeEventListener('pointerup', stopHold);
+      window.removeEventListener('pointercancel', stopHold);
+      window.removeEventListener('blur', stopHold);
+      window.removeEventListener('pointermove', holdMove);
+    };
+    const holdMove = (e: PointerEvent): void => {
+      const over = (e.target as Element | null)?.closest?.('[data-troop]') as HTMLElement | null;
+      if (!hold || over?.dataset.troop !== hold.type) stopHold();
+    };
+    const startHold = (t: TroopType): void => {
+      stopHold();
+      if (!tryTrain(t)) return;
+      const again = (): void => {
+        if (!hold || !m.body.isConnected || !tryTrain(t)) return stopHold();
+        hold.timer = window.setTimeout(again, 110);
+      };
+      hold = { type: t, timer: window.setTimeout(again, 400) };
+      window.addEventListener('pointerup', stopHold);
+      window.addEventListener('pointercancel', stopHold);
+      window.addEventListener('blur', stopHold);
+      window.addEventListener('pointermove', holdMove);
+    };
+    /** Cancels the last troop of a run. The run is looked up again at click time, counted from the end. */
+    const cancelOne = (runFromEnd: number, type: TroopType): void => {
       const s = this.state;
-      const scroll = m.body.scrollTop;
-      m.body.innerHTML = '';
+      const runs = queueRuns(s);
+      const r = runs[runs.length - 1 - runFromEnd];
+      if (r && r.type === type) {
+        const idx = r.start + r.count - 1;
+        const err = this.game.act({ k: 'cancelTrain', idx, back: s.trainQueue.length - 1 - idx, type }).err;
+        if (err) fail(err);
+        else sfx('click');
+      }
+      render(true);
+    };
+
+    const render = (force = false): void => {
+      const s = this.state;
       const cap = armyCapacity(s);
       const used = armyUsed(s);
       const q = queueUsed(s);
+      const finals = hasEvent(s, 'finals');
+      const runs = queueRuns(s);
+      const ready = reserveReady(s);
+      // the troop being trained right now: the first one that isn't already trained and waiting
+      const head = s.trainQueue.find((x) => !isReady(x));
+      const inLine = !!head && (head.chucks ?? 0) > 0;
+      const sc = spellCapacity(s);
+      const hs = heroTypes.filter((h) => heroUnlocked(s, h));
+      // Everything shown except the countdowns. Unchanged: only the countdowns are updated, so
+      // the cards under the pointer are not replaced several times a second.
+      const nsig = JSON.stringify([
+        cap,
+        used,
+        q,
+        finals,
+        runs.map((r) => [r.type, r.count, r.ready]),
+        inLine,
+        TROOP_ORDER.map((t) => [s.troopLevels[t], s.army[t] ?? 0, trainCheck(s, t)]),
+        sc,
+        SPELL_ORDER.map((t) => [s.spells[t] ?? 0, brewCheck(s, t)]),
+        s.spellQueue.map((x) => x.type),
+        hs.map((h) => [s.heroes[h].level, !!s.heroes[h].upgrade, heroAvailable(s, h)]),
+      ]);
+      if (!force && nsig === sig) {
+        for (const t of ticks) t();
+        return;
+      }
+      sig = nsig;
+      ticks = [];
+      const scroll = m.body.scrollTop;
+      m.body.innerHTML = '';
       const capRow = el('div', 'row');
-      capRow.innerHTML = `<b style="color:#1c3d7a">Residence Halls</b><div class="capbar"><div style="width:${Math.min(100, ((used + q) / Math.max(1, cap)) * 100)}%"></div><span class="stroke">${used} trained + ${q} in training / ${cap}</span></div>`;
+      capRow.innerHTML = `<b class="cap-label">Residence Halls</b><div class="capbar"><div style="width:${Math.min(100, (used / Math.max(1, cap)) * 100)}%"></div><span class="stroke">${used} / ${cap} ready to raid</span></div>`;
       m.body.appendChild(capRow);
-      if (hasEvent(s, 'finals')) m.body.appendChild(el('div', 'flavor', '📚 Finals Week: training is 50% slower. Everyone is "studying."'));
+      // The second army: trained troops waiting for room, plus whatever is still training.
+      const resRow = el('div', 'row');
+      resRow.style.marginTop = '6px';
+      const over = Math.max(0, used + q - cap); // how much of the queue will not fit in the halls yet
+      resRow.innerHTML = `<b class="cap-label">Reserve army</b><div class="capbar reserve"><div style="width:${Math.min(100, (over / Math.max(1, cap)) * 100)}%"></div><span class="stroke">${q ? `${ready} ready + ${q - ready} training` : 'empty'} · room for ${Math.max(0, cap * 2 - used - q)} more</span></div>`;
+      resRow.title = 'Train a second army ahead of time. Trained troops wait here and move into the halls as soon as there is room, such as after a raid.';
+      m.body.appendChild(resRow);
+      if (finals) m.body.appendChild(el('div', 'flavor', '📚 Finals Week: training is 50% slower. Everyone is "studying."'));
 
       // queue
-      m.body.appendChild(el('div', 'section-title', 'Training queue'));
-      const qd = el('div', 'queue');
-      if (!s.trainQueue.length) qd.appendChild(el('span', 'flavor', 'Nobody in training. Click a troop below to recruit!'));
-      s.trainQueue.forEach((it, i) => {
-        const qi = el('div', 'qitem');
-        qi.appendChild(unitThumb(it.type, 62, 62));
-        qi.appendChild(el('div', 'x', '✖'));
-        if (i === 0) {
-          const pr = el('div', 'prog');
-          pr.style.width = `${(1 - it.left / it.total) * 100}%`;
-          qi.appendChild(pr);
-          qi.appendChild(el('div', 't', it.chucks && it.chucks > 0 ? '🍽️ line' : fmtTime(it.left)));
-        }
-        qi.title = 'Click to cancel (refund)';
-        qi.onclick = () => {
-          cancelTrain(s, i);
-          sfx('click');
-          render();
+      const qTitle = el('div', 'section-title', 'Training queue');
+      m.body.appendChild(qTitle);
+      if (s.trainQueue.length) {
+        const total = el('small');
+        qTitle.append(` `, total);
+        const upd = (): void => {
+          const st = this.state;
+          const rdy = st.trainQueue.filter(isReady).length;
+          const training = st.trainQueue.length - rdy;
+          total.textContent = `(${[training ? `${training} training · ⏱ ${fmtTime(trainQueueLeft(st))} left` : '', rdy ? `${rdy} ready, waiting for room` : ''].filter(Boolean).join(' · ')})`;
         };
+        upd();
+        ticks.push(upd);
+      }
+      const qd = el('div', 'queue');
+      if (!runs.length) qd.appendChild(el('span', 'flavor', 'Nobody in training. Click a troop below to recruit, or hold to recruit several. You can train a second army ahead of time; it waits here until the halls have room.'));
+      const firstTraining = runs.findIndex((r) => !r.ready);
+      runs.forEach((r, i) => {
+        const qi = el('div', `qitem ${r.ready ? 'ready' : ''}`);
+        qi.appendChild(unitThumb(r.type, 62, 62, s.troopLevels[r.type]));
+        if (r.count > 1) qi.appendChild(el('div', 'n', `×${r.count}`));
+        qi.appendChild(el('div', 'x', '✖'));
+        if (r.ready) qi.appendChild(el('div', 't', '✓ Ready'));
+        if (i === firstTraining) {
+          const pr = el('div', 'prog');
+          const tm = el('div', 't');
+          qi.append(pr, tm);
+          const upd = (): void => {
+            const it = this.state.trainQueue.find((x) => !isReady(x));
+            if (!it) return;
+            pr.style.width = `${(1 - it.left / it.total) * 100}%`;
+            tm.textContent = (it.chucks ?? 0) > 0 ? '🍽️ line' : fmtTime(trainItemLeft(this.state, it));
+          };
+          upd();
+          ticks.push(upd);
+        }
+        qi.title = `${TROOPS[r.type].name}${r.count > 1 ? ` ×${r.count}` : ''}${r.ready ? ': trained, waiting for room in the halls' : ''}: click to cancel one (full refund)`;
+        qi.onpointerdown = press(() => cancelOne(runs.length - 1 - i, r.type));
         qd.appendChild(qi);
       });
-      if (s.trainQueue[0]?.chucks && s.trainQueue[0].chucks > 0) qd.appendChild(el('div', 'chucks', `${TROOPS[s.trainQueue[0].type].name} is ${CHUCKS_LINE}`));
+      if (inLine) qd.appendChild(el('div', 'chucks', `${TROOPS[head.type].name} is ${CHUCKS_LINE}`));
       m.body.appendChild(qd);
 
       // troop cards
-      m.body.appendChild(el('div', 'section-title', 'Recruit'));
+      m.body.appendChild(el('div', 'section-title', 'Recruit <small>(click, or hold to keep recruiting)</small>'));
       const grid = el('div', 'cards');
       for (const t of TROOP_ORDER) {
         const d = TROOPS[t];
         const lvl = s.troopLevels[t];
         const cost = d.levels[lvl - 1].cost;
         const unlocked = troopUnlocked(s, t);
-        const card = el('div', `card ${unlocked ? '' : 'locked'}`);
-        card.appendChild(unitThumb(t, 100, 90));
+        const err = trainCheck(s, t);
+        const full = unlocked && armyUsed(s) + queueUsed(s) + d.housing > cap * ARMIES;
+        const card = el('div', `card ${unlocked ? (err ? 'dim' : '') : 'locked'}`);
+        card.dataset.troop = t;
+        card.appendChild(unitThumb(t, 100, 90, lvl));
         card.appendChild(el('div', 'name', d.name));
         card.appendChild(el('div', 'badge', `Lv${lvl}`));
         card.appendChild(el('div', 'count', `×${s.army[t] ?? 0}`));
         if (unlocked) {
-          card.appendChild(el('div', 'meta', `🏠 ${d.housing} · ⏱ ${d.trainTime}s`));
+          card.appendChild(el('div', 'meta', full ? '<b class="bad">🏠 Both armies full</b>' : `🏠 ${d.housing} · ⏱ ${fmtTime(d.trainTime * (finals ? 2 : 1))}`));
           card.appendChild(el('div', '', costHtml(d.res, cost, canAfford(s, d.res, cost))));
         } else {
           card.appendChild(el('div', 'meta', `🔒 ${BUILDINGS[d.barracks].name} Lv${d.barracksLevel}`));
         }
-        card.title = `${d.desc}\n\n"${d.flavor}"`;
-        card.onclick = () => {
-          const err = train(s, t);
-          if (err) {
-            this.toast(err, 'bad');
-            sfx('error');
-          } else sfx('deploy');
-          render();
+        card.title = `${d.desc}\n\n"${d.flavor}"${err ? `\n\n${err}` : ''}`;
+        card.onpointerdown = (e) => {
+          if (e.button !== 0) return;
+          // Touch pointers stay captured by the pressed card, which is about to be replaced;
+          // let go so the release reaches the window and ends the hold.
+          try {
+            card.releasePointerCapture(e.pointerId);
+          } catch {
+            /* nothing was captured */
+          }
+          startHold(t);
         };
         grid.appendChild(card);
       }
       m.body.appendChild(grid);
 
       // spells
-      const sc = spellCapacity(s);
       if (sc > 0) {
         m.body.appendChild(el('div', 'section-title', `Spells (${spellsUsed(s)}/${sc})`));
         const sq = el('div', 'queue');
@@ -603,8 +798,18 @@ export class UI {
         s.spellQueue.forEach((it, i) => {
           const qi = el('div', 'qitem');
           qi.style.opacity = '0.7';
+          qi.style.cursor = 'default';
           qi.appendChild(spellThumb(it.type, 62, 62));
-          if (i === 0) qi.appendChild(el('div', 't', fmtTime(it.left)));
+          if (i === 0) {
+            const tm = el('div', 't');
+            qi.appendChild(tm);
+            const upd = (): void => {
+              const cur = this.state.spellQueue[0];
+              if (cur) tm.textContent = fmtTime(cur.left);
+            };
+            upd();
+            ticks.push(upd);
+          }
           sq.appendChild(qi);
         });
         if (!sq.children.length) sq.appendChild(el('span', 'flavor', 'No spells brewed yet.'));
@@ -615,48 +820,207 @@ export class UI {
           const d = SPELLS[t];
           const err = brewCheck(s, t);
           const locked = err?.startsWith('Requires');
-          const card = el('div', `card ${locked ? 'locked' : ''}`);
+          const card = el('div', `card ${locked ? 'locked' : err ? 'dim' : ''}`);
           card.appendChild(spellThumb(t, 90, 80));
           card.appendChild(el('div', 'name', d.name));
-          card.appendChild(el('div', 'meta', locked ? `🔒 Brew Lab Lv${d.sscLevel}` : `⏱ ${d.brewTime}s`));
+          card.appendChild(el('div', 'meta', locked ? `🔒 Brew Lab Lv${d.sscLevel}` : `⏱ ${fmtTime(d.brewTime)}`));
           if (!locked) card.appendChild(el('div', '', costHtml(d.res, d.cost, canAfford(s, d.res, d.cost))));
-          card.title = `${d.desc}\n\n"${d.flavor}"`;
-          card.onclick = () => {
-            const e2 = brew(s, t);
-            if (e2) {
-              this.toast(e2, 'bad');
-              sfx('error');
-            } else sfx('spell');
+          card.title = `${d.desc}\n\n"${d.flavor}"${err ? `\n\n${err}` : ''}`;
+          card.onpointerdown = press(() => {
+            const e2 = this.game.act({ k: 'brew', type: t }).err;
+            if (e2) fail(e2);
+            else sfx('spell');
             render();
-          };
+          });
           sg.appendChild(card);
         }
         m.body.appendChild(sg);
       }
 
       // heroes
-      const hs = (['prof', 'president'] as HeroType[]).filter((h) => heroUnlocked(s, h));
       if (hs.length) {
         m.body.appendChild(el('div', 'section-title', 'Heroes'));
         const hg = el('div', 'cards');
         for (const h of hs) {
-          const st = s.heroes[h];
           const card = el('div', 'card');
-          card.appendChild(unitThumb(h, 100, 90));
+          card.appendChild(unitThumb(h, 100, 90, s.heroes[h].level));
           card.appendChild(el('div', 'name', HEROES[h].name));
-          card.appendChild(el('div', 'badge', `Lv${st.level}`));
-          card.appendChild(
-            el('div', 'meta', st.upgrade ? '⬆ Upgrading' : heroAvailable(s, h) ? '✅ Ready for battle' : `😴 Recovering ${Math.round(st.hpFrac * 100)}%`),
-          );
-          card.onclick = () => this.openHero(h);
+          card.appendChild(el('div', 'badge', `Lv${s.heroes[h].level}`));
+          const meta = el('div', 'meta');
+          const upd = (): void => {
+            const st = this.state.heroes[h];
+            meta.textContent = st.upgrade ? `⬆ Upgrading · ${fmtTime(st.upgrade.end - this.state.clock)}` : heroAvailable(this.state, h) ? '✅ Ready for battle' : `😴 Recovering ${Math.round(st.hpFrac * 100)}%`;
+          };
+          upd();
+          ticks.push(upd);
+          card.appendChild(meta);
+          card.onpointerdown = press(() => this.openHero(h));
           hg.appendChild(card);
         }
         m.body.appendChild(hg);
       }
       m.body.scrollTop = scroll;
     };
-    render();
-    this.refreshModal = render;
+    render(true);
+    this.refreshModal = () => render();
+  }
+
+  // ---------- Upgrades list ----------
+  /** Every upgrade the player can do (or is waiting on), in one place. */
+  openUpgrades(): void {
+    const m = this.modal('Upgrades', { headIcon: icon('builder', 36) });
+    let sig = '';
+    let timers: { el: HTMLElement; left: () => number }[] = [];
+    const fail = (err: string): void => {
+      this.toast(err, 'bad');
+      sfx('error');
+    };
+    const goTo = (id: number): void => {
+      const b = this.state.buildings.find((x) => x.id === id);
+      if (!b) return;
+      this.closeModal();
+      const vs = this.game.village;
+      vs.select(id);
+      const sz = BUILDINGS[b.type].size;
+      const w = toWorld(b.x + sz / 2, b.y + sz / 2);
+      vs.cam.x = w.x;
+      vs.cam.y = w.y;
+      vs.cam.clampPos();
+    };
+    /** A row: [picture + text (optionally clickable)] [right-hand side]. */
+    const mkRow = (cls: string, thumb: HTMLElement, title: string, sub: string, go?: () => void): { row: HTMLElement; side: HTMLElement; sub: HTMLElement } => {
+      const row = el('div', `up-row ${cls}`);
+      const main = el(go ? 'button' : 'div', 'up-main');
+      const subEl = el('div', 'up-sub', sub);
+      const txt = el('div', 'up-txt');
+      txt.append(el('div', 'up-name', title), subEl);
+      main.append(thumb, txt);
+      if (go) {
+        main.title = 'Show on campus';
+        main.onclick = go;
+      }
+      const side = el('div', 'up-side');
+      row.append(main, side);
+      return { row, side, sub: subEl };
+    };
+    const time = (t: number): string => (t > 0 ? `⏱ ${fmtTime(t)}` : '⚡ Instant');
+    const render = (force = false): void => {
+      const s = this.state;
+      const l = listUpgrades(s);
+      // Rebuild only when something other than a countdown changed; otherwise just tick the timers.
+      const nsig = JSON.stringify([l.progress.map((p) => [p.id, p.to, p.finishCost, s.resources.chapel >= p.finishCost]), l.ready, l.waiting, l.extras.map((e) => ({ ...e, left: e.left !== undefined }))]);
+      if (!force && nsig === sig) {
+        for (const t of timers) t.el.textContent = fmtTime(t.left());
+        return;
+      }
+      sig = nsig;
+      timers = [];
+      const scroll = m.body.scrollTop;
+      m.body.innerHTML = '';
+      const bl = builders(s);
+      m.body.appendChild(el('div', 'flavor', `Facilities Crew free: ${bl.total - bl.busy}/${bl.total}. Click a name or picture to find it on campus.`));
+      const section = (title: string, n: number): HTMLElement => {
+        m.body.appendChild(el('div', 'section-title', `${title} <small>(${n})</small>`));
+        const list = el('div', 'up-list');
+        m.body.appendChild(list);
+        return list;
+      };
+
+      if (l.progress.length) {
+        const list = section('In progress', l.progress.length);
+        for (const p of l.progress) {
+          const r = mkRow('', buildingThumb(p.type, p.to, 60, 50), esc(p.name), `${p.to <= 1 ? 'Building' : `Lv ${p.to - 1} → ${p.to}`} · ⏱ <span class="up-left"></span>`, () => goTo(p.id));
+          const left = r.sub.querySelector('.up-left') as HTMLElement;
+          left.textContent = fmtTime(p.left);
+          timers.push({ el: left, left: () => Math.max(0, (this.state.buildings.find((b) => b.id === p.id)?.upgrade?.end ?? 0) - this.state.clock) });
+          const fin = el('button', 'btn small purple', `Finish ${costHtml('chapel', p.finishCost, canAfford(s, 'chapel', p.finishCost))}`);
+          fin.onclick = () => {
+            const err = this.game.act({ k: 'finish', id: p.id }).err;
+            if (err) fail(err);
+            else sfx('click');
+            render(true);
+          };
+          r.side.appendChild(fin);
+          list.appendChild(r.row);
+        }
+      }
+
+      const buildingRow = (u: UpgradeRow, ready: boolean): HTMLElement => {
+        const title = u.type === 'wall' ? `Walls ×${u.count}` : esc(u.name);
+        const r = mkRow(ready ? '' : 'waiting', buildingThumb(u.type, u.level, 60, 50), title, `Lv ${u.level} → ${u.level + 1} · ${time(u.time)}`, () => goTo(u.id));
+        r.side.appendChild(el('div', '', costHtml(u.res, u.cost, canAfford(s, u.res, u.cost))));
+        if (ready) {
+          const up = el('button', 'btn small gold', 'Upgrade');
+          up.onclick = () => {
+            const err = this.game.act({ k: 'upgrade', id: u.id }).err;
+            if (err) fail(err);
+            else {
+              sfx('build');
+              this.game.village.pop(u.id);
+            }
+            render(true);
+          };
+          r.side.appendChild(up);
+        } else if (u.reason && canAfford(s, u.res, u.cost)) {
+          r.side.appendChild(el('div', 'up-why', u.reason));
+        }
+        return r.row;
+      };
+      if (l.ready.length) {
+        const list = section('Ready to upgrade', l.ready.length);
+        for (const u of l.ready) list.appendChild(buildingRow(u, true));
+      }
+      if (l.waiting.length) {
+        const list = section('Need more resources', l.waiting.length);
+        for (const u of l.waiting) list.appendChild(buildingRow(u, false));
+      }
+
+      if (l.extras.length) {
+        const list = section('Library & heroes', l.extras.length);
+        for (const e of l.extras) list.appendChild(extraRow(e));
+      }
+      if (!l.progress.length && !l.ready.length && !l.waiting.length && !l.extras.length) {
+        m.body.appendChild(el('p', 'flavor', 'Nothing left to upgrade at this DMC level. Facilities is, for once, caught up.'));
+      }
+      m.body.scrollTop = scroll;
+    };
+    const extraRow = (e: ExtraRow): HTMLElement => {
+      const s = this.state;
+      const running = e.left !== undefined;
+      const what = e.kind === 'research' ? 'Research' : 'Hero';
+      const sub = running ? `${what} · Lv ${e.level} → ${e.level + 1} · ⏱ <span class="up-left"></span>` : `${what} · Lv ${e.level} → ${e.level + 1} · ${time(e.time)}`;
+      const r = mkRow(running || e.ok ? '' : 'waiting', unitThumb(e.type, 60, 50, e.level), e.name, sub);
+      if (running) {
+        const left = r.sub.querySelector('.up-left') as HTMLElement;
+        left.textContent = fmtTime(e.left!);
+        timers.push({
+          el: left,
+          left: () => {
+            const st = this.state;
+            const end = e.kind === 'research' ? st.research?.end : st.heroes[e.type as HeroType].upgrade?.end;
+            return Math.max(0, (end ?? 0) - st.clock);
+          },
+        });
+        r.side.appendChild(el('div', 'up-why', e.kind === 'research' ? 'Researching…' : 'Upgrading…'));
+        return r.row;
+      }
+      r.side.appendChild(el('div', '', costHtml(e.res, e.cost, canAfford(s, e.res, e.cost))));
+      if (e.ok) {
+        const b = el('button', `btn small ${e.kind === 'research' ? 'blue' : 'purple'}`, e.kind === 'research' ? 'Research' : 'Upgrade');
+        b.onclick = () => {
+          const err = e.kind === 'research' ? this.game.act({ k: 'research', type: e.type as TroopType }).err : this.game.act({ k: 'heroUpgrade', type: e.type as HeroType }).err;
+          if (err) fail(err);
+          else sfx('build');
+          render(true);
+        };
+        r.side.appendChild(b);
+      } else if (e.reason && canAfford(s, e.res, e.cost)) {
+        r.side.appendChild(el('div', 'up-why', e.reason));
+      }
+      return r.row;
+    };
+    render(true);
+    this.refreshModal = () => render();
   }
 
   // ---------- Library ----------
@@ -681,7 +1045,7 @@ export class UI {
         const err = researchCheck(s, t);
         const maxed = lvl >= d.levels.length;
         const card = el('div', `card ${err && err !== 'Not enough Coffee' && err !== 'The Library is already researching' ? 'locked' : ''}`);
-        card.appendChild(unitThumb(t, 100, 90));
+        card.appendChild(unitThumb(t, 100, 90, lvl));
         card.appendChild(el('div', 'name', d.name));
         card.appendChild(el('div', 'badge', `Lv${lvl}`));
         if (maxed) card.appendChild(el('div', 'meta', '⭐ Max level'));
@@ -693,7 +1057,7 @@ export class UI {
           card.appendChild(el('div', '', costHtml('coffee', n.researchCost, canAfford(s, 'coffee', n.researchCost))));
         }
         card.onclick = () => {
-          const e2 = startResearch(s, t);
+          const e2 = this.game.act({ k: 'research', type: t }).err;
           if (e2) {
             this.toast(e2, 'bad');
             sfx('error');
@@ -722,7 +1086,7 @@ export class UI {
       const N = d.levels[st.level];
       m.body.innerHTML = '';
       const row = el('div', 'row');
-      row.appendChild(unitThumb(h, 140, 140));
+      row.appendChild(unitThumb(h, 140, 140, st.level));
       const col = el('div', 'col');
       col.appendChild(el('div', '', d.desc));
       col.appendChild(el('div', 'flavor', `"${d.flavor}"`));
@@ -740,7 +1104,7 @@ export class UI {
         const b = el('button', `btn ${err ? 'gray' : 'purple'}`, `Upgrade ${costHtml('chapel', N.upgradeCost, canAfford(s, 'chapel', N.upgradeCost))}`);
         b.style.marginTop = '12px';
         b.onclick = () => {
-          const e2 = heroUpgrade(s, h, dmcLevel(s));
+          const e2 = this.game.act({ k: 'heroUpgrade', type: h }).err;
           if (e2) {
             this.toast(e2, 'bad');
             sfx('error');
@@ -766,7 +1130,7 @@ export class UI {
         const r = chapelReward(s);
         const b = el('button', 'btn purple big', `Attend Chapel (+${r} ${icon('chapel', 26)})`);
         b.onclick = () => {
-          const got = attendChapel(s);
+          const got = this.game.act({ k: 'chapel' }).got ?? 0;
           sfx('pray');
           this.toast(`${pick(CHAPEL_ATTEND_LINES)} +${got} Chapel Credits`, 'good');
           this.game.village.particles.text(0, 400, 50, `+${got} Chapel Credits`, '#d6b4ff', 24);
@@ -800,8 +1164,9 @@ export class UI {
     const cur = leagueFor(s.trophies);
     const list = el('div', 'league-list');
     for (const l of [...LEAGUES].reverse()) {
-      const r = el('div', `league-row stroke ${l === cur ? 'me' : ''}`, `<span>${l.name}</span><span>${icon('trophy', 18)} ${l.min}+</span>`);
+      const r = el('div', `league-row ${l === cur ? 'me' : ''}`, `<span>${l.name}</span><span>${icon('trophy', 18)} ${l.min}+</span>`);
       r.style.background = l.color;
+      r.style.color = textOn(l.color);
       list.appendChild(r);
     }
     m.body.appendChild(el('div', '', `Trophies: <b>${s.trophies}</b> (best ${s.bestTrophies}). Win raids to climb; lose them and slide back toward "Prospective Student."`));
@@ -841,7 +1206,6 @@ export class UI {
         sfx('error');
         return;
       }
-      s.resources.tuition -= cost;
       this.closeModal();
       this.game.startRaid({ kind: 'random' });
     };
@@ -871,13 +1235,105 @@ export class UI {
         s.settings.muted = isMuted();
         render();
       };
-      const save = el('button', 'btn', '💾 Save now');
-      save.onclick = () => {
-        if (saveGame(s)) this.toast('Saved!', 'good');
-        else this.showUpdateBar('stale');
+      const online = this.game.online;
+      const news = el('button', 'btn gold', "🎉 What's new");
+      news.onclick = () => {
+        sfx('click');
+        this.openWhatsNew();
       };
-      row1.append(mute, save);
+      const save = el('button', 'btn', online ? '🔄 Sync now' : '💾 Save now');
+      save.onclick = () => {
+        this.game.save();
+        if (online) this.toast('Synced with the server.', 'good');
+        else if (!staleSave) this.toast('Saved!', 'good');
+      };
+      row1.append(mute, save, news);
+      row1.style.flexWrap = 'wrap';
       m.body.appendChild(row1);
+
+      if (online) {
+        m.body.appendChild(el('div', 'section-title', 'Account'));
+        const shield = online.shieldUntil > Date.now() ? ` · 🛡️ Shield for ${fmtTime((online.shieldUntil - Date.now()) / 1000)}` : '';
+        m.body.appendChild(el('div', '', `Playing online as <b>${esc(online.user.name)}</b>${shield}`));
+        const nameRow = el('div', 'row');
+        const nameIn = el('input');
+        nameIn.type = 'text';
+        nameIn.maxLength = 20;
+        nameIn.value = online.user.name;
+        nameIn.disabled = !!s.nameChanged;
+        nameIn.style.flex = '1';
+        const nameBtn = el('button', 'btn small', s.nameChanged ? '🔒 Name locked' : '✏️ Rename (once!)');
+        nameBtn.disabled = !!s.nameChanged;
+        nameBtn.onclick = async () => {
+          const name = nameIn.value.trim();
+          if (!validCampusName(name)) return this.toast(NAME_RULES, 'bad');
+          if (!confirm(`Rename your campus to "${name}"? Other players will see it, and you can only do this once.`)) return;
+          nameBtn.disabled = true;
+          try {
+            await online.rename(name);
+            s.playerName = name;
+            s.nameChanged = true;
+            this.toast('Name updated!', 'good');
+          } catch (e) {
+            this.toast((e as Error).message, 'bad');
+          }
+          render();
+        };
+        nameRow.append(nameIn, nameBtn);
+        m.body.appendChild(nameRow);
+        if (!s.nameChanged) m.body.appendChild(el('div', 'flavor', 'You get one rename. Choose wisely.'));
+        const r2 = el('div', 'row');
+        const out = el('button', 'btn small red', 'Log out');
+        out.onclick = async () => {
+          await online.flush();
+          await online.logout().catch(() => undefined);
+          this.game.resetting = true;
+          location.reload();
+        };
+        r2.append(out);
+        m.body.appendChild(r2);
+        m.body.appendChild(el('p', 'flavor', 'Your campus is saved on the server. Other players can raid it while you are away; a shield protects you for a while after a big raid.'));
+        appendControls();
+        return;
+      }
+
+      if (this.game.serverAvailable) {
+        m.body.appendChild(el('div', 'section-title', 'Online play'));
+        const go = el('button', 'btn small blue', '🌐 Log in / sign up to play online');
+        go.onclick = () => {
+          saveGame(s);
+          setPrefersOffline(false);
+          this.game.resetting = true;
+          location.reload();
+        };
+        m.body.appendChild(go);
+        m.body.appendChild(el('p', 'flavor', 'Online campuses are separate from this offline save, and real players can raid them.'));
+      }
+
+      m.body.appendChild(el('div', 'section-title', 'Campus name'));
+      const nameRow = el('div', 'row');
+      const nameIn = el('input');
+      nameIn.type = 'text';
+      nameIn.maxLength = MAX_NAME_LEN;
+      nameIn.value = s.playerName;
+      nameIn.disabled = !!s.nameChanged;
+      nameIn.style.flex = '1';
+      const nameBtn = el('button', 'btn small', s.nameChanged ? '🔒 Name locked' : '✏️ Rename (once!)');
+      nameBtn.disabled = !!s.nameChanged;
+      nameBtn.onclick = () => {
+        const name = cleanName(nameIn.value);
+        if (!confirm(`Rename your campus to "${name}"? You can only do this once.`)) return;
+        const err = renamePlayer(s, nameIn.value);
+        if (err) this.toast(err, 'bad');
+        else {
+          saveGame(s);
+          this.toast('Name updated!', 'good');
+          render();
+        }
+      };
+      nameRow.append(nameIn, nameBtn);
+      m.body.appendChild(nameRow);
+      if (!s.nameChanged) m.body.appendChild(el('div', 'flavor', 'You get one rename. Choose wisely.'));
 
       m.body.appendChild(el('div', 'section-title', 'Debug'));
       const dr = el('div', 'debug-row');
@@ -940,6 +1396,9 @@ export class UI {
       };
       r3.append(exp, reset);
       m.body.appendChild(r3);
+      appendControls();
+    };
+    const appendControls = (): void => {
       m.body.appendChild(el('div', 'section-title', 'Controls'));
       m.body.appendChild(
         el(
@@ -982,7 +1441,7 @@ export class UI {
         btn('✏️ Edit', 'gold', () => this.game.startEditor(i));
         if (!active && l) {
           btn('✔ Use', '', () => {
-            if (activate(s, i)) {
+            if (!this.game.act({ k: 'layoutUse', slot: i }).err) {
               this.game.village.syncWanderers();
               this.game.save();
               this.toast(`${l.name} is now your campus.`, 'good');
@@ -996,23 +1455,20 @@ export class UI {
         }
         if (l) {
           btn('Rename', 'blue', () => {
-            const n = prompt('Layout name', l.name)?.trim().slice(0, 24);
-            if (n) {
-              l.name = n;
-              render();
-            }
+            const n = prompt('Layout name', l.name);
+            if (n && !this.game.act({ k: 'layoutName', slot: i, name: n }).err) render();
           });
         }
         if (!active) {
           btn('Copy current', 'blue', () => {
             if (l && !confirm(`Overwrite ${l.name} with your current campus?`)) return;
-            s.layouts[i] = { name: l?.name ?? defaultName(i), pos: snapshot(s.buildings) };
+            this.game.act({ k: 'layoutSave', slot: i, pos: snapshot(s.buildings) });
             render();
           });
           if (l) {
             btn('Clear', 'red', () => {
               if (!confirm(`Clear ${l.name}?`)) return;
-              s.layouts[i] = null;
+              this.game.act({ k: 'layoutClear', slot: i });
               render();
             });
           }
@@ -1090,6 +1546,104 @@ export class UI {
     h.appendChild(bottom);
   }
 
+  async openLeaderboard(): Promise<void> {
+    const online = this.game.online;
+    if (!online) return;
+    let rows;
+    try {
+      rows = await online.leaderboard();
+    } catch (e) {
+      this.toast((e as Error).message, 'bad');
+      return;
+    }
+    const m = this.modal('Leaderboard', { narrow: true, headIcon: icon('trophy', 36) });
+    const list = el('div', 'league-list');
+    rows.forEach((r, i) => {
+      const me = r.name === online.user.name;
+      const row = el('div', `league-row ${me ? 'me' : ''}`, `<span>${i + 1}. ${esc(r.name)} <small>DMC ${r.dmc}</small></span><span class="lb-side">${icon('trophy', 18)} ${r.trophies}</span>`);
+      if (!me) {
+        const go = el('button', 'btn small blue', 'Visit');
+        go.title = 'Look around this campus';
+        go.onclick = () => {
+          sfx('click');
+          void this.game.startVisit(r.name);
+        };
+        row.lastElementChild!.appendChild(go);
+      }
+      list.appendChild(row);
+    });
+    if (!rows.length) list.appendChild(el('div', 'flavor', 'Nobody here yet.'));
+    m.body.appendChild(list);
+  }
+
+  // ---------- Visiting another campus ----------
+  showVisit(v: VisitResponse): void {
+    this.hideVisit();
+    const hud = el('div', 'hud');
+    const bar = el('div', 'visit-bar');
+    bar.appendChild(el('span', 'stroke', `👀 Visiting <b>${esc(v.name)}</b> <small>DMC ${v.dmc} · ${icon('trophy', 16)} ${v.trophies}</small>`));
+    const home = el('button', 'btn small gold', '🏠 Go home');
+    home.onclick = () => {
+      sfx('click');
+      this.game.endVisit();
+    };
+    bar.appendChild(home);
+    this.visitSel = el('div', 'sel-panel hidden');
+    hud.append(bar, this.visitSel);
+    this.root.appendChild(hud);
+    this.visitHud = hud;
+  }
+
+  /** Name, level and description of the building clicked while visiting (look, don't touch). */
+  visitSelect(b: VisitBuilding | null): void {
+    const p = this.visitSel;
+    if (!p) return;
+    p.classList.toggle('hidden', !b);
+    if (!b) return;
+    const def = BUILDINGS[b.type];
+    p.innerHTML = '';
+    p.style.animation = 'none';
+    void p.offsetWidth;
+    p.style.animation = '';
+    p.appendChild(el('div', 'sel-title stroke', `${esc(b.name ?? def.name)} <small>${b.level === 0 ? '(under construction)' : 'Level ' + b.level}${b.upgrading && b.level > 0 ? ' · upgrading' : ''}</small>`));
+    p.appendChild(el('div', 'visit-desc stroke', def.desc));
+  }
+
+  hideVisit(): void {
+    this.visitHud?.remove();
+    this.visitHud = null;
+    this.visitSel = null;
+  }
+
+  // ---------- What's new ----------
+  /** Called once at start-up: queue the popup if there is something this browser hasn't seen. */
+  checkWhatsNew(freshPlayer: boolean): void {
+    if (freshPlayer) markChangeSeen(); // a brand-new player has nothing to catch up on
+    else if (seenChange() < LATEST_CHANGE) this.whatsNewPending = true;
+  }
+
+  /** The update notes. Entries newer than `seen` get a NEW tag; from Settings nothing is tagged. */
+  openWhatsNew(seen = LATEST_CHANGE): void {
+    const m = this.modal("What's New", { narrow: true, headIcon: '<span style="font-size:30px">🎉</span>' });
+    markChangeSeen();
+    for (const e of CHANGELOG) {
+      const isNew = e.v > seen;
+      const box = el('div', `news ${isNew ? 'new' : ''}`);
+      box.appendChild(el('div', 'news-head', `<b>${esc(e.title)}</b>${isNew ? '<span class="news-tag">NEW</span>' : ''}<small>${esc(e.date)}</small>`));
+      const ul = el('ul');
+      for (const it of e.items) ul.appendChild(el('li', '', esc(it)));
+      box.appendChild(ul);
+      m.body.appendChild(box);
+    }
+    const ok = el('button', 'btn big', 'Got it');
+    ok.style.marginTop = '4px';
+    ok.onclick = () => {
+      sfx('click');
+      m.close();
+    };
+    m.body.appendChild(ok);
+  }
+
   // ---------- Loading ----------
   showLoading(): Promise<void> {
     const l = el('div');
@@ -1136,9 +1690,10 @@ export class UI {
         : '⚠️ A newer version of the game is open in another tab, so this tab has stopped saving to protect that progress. Reload to continue here.';
     bar.appendChild(el('span', 'stroke', msg));
     const reload = el('button', 'btn small gold', 'Reload');
-    reload.onclick = () => {
+    reload.onclick = async () => {
       // Save first if we're allowed to (an 'update' tab still owns the save).
-      if (kind === 'update') saveGame(this.state);
+      if (this.game.online) await this.game.online.flush();
+      else if (kind === 'update') saveGame(this.state);
       this.game.resetting = true; // skip the beforeunload save; we just saved
       location.reload();
     };
