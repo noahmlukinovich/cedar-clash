@@ -42,7 +42,7 @@ export function getBuildingSprite(type: BuildingType, level: number, variant = 0
   const size = BUILDINGS[type].size;
   const w = size * 64 + 48;
   // headroom above the footprint, by footprint size (the DMC steeple is the tallest thing on campus)
-  const top = type === 'dmc' ? 210 : size === 1 ? 46 : size === 2 ? 80 : size === 3 ? 150 : 140;
+  const top = type === 'dmc' ? 210 : type === 'stinger' ? 112 : size === 1 ? 46 : size === 2 ? 80 : size === 3 ? 150 : 140;
   const h = size * 32 + top + 12;
   const canvas = document.createElement('canvas');
   canvas.width = w * SCALE;
@@ -121,6 +121,8 @@ export function drawBuilding(ctx: Ctx, type: BuildingType, level: number, varian
       return sprayer(ctx, L);
     case 'bibleprof':
       return bibleProf(ctx, L);
+    case 'stinger':
+      return stinger(ctx, L);
     case 'nest':
       return nest(ctx, L);
     case 'wall':
@@ -782,6 +784,145 @@ function bibleProf(ctx: Ctx, L: number): void {
   if (L >= 2) {
     const [bx, by] = P(0, 0.85, h * 0.2);
     sign(ctx, bx, by, 'BIBLE', '#4a2f6b', C.gold, 7);
+  }
+}
+
+/** Height (px above the footprint centre) of the Stinger Statue's raised stinger tip: where its beam starts. */
+export const STINGER_TIP_Z = 92;
+
+function stinger(ctx: Ctx, L: number): void {
+  pad(ctx, 2, C.stone);
+  // dark granite plinth with a polished cap
+  const s = 0.42;
+  box(ctx, -s, -s, s, s, 4, 34, '#3b3e48');
+  box(ctx, -s - 0.08, -s - 0.08, s + 0.08, s + 0.08, 34, 37, '#aab1ba');
+  // donor plaque on the front-left face
+  {
+    const a = P(-0.22, s, 26);
+    const b = P(0.22, s, 26);
+    const c = P(0.22, s, 15);
+    const d = P(-0.22, s, 15);
+    poly(ctx, [a, b, c, d], '#15161c', true, 1.2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo((a[0] + d[0]) / 2 + 3, (a[1] + d[1]) / 2 + 1.5);
+    ctx.lineTo((b[0] + c[0]) / 2 - 3, (b[1] + c[1]) / 2 - 1.5);
+    ctx.stroke();
+  }
+  // sign struts
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(-8, -37);
+  ctx.lineTo(-20, -46);
+  ctx.moveTo(8, -37);
+  ctx.lineTo(20, -46);
+  ctx.stroke();
+  // arched black CEDARVILLE sign
+  ctx.beginPath();
+  ctx.moveTo(-44, -44);
+  ctx.quadraticCurveTo(0, -52, 44, -44);
+  ctx.lineTo(41, -59);
+  ctx.quadraticCurveTo(0, -68, -41, -59);
+  ctx.closePath();
+  ctx.fillStyle = '#17181f';
+  ctx.fill();
+  ctx.lineWidth = 2.2;
+  ctx.strokeStyle = L >= 2 ? C.gold : '#dfe6ec';
+  ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.font = '900 10px "Trebuchet MS", system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const word = 'CEDARVILLE';
+  for (let i = 0; i < word.length; i++) {
+    const k = (i - (word.length - 1) / 2) / ((word.length - 1) / 2); // -1..1
+    ctx.fillText(word[i], k * 33, -54.5 + k * k * 3.6);
+  }
+
+  // chrome yellow jacket perched on the sign, facing the viewer, stinger raised
+  const chrome = (y0: number, y1: number): CanvasGradient => {
+    const g = ctx.createLinearGradient(0, y0, 0, y1);
+    g.addColorStop(0, '#f7fbfd');
+    g.addColorStop(0.45, '#a9b8c4');
+    g.addColorStop(0.6, '#5f6d7a');
+    g.addColorStop(1, '#cfd9e0');
+    return g;
+  };
+  const blob = (x: number, y: number, rx: number, ry: number, rot = 0): void => {
+    ctx.beginPath();
+    ctx.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2);
+    ctx.fillStyle = chrome(y - ry, y + ry);
+    ctx.fill();
+    ctx.lineWidth = 1.8;
+    ctx.strokeStyle = OUT;
+    ctx.stroke();
+  };
+  // wings
+  for (const sx of [-1, 1]) {
+    ctx.beginPath();
+    ctx.ellipse(sx * 15, -84, 12, 4.5, sx * -0.75, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(226,238,246,0.9)';
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = OUT;
+    ctx.stroke();
+  }
+  // raised abdomen + stinger spike
+  blob(0, -80, 6.5, 8.5);
+  if (L >= 2) {
+    ctx.strokeStyle = C.gold;
+    ctx.lineWidth = 2;
+    for (const yy of [-83, -79]) {
+      ctx.beginPath();
+      ctx.moveTo(-5, yy);
+      ctx.quadraticCurveTo(0, yy + 2, 5, yy);
+      ctx.stroke();
+    }
+  }
+  poly(ctx, [[-2.5, -87], [0, -STINGER_TIP_Z - 3], [2.5, -87]], L >= 3 ? '#8fd0ff' : '#e6edf2', true, 1.5);
+  // legs gripping the sign
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 3.4;
+  const legs: [number, number, number, number][] = [
+    [9, -72, 22, -62],
+    [11, -70, 30, -60],
+    [7, -74, 14, -63],
+  ];
+  const drawLegs = (): void => {
+    ctx.beginPath();
+    for (const sx of [-1, 1]) {
+      for (const [kx, ky, fx, fy] of legs) {
+        ctx.moveTo(sx * 5, -70);
+        ctx.lineTo(sx * kx * 1.5, ky - 6);
+        ctx.lineTo(sx * fx, fy);
+      }
+    }
+    ctx.stroke();
+  };
+  drawLegs();
+  ctx.strokeStyle = '#c3ced7';
+  ctx.lineWidth = 1.6;
+  drawLegs();
+  // thorax + head
+  blob(0, -72, 9, 7.5);
+  blob(0, -65, 7.5, 6);
+  // antennae
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(-3, -70);
+  ctx.quadraticCurveTo(-9, -78, -13, -73);
+  ctx.moveTo(3, -70);
+  ctx.quadraticCurveTo(9, -78, 13, -73);
+  ctx.stroke();
+  // angry eyes
+  ctx.fillStyle = L >= 3 ? '#4aa8ff' : '#20222b';
+  for (const sx of [-1, 1]) {
+    ctx.beginPath();
+    ctx.ellipse(sx * 3.6, -65.5, 2.4, 1.6, sx * 0.5, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
 

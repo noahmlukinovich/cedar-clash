@@ -32,6 +32,7 @@ export type BuildingType =
   | 'safetycart'
   | 'sprayer'
   | 'bibleprof'
+  | 'stinger'
   | 'nest'
   | 'wall'
   | 'lake';
@@ -46,6 +47,8 @@ export interface DefenseStats {
   freezeCharge?: number; // seconds to charge freeze
   freezeTime?: number;
   blessHeal?: number; // walls healed per second (fraction of max)
+  ramp?: number[]; // beam dps per lock-on stage (stinger)
+  rampTimes?: number[]; // seconds of continuous lock to reach stage 2, 3, ...
 }
 
 export interface BuildingLevel {

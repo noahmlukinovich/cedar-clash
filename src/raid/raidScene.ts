@@ -1,3 +1,4 @@
+import { STINGER_TIP_Z } from '../render/buildingSprites';
 import { BUILDINGS } from '../config/buildings';
 import { ELEPHANT_RUN_TIME, GRID, RAID_TIME, THREE_STAR_CHAPEL } from '../config/balance';
 import { EVENT_INFO, LOSE_LINES, WIN_LINES, WIND_LINES } from '../config/humor';
@@ -19,7 +20,7 @@ import { ICONS, icon } from '../ui/icons';
 import { spellThumb, unitThumb } from '../ui/thumbs';
 import { el, fmt } from '../ui/ui';
 import { type BaseLayout, generateBase, rivalStateU } from './basegen';
-import { type RU, RaidSim } from './sim';
+import { type RU, RaidSim, beamStage } from './sim';
 
 export type RaidKind = 'campaign' | 'random' | 'elephant';
 
@@ -429,6 +430,16 @@ export class RaidScene implements Scene {
       this.beams[i].t -= dt;
       if (this.beams[i].t <= 0) this.beams.splice(i, 1);
     }
+    // stinger statue beams: hum + sparks at the point of impact
+    for (const b of this.sim.buildings) {
+      if (b.dead || b.type !== 'stinger' || !b.target || b.target.dead || !b.def) continue;
+      const stage = beamStage(b.def, b.beamT);
+      sfx('zap');
+      if (Math.random() < dt * (6 + stage * 8)) {
+        const to = toWorld(b.target.x, b.target.y);
+        this.particles.burst(to.x, to.y, 12, 1 + stage, { kind: 'spark', color: '#bfe4ff', size: 3 + stage, speed: 70 + stage * 40, max: 0.35, gravity: 250, vz: 90 });
+      }
+    }
     for (const g of this.graves) g.t += dt;
     if (this.graves.length > 80) this.graves.shift();
     // wind streaks
@@ -503,6 +514,7 @@ export class RaidScene implements Scene {
             if (b.type === 'dmc') P2.text(p.x, p.y - 60, 40, 'DMC DOWN!', '#ffe066', 28);
             if (b.type === 'safetycart') P2.text(p.x, p.y - 40, 30, 'Ticket voided!', '#ff8fb8', 16);
             if (b.type === 'ratower') P2.text(p.x, p.y - 40, 30, 'Quiet hours over!', '#fff', 16);
+            if (b.type === 'stinger') P2.text(p.x, p.y - 40, 30, 'Stinger un-stung!', '#9fd4ff', 16);
           }
           break;
         }
@@ -528,6 +540,14 @@ export class RaidScene implements Scene {
           P2.add({ kind: 'ring', x: to.x, y: to.y, z: 0, max: 0.5, size: 8, grow: ev.r * 45 * 2, color: 'rgba(255,225,120,0.95)' });
           P2.burst(to.x, to.y, 10, 18, { kind: 'glow', color: 'rgba(255,240,170,0.9)', size: 5, speed: ev.r * 50, max: 0.6, vz: 60 });
           sfx('pray');
+          break;
+        }
+        case 'ramp': {
+          const b = ev.b;
+          const p = toWorld(b.cx, b.cy);
+          P2.add({ kind: 'ring', x: p.x, y: p.y - STINGER_TIP_Z, z: 0, max: 0.4, size: 4, grow: 60 + ev.stage * 40, color: 'rgba(120,200,255,0.9)' });
+          if (ev.stage >= (b.def?.ramp?.length ?? 1) - 1) P2.text(p.x, p.y - 70, 40, 'SMITE!', '#9fd4ff', 22);
+          sfx('ramp');
           break;
         }
         case 'swarm': {
@@ -893,6 +913,61 @@ export class RaidScene implements Scene {
       ctx.lineWidth = 3;
       ctx.stroke();
       ctx.globalAlpha = 1;
+    }
+    // stinger statue beams
+    for (const b of sim.buildings) {
+      if (b.dead || b.type !== 'stinger' || !b.target || b.target.dead || !b.def) continue;
+      const stage = beamStage(b.def, b.beamT);
+      const from = toWorld(b.cx, b.cy);
+      const to = toWorld(b.target.x, b.target.y);
+      const x1 = from.x;
+      const y1 = from.y - STINGER_TIP_Z;
+      const x2 = to.x;
+      const y2 = to.y - 12;
+      const w = [3, 6, 10][Math.min(stage, 2)] * (0.85 + Math.random() * 0.3);
+      ctx.save();
+      ctx.lineCap = 'round';
+      const line = (): void => {
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      };
+      ctx.strokeStyle = 'rgba(70,160,255,0.3)';
+      ctx.lineWidth = w * 2.4;
+      line();
+      ctx.strokeStyle = '#4aa8ff';
+      ctx.lineWidth = w;
+      line();
+      ctx.strokeStyle = '#eef8ff';
+      ctx.lineWidth = Math.max(1.2, w * 0.4);
+      line();
+      // crackling strands once the beam is ramped up
+      const len = Math.hypot(x2 - x1, y2 - y1) || 1;
+      const nx = -(y2 - y1) / len;
+      const ny = (x2 - x1) / len;
+      ctx.strokeStyle = 'rgba(200,232,255,0.9)';
+      ctx.lineWidth = 1.4;
+      for (let s = 0; s < stage; s++) {
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        for (let i = 1; i < 7; i++) {
+          const k = i / 7;
+          const off = (Math.random() - 0.5) * (8 + stage * 5);
+          ctx.lineTo(x1 + (x2 - x1) * k + nx * off, y1 + (y2 - y1) * k + ny * off);
+        }
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      }
+      // impact glow
+      const g = ctx.createRadialGradient(x2, y2, 1, x2, y2, w * 2.2 + 6);
+      g.addColorStop(0, 'rgba(235,248,255,0.95)');
+      g.addColorStop(1, 'rgba(70,160,255,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(x2, y2, w * 2.2 + 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
     // building hp bars
     for (const b of sim.buildings) {
