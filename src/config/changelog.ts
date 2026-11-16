@@ -10,6 +10,16 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 11,
+    date: 'Nov 15, 2026',
+    title: 'The rest of campus, rebuilt',
+    items: [
+      'Academic buildings are now flat-roofed brick blocks with glass walls. Each keeps its own colour on the roofline band and door canopy, and every building wears a navy name plaque.',
+      'The ENS Building is mostly glass, the Library gains a clock, Callan a glass entrance, Rinnova a brick shop front with twin silos, and the Brew Lab a ribbed glass dome.',
+      'RA Towers get a blue roof over the lookout, the Cedar Sprayer becomes a tiered fountain, The Hive lights up, and the Coffee Cart grows into a small plaza with umbrella tables.',
+    ],
+  },
+  {
     v: 10,
     date: 'Nov 15, 2026',
     title: 'Base layouts',

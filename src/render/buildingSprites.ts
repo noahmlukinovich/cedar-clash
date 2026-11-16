@@ -942,7 +942,8 @@ function library(ctx: Ctx, L: number): void {
   site(ctx, L, 3);
   const h = 34 + L * 5;
   walls(ctx, L, -1.2, -1.2, 1.2, 1.1, 4, h, C.brick);
-  windowsR(ctx, -1.0, 0.9, 1.2, 10, h - 6, 3, 2);
+  if (L >= 2) panes(ctx, 'R', -1.0, 0.9, 1.2, 10, h - 6, 3, 2);
+  else windowsR(ctx, -1.0, 0.9, 1.2, 10, h - 6, 3, 2);
   // columns porch on left face
   box(ctx, -1.1, 1.1, 1.1, 1.35, 4, 8, C.white);
   for (let i = 0; i < 5; i++) {
@@ -967,9 +968,27 @@ function library(ctx: Ctx, L: number): void {
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
+  if (L >= 4) {
+    // a clock on the roof, facing front
+    const [cx2, cy2] = P(0.55, 0.55, h + 14);
+    ctx.beginPath();
+    ctx.arc(cx2, cy2, 7, 0, Math.PI * 2);
+    ctx.fillStyle = '#fbf7ea';
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = OUT;
+    ctx.stroke();
+    ctx.lineWidth = 1.5;
+    line(ctx, [cx2, cy2], [cx2, cy2 - 4.5]);
+    line(ctx, [cx2, cy2], [cx2 + 3.2, cy2 + 1.5]);
+  }
   if (L >= 3) finial(ctx, 0, -0.05, h + 18 + L * 2, L >= 5 ? 6 : 5);
   levelFlags(ctx, L, 1.1, 1.0, h);
   grounds(ctx, L, 3);
+  if (L >= 2) {
+    const [sx, sy] = P(0, 1.35, 13);
+    plaque(ctx, sx, sy, 'LIBRARY', 7);
+  }
 }
 
 function hive(ctx: Ctx, L: number): void {
@@ -987,13 +1006,29 @@ function hive(ctx: Ctx, L: number): void {
     ctx.strokeStyle = OUT;
     ctx.stroke();
   }
+  if (L >= 2) {
+    // a band of lit windows round the second tier
+    const r = 44 - 30 / layers;
+    for (let i = 0; i < 9; i++) {
+      const a = Math.PI * (0.12 + (i * 0.76) / 8);
+      const wx = x + Math.cos(a) * r * 0.93;
+      const wy = y0 - 12 - 6 + Math.sin(a) * r * 0.55 * 0.93 - 2;
+      ctx.fillStyle = i % 3 === 1 ? '#7cc4ea' : LIT;
+      ctx.strokeStyle = OUT;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.rect(wx - 2.6, wy - 3.5, 5.2, 6);
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
   // door hole
   ctx.fillStyle = '#1a1420';
   ctx.beginPath();
   ctx.ellipse(x - 4, y0 - 6, 9, 11, 0, 0, Math.PI * 2);
   ctx.fill();
-  // HIVE sign
-  sign(ctx, x, y0 - layers * 12 - 18, 'THE HIVE', C.black, C.gold, 10);
+  // name on top
+  plaque(ctx, x, y0 - layers * 12 - 18, 'THE HIVE', 9);
   // foam finger
   ctx.save();
   ctx.translate(x + 34, y0 - 20);
@@ -1153,6 +1188,37 @@ function coffeeCart(ctx: Ctx, L: number): void {
       ctx.fill();
       ctx.stroke();
     }
+    // plaza umbrellas: one over the table, a second set at Lv5
+    const brolly = (bx: number, by: number, a: string, b: string): void => {
+      ctx.strokeStyle = OUT;
+      ctx.lineWidth = 1.8;
+      line(ctx, [bx, by - 11], [bx, by - 30]);
+      for (let i = 0; i < 4; i++) {
+        const a0 = Math.PI + (i * Math.PI) / 4;
+        const a1 = Math.PI + ((i + 1) * Math.PI) / 4;
+        ctx.beginPath();
+        ctx.moveTo(bx, by - 36);
+        ctx.lineTo(bx + Math.cos(a0) * 20, by - 26 + Math.sin(a0) * 3 + 3);
+        ctx.lineTo(bx + Math.cos(a1) * 20, by - 26 + Math.sin(a1) * 3 + 3);
+        ctx.closePath();
+        ctx.fillStyle = i % 2 ? a : b;
+        ctx.fill();
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+    };
+    brolly(tx, ty, C.gold, C.roofBlue);
+    if (L >= 5) {
+      const [t2x, t2y] = P(0.15, 1.2, 4);
+      line(ctx, [t2x, t2y], [t2x, t2y - 10]);
+      ctx.beginPath();
+      ctx.ellipse(t2x, t2y - 11, 9, 4.5, 0, 0, Math.PI * 2);
+      ctx.fillStyle = C.white;
+      ctx.fill();
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+      brolly(t2x, t2y, C.roofBlue, C.gold);
+    }
   }
   if (L >= 4) {
     // string lights from the umbrella pole
@@ -1232,18 +1298,24 @@ function rinnova(ctx: Ctx, L: number): void {
   site(ctx, L, 3);
   const h = 30 + L * 4;
   // coffee tank in back (fill drawn dynamically)
+  if (L >= 3) cylinder(ctx, -0.72, -0.95, 0.4, 4, h + 10 + L * 3, '#c8ccd2', '#9aa0a8'); // second silo
   cylinder(ctx, 0.1, -0.9, 0.62, 4, h + 22 + L * 3, '#c8ccd2', '#9aa0a8');
-  walls(ctx, L, -1.15, -0.4, 1.1, 1.05, 4, h, '#3d3a44');
-  windowsL(ctx, -1.05, 1.0, 1.05, 6, h - 4, 4, 1, '#ffd890');
+  walls(ctx, L, -1.15, -0.4, 1.1, 1.05, 4, h, L >= 2 ? C.brick : '#3d3a44');
+  if (L >= 2) {
+    // lit shop windows either side of the door
+    glassWall(ctx, 'L', -1.0, -0.3, 1.05, 6, h - 14, 3, 1);
+    glassWall(ctx, 'L', 0.3, 0.98, 1.05, 6, h - 14, 3, 1);
+    door(ctx, 0, 1.05, 0.4, h - 14, '#2a2830');
+    panes(ctx, 'R', -0.3, 0.95, 1.1, 8, h - 6, 2, 1, 2);
+  } else windowsL(ctx, -1.05, 1.0, 1.05, 6, h - 4, 4, 1, '#ffd890');
   // awning
   poly(ctx, [P(-1.15, 1.05, h - 2), P(1.1, 1.05, h - 2), P(1.1, 1.35, h - 12), P(-1.15, 1.35, h - 12)], '#e4572e');
   for (let i = 0; i < 6; i++) {
     const u = -1.15 + (i + 0.5) * 0.375;
     poly(ctx, [P(u - 0.09, 1.05, h - 2), P(u + 0.09, 1.05, h - 2), P(u + 0.09, 1.35, h - 12), P(u - 0.09, 1.35, h - 12)], C.white, false);
   }
-  box(ctx, -1.15, -0.4, 1.1, 1.05, h, h + 4, '#2a2830');
-  const [sx, sy] = P(0, 1.05, h + 10);
-  sign(ctx, sx, sy, 'RINNOVA', '#2a2830', '#ffd890', 9);
+  if (L >= 2) flatRoof(ctx, L, -1.15, -0.4, 1.1, 1.05, h, false);
+  else box(ctx, -1.15, -0.4, 1.1, 1.05, h, h + 4, '#2a2830');
   if (L >= 4) {
     // steam off the roaster
     const [px, py] = P(-0.7, 0.3, h + 4);
@@ -1260,6 +1332,8 @@ function rinnova(ctx: Ctx, L: number): void {
   }
   levelFlags(ctx, L, 1.05, 1.0, h + 4);
   grounds(ctx, L, 3);
+  const [sx, sy] = P(0, 1.2, h + 12);
+  plaque(ctx, sx, sy, 'RINNOVA', 8);
 }
 
 /** Residence hall: a long slate-roofed hall with gabled bays on the front, taller with each upgrade. */
@@ -1320,13 +1394,33 @@ function academic(ctx: Ctx, L: number, wallColor: string, accent: string, label:
   site(ctx, L, 3);
   const h = 32 + L * 6;
   walls(ctx, L, -1.15, -1.15, 1.1, 1.05, 4, h, wallColor);
-  windowsL(ctx, -1.05, 1.0, 1.05, 8, h - 6, 4, 2);
-  windowsR(ctx, -1.05, 0.95, 1.1, 8, h - 6, 3, 2);
+  if (L >= 2) {
+    // a glass wall to the left of the door, framed windows to the right and down the side
+    glassWall(ctx, 'L', -1.02, -0.36, 1.05, 8, h - 11, 3, 2);
+    panes(ctx, 'L', 0.36, 1.0, 1.05, 8, h - 11, 2, 2, 2);
+    panes(ctx, 'R', -1.05, 0.95, 1.1, 8, h - 11, 3, 2);
+    // the building's colour, as a band under the roofline
+    poly(ctx, [P(-1.15, 1.05, h - 9), P(1.1, 1.05, h - 9), P(1.1, 1.05, h - 4), P(-1.15, 1.05, h - 4)], accent, true, 1.4);
+    poly(ctx, [P(1.1, 1.05, h - 9), P(1.1, -1.15, h - 9), P(1.1, -1.15, h - 4), P(1.1, 1.05, h - 4)], shade(accent, -0.25), true, 1.4);
+  } else {
+    windowsL(ctx, -1.05, 1.0, 1.05, 8, h - 6, 4, 2);
+    windowsR(ctx, -1.05, 0.95, 1.1, 8, h - 6, 3, 2);
+  }
   trim(ctx, L, -1.15, -1.15, 1.1, 1.05, h);
-  gable(ctx, -1.25, -1.25, 1.2, 1.15, h, 20, accent);
-  roofTop(ctx, L, -0.55, -0.05, h + 20);
+  flatRoof(ctx, L, -1.15, -1.15, 1.1, 1.05, h);
   entry(ctx, L, 0, 1.05, 0.45, 16, shade(accent, -0.2));
-  const [x, y] = P(0, 1.15, h + 8);
+  if (L >= 2) {
+    // accent canopy over the door
+    poly(ctx, [P(-0.34, 1.05, 23), P(0.34, 1.05, 23), P(0.34, 1.3, 16), P(-0.34, 1.3, 16)], accent, true, 1.5);
+  }
+  // the emblem stands on the roof edge above the door, on a short post
+  {
+    const [bx, by] = P(0, 1.1, h + (L >= 2 ? 5 : 3));
+    ctx.strokeStyle = OUT;
+    ctx.lineWidth = 2;
+    line(ctx, [bx, by], [bx, by - 6]);
+  }
+  const [x, y] = P(0, 1.1, h + (L >= 2 ? 17 : 15));
   if (icon === 'plus') {
     ctx.fillStyle = C.green;
     ctx.strokeStyle = OUT;
@@ -1387,17 +1481,23 @@ function academic(ctx: Ctx, L: number, wallColor: string, accent: string, label:
     ctx.lineTo(x, y + 9);
     ctx.stroke();
   }
-  const [sx, sy] = P(-0.6, 1.05, h - 10);
-  sign(ctx, sx, sy, label, accent, '#fff', 7);
-  levelFlags(ctx, L, 1.05, 1.0, h);
+  levelFlags(ctx, L, 1.05, 1.0, h + 5);
   grounds(ctx, L, 3);
+  const [sx, sy] = P(0, 1.05, 30);
+  plaque(ctx, sx, sy, label, 7);
 }
 
 function callan(ctx: Ctx, L: number): void {
   site(ctx, L, 3);
   const h = 30 + L * 5;
   walls(ctx, L, -1.2, -1.2, 1.15, 1.1, 4, h, C.brick);
-  windowsL(ctx, -1.1, 1.05, 1.1, 10, h - 8, 4, 1, '#ffe08a');
+  if (L >= 2) {
+    // glass entrance in the middle, framed windows either side
+    glassWall(ctx, 'L', -0.42, 0.42, 1.1, 5, h - 15, 4, 2);
+    panes(ctx, 'L', -1.12, -0.52, 1.1, 9, h - 15, 2, 1, 2);
+    panes(ctx, 'L', 0.52, 1.08, 1.1, 9, h - 15, 2, 1, 2);
+    panes(ctx, 'R', -1.1, 1.0, 1.15, 9, h - 12, 4, 1);
+  } else windowsL(ctx, -1.1, 1.05, 1.1, 10, h - 8, 4, 1, '#ffe08a');
   // barrel roof: series of strips
   const n = 8;
   for (let i = 0; i < n; i++) {
@@ -1409,8 +1509,8 @@ function callan(ctx: Ctx, L: number): void {
     const z1 = h + Math.sin(a1) * 22;
     poly(ctx, [P(-1.25, v0, z0), P(1.2, v0, z0), P(1.2, v1, z1), P(-1.25, v1, z1)], i % 2 ? C.black : C.gold, true, 1.6);
   }
-  const [sx, sy] = P(0, 1.1, h - 14);
-  sign(ctx, sx, sy, 'CALLAN', C.black, C.gold, 9);
+  const [sx, sy] = P(0, 1.1, h - 8);
+  plaque(ctx, sx, sy, 'CALLAN', 8);
   trim(ctx, L, -1.2, -1.2, 1.15, 1.1, h);
   if (L >= 2) {
     // scoreboard on the lawn
@@ -1435,12 +1535,25 @@ function callan(ctx: Ctx, L: number): void {
 function ens(ctx: Ctx, L: number): void {
   site(ctx, L, 3);
   const h = 38 + L * 6;
-  walls(ctx, L, -1.15, -1.15, 1.1, 1.05, 4, h, '#7d8a99');
-  windowsL(ctx, -1.05, 1.0, 1.05, 6, h - 4, 5, 3, '#a9e4ff');
-  windowsR(ctx, -1.05, 0.95, 1.1, 6, h - 4, 3, 3, '#a9e4ff');
-  box(ctx, -1.15, -1.15, 1.1, 1.05, h, h + 5, '#4b5563');
+  walls(ctx, L, -1.15, -1.15, 1.1, 1.05, 4, h, L >= 2 ? C.brick : '#7d8a99');
+  if (L >= 2) {
+    // glass on both faces, with a brick pier at the corner and a door bay
+    glassWall(ctx, 'L', -1.02, -0.3, 1.05, 8, h - 6, 3, 3);
+    glassWall(ctx, 'L', 0.3, 0.98, 1.05, 20, h - 6, 3, 2);
+    glassWall(ctx, 'R', -1.02, 0.9, 1.1, 8, h - 6, 5, 3);
+    door(ctx, 0.64, 1.05, 0.4, 14, '#27314f');
+    flatRoof(ctx, L, -1.15, -1.15, 1.1, 1.05, h, false);
+  } else {
+    windowsL(ctx, -1.05, 1.0, 1.05, 6, h - 4, 5, 3, '#a9e4ff');
+    windowsR(ctx, -1.05, 0.95, 1.1, 6, h - 4, 3, 3, '#a9e4ff');
+    box(ctx, -1.15, -1.15, 1.1, 1.05, h, h + 5, '#4b5563');
+  }
+  if (L >= 2) {
+    // rooftop telescope dome, behind the gear
+    dome(ctx, -0.62, -0.62, 0.28, h + 5, '#c8ccd2');
+  }
   // gear on roof
-  const [x, y] = P(0, 0, h + 5);
+  const [x, y] = P(L >= 2 ? 0.45 : 0, L >= 2 ? 0.45 : 0, h + 5);
   ctx.save();
   ctx.translate(x, y - 16);
   ctx.fillStyle = C.gold;
@@ -1461,12 +1574,8 @@ function ens(ctx: Ctx, L: number): void {
   ctx.fill();
   ctx.stroke();
   ctx.restore();
-  const [sx, sy] = P(0, 1.05, 14);
-  sign(ctx, sx, sy, 'ENS', C.navy, '#fff', 9);
-  if (L >= 2) {
-    // rooftop telescope dome
-    dome(ctx, -0.65, -0.65, 0.28, h + 5, '#c8ccd2');
-  }
+  const [sx, sy] = P(0, 1.05, 16);
+  plaque(ctx, sx, sy, 'ENS', 9);
   levelFlags(ctx, L, 1.05, 1.0, h + 5);
   grounds(ctx, L, 3);
 }
@@ -1476,7 +1585,35 @@ function ssc(ctx: Ctx, L: number): void {
   const h = 28 + L * 6;
   cylinder(ctx, 0, 0, 1.15, 4, h, C.brick, shade(C.brick, 0.1));
   windowsDots(ctx, h);
-  dome(ctx, 0, 0, 0.8, h, '#ff6fb5');
+  if (L >= 2) {
+    // cream ring where the drum meets the dome
+    const [rx0, ry0] = P(0, 0, h);
+    ctx.strokeStyle = OUT;
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.ellipse(rx0, ry0, 1.15 * 45, 1.15 * 22.5, 0, 0, Math.PI);
+    ctx.stroke();
+    ctx.strokeStyle = CREAM;
+    ctx.lineWidth = 2.6;
+    ctx.stroke();
+  }
+  // ribbed glass dome (pink while it was a shed of a lab)
+  dome(ctx, 0, 0, 0.8, h, L >= 2 ? '#bfe3f2' : '#ff6fb5');
+  if (L >= 2) {
+    const [dx, dy] = P(0, 0, h);
+    const r = 0.8 * 45;
+    ctx.strokeStyle = 'rgba(30,27,43,0.55)';
+    ctx.lineWidth = 1.3;
+    for (const k of [0.36, 0.72]) {
+      ctx.beginPath();
+      ctx.ellipse(dx, dy, r * k, r * 0.95, 0, Math.PI, 0);
+      ctx.stroke();
+    }
+    line(ctx, [dx, dy], [dx, dy - r * 0.95]);
+    ctx.beginPath();
+    ctx.ellipse(dx, dy - r * 0.42, r * 0.9, r * 0.2, 0, 0, Math.PI);
+    ctx.stroke();
+  }
   // bubbling vial
   const [x, y] = P(0, 0, h + 30);
   ctx.fillStyle = 'rgba(255,111,181,0.9)';
@@ -1486,8 +1623,8 @@ function ssc(ctx: Ctx, L: number): void {
   ctx.strokeStyle = OUT;
   ctx.lineWidth = 1.5;
   ctx.stroke();
-  const [sx, sy] = P(0, 1.15, 12);
-  sign(ctx, sx, sy, 'BREW LAB', C.navy, '#ff9fd0', 8);
+  const [sx, sy] = P(0, 1.15, 14);
+  plaque(ctx, sx, sy, 'BREW LAB', 8);
   if (L >= 2) {
     // more bubbles as the lab grows
     for (let i = 0; i < L; i++) {
@@ -1523,7 +1660,8 @@ function faculty(ctx: Ctx, L: number): void {
   pad(ctx, 3);
   const h = 32;
   box(ctx, -1.1, -1.15, 0.6, 0.4, 4, h, C.brick);
-  windowsL(ctx, -1.0, 0.5, 0.4, 8, h - 6, 2, 1);
+  panes(ctx, 'L', -1.0, 0.5, 0.4, 8, h - 6, 2, 1, 2);
+  panes(ctx, 'R', -1.05, 0.3, 0.6, 8, h - 6, 2, 1);
   gable(ctx, -1.2, -1.25, 0.7, 0.5, h, 16, '#4b5563');
   // chalkboard on front lawn
   const [x, y] = P(0.85, 0.8, 4);
@@ -1545,15 +1683,16 @@ function faculty(ctx: Ctx, L: number): void {
   ctx.textAlign = 'center';
   ctx.fillText('E=mc²', x, y - 26);
   ctx.fillText('QUIZ!', x, y - 18);
-  const [sx, sy] = P(-0.3, 0.4, 12);
-  sign(ctx, sx, sy, 'FACULTY', C.navy, C.gold, 7);
+  const [sx, sy] = P(-0.72, 0.4, 9);
+  plaque(ctx, sx, sy, 'FACULTY', 7);
 }
 
 function presidents(ctx: Ctx, L: number): void {
   pad(ctx, 3, '#d6e8c8');
   const h = 40;
   box(ctx, -1.15, -1.15, 1.1, 0.8, 4, h, C.white);
-  windowsL(ctx, -1.05, 1.0, 0.8, 8, h - 6, 4, 2, '#cfe8ff');
+  panes(ctx, 'L', -1.05, 1.0, 0.8, 8, h - 6, 4, 2, 2);
+  panes(ctx, 'R', -1.0, 0.65, 1.1, 10, h - 8, 3, 1, 1);
   // portico columns
   box(ctx, -0.6, 0.8, 0.6, 1.25, 4, 7, C.white);
   for (let i = 0; i < 4; i++) {
@@ -1573,9 +1712,12 @@ function raTower(ctx: Ctx, L: number): void {
   const h = 42 + L * 5;
   const s = 0.55;
   walls(ctx, L, -s, -s, s, s, 4, h, L >= 4 ? C.stone : C.brick);
-  windowsL(ctx, -s + 0.1, s - 0.1, s, h * 0.4, h * 0.7, 1, 1, '#ffe9a8');
+  if (L >= 2) {
+    panes(ctx, 'L', -s + 0.12, s - 0.12, s, h * 0.42, h * 0.74, 1, 1, 1);
+    panes(ctx, 'R', -s + 0.12, s - 0.12, s, h * 0.42, h * 0.74, 1, 1, 0);
+  } else windowsL(ctx, -s + 0.1, s - 0.1, s, h * 0.4, h * 0.7, 1, 1, '#ffe9a8');
   // platform
-  box(ctx, -0.85, -0.85, 0.85, 0.85, h, h + 6, C.wood);
+  box(ctx, -0.85, -0.85, 0.85, 0.85, h, h + 6, L >= 2 ? CREAM : C.wood);
   // rails
   ctx.strokeStyle = C.woodDark;
   ctx.lineWidth = 2.2;
@@ -1600,9 +1742,9 @@ function raTower(ctx: Ctx, L: number): void {
   ctx.stroke();
   trim(ctx, L, -s, -s, s, s, h);
   const [sx, sy] = P(0, s, h * 0.2 + 6);
-  sign(ctx, sx, sy, 'RA', C.navy, C.gold, 8);
-  if (L >= 3) {
-    // a roof over the lookout
+  plaque(ctx, sx, sy, 'RA', 9);
+  if (L >= 2) {
+    // a hip roof over the lookout
     ctx.strokeStyle = C.woodDark;
     ctx.lineWidth = 2.2;
     for (const [u, v] of [
@@ -1719,7 +1861,7 @@ function safetyCart(ctx: Ctx, L: number): void {
 
 function sprayer(ctx: Ctx, L: number): void {
   site(ctx, L, 3, C.stone);
-  cylinder(ctx, 0, 0, 1.05, 4, 14, L <= 1 ? WOOD : L >= 5 ? C.white : C.stoneDark, '#3fa8e0');
+  cylinder(ctx, 0, 0, 1.05, 4, 14, L <= 1 ? WOOD : L >= 5 ? C.white : L >= 3 ? '#d9cfb8' : C.stoneDark, '#3fa8e0');
   // water surface ripple
   const [x, y] = P(0, 0, 18);
   ctx.strokeStyle = 'rgba(255,255,255,0.6)';
@@ -1728,7 +1870,11 @@ function sprayer(ctx: Ctx, L: number): void {
   ctx.ellipse(x, y, 25, 12, 0, 0, Math.PI * 2);
   ctx.stroke();
   // sprinkler post
-  cylinder(ctx, 0, 0, 0.18, 14, 22 + L * 3, '#7b8a95', '#9fb0bd');
+  if (L >= 2) {
+    // a raised second basin, as on a tiered fountain
+    cylinder(ctx, 0, 0, 0.46, 18, 9, L >= 5 ? C.white : L >= 3 ? '#d9cfb8' : C.stoneDark, '#5cc4f2');
+  }
+  cylinder(ctx, 0, 0, 0.18, 14, 22 + L * 3, L >= 3 ? '#cfc6b0' : '#7b8a95', '#9fb0bd');
   cylinder(ctx, 0, 0, 0.32, 36 + L * 3, 8, L >= 3 ? C.gold : '#2e63b8');
   if (L >= 2) {
     // spray arcs: more nozzles at higher levels
@@ -1782,7 +1928,7 @@ function bibleProf(ctx: Ctx, L: number): void {
   ctx.stroke();
   if (L >= 2) {
     const [bx, by] = P(0, 0.85, h * 0.2);
-    sign(ctx, bx, by, 'BIBLE', '#4a2f6b', C.gold, 7);
+    plaque(ctx, bx, by, 'BIBLE', 7);
   }
   if (L >= 4) {
     // banner down the front
