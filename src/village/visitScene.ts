@@ -8,11 +8,12 @@ import { toGrid, toWorld } from '../core/iso';
 import { BORDER } from '../game/economy';
 import type { Game, Scene } from '../main';
 import type { VisitBuilding, VisitResponse } from '../net/protocol';
-import { borderTrees, drawBuildingAt, drawGround, drawTree, type TreeSpot } from '../render/world';
+import { borderTrees, drawBuildingAt, drawGround, drawNamePlate, drawTree, namePlatesOn, plateText, type TreeSpot } from '../render/world';
 
 export class VisitScene implements Scene {
   cam = new Camera();
   selectedId = -1;
+  hoverId = -1;
   private trees: TreeSpot[] = borderTrees(BORDER);
   private down: { x: number; y: number; dragged: boolean } | null = null;
   private lastMouse = { x: 0, y: 0 };
@@ -75,6 +76,7 @@ export class VisitScene implements Scene {
     const dx = x - this.lastMouse.x;
     const dy = y - this.lastMouse.y;
     this.lastMouse = { x, y };
+    this.hoverId = !this.down && this.game.pointerOnCanvas ? (this.pick(x, y)?.id ?? -1) : -1;
     if (!this.down) return;
     if (!this.down.dragged && Math.hypot(x - this.down.x, y - this.down.y) > 6) this.down.dragged = true;
     if (!this.down.dragged) return;
@@ -153,5 +155,12 @@ export class VisitScene implements Scene {
     }
     list.sort((a, b) => a.depth - b.depth);
     for (const d of list) d.fn();
+    if (namePlatesOn()) {
+      const minY = this.cam.screenToWorld(0, 96).y;
+      for (const id of this.hoverId === this.selectedId ? [this.selectedId] : [this.hoverId, this.selectedId]) {
+        const b = id === -1 ? undefined : this.info.buildings.find((o) => o.id === id);
+        if (b) drawNamePlate(ctx, b, plateText(b.type, b.level, b.name), this.cam.zoom, minY);
+      }
+    }
   }
 }

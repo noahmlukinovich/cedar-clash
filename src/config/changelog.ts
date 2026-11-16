@@ -10,6 +10,15 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 12,
+    date: 'Nov 16, 2026',
+    title: 'Name plates',
+    items: [
+      'Point at a building, or select it, to see its name and level on a plate above it. Works on your campus and when visiting others.',
+      'Prefer a clean view? Turn name plates off in Settings.',
+    ],
+  },
+  {
     v: 11,
     date: 'Nov 15, 2026',
     title: 'The rest of campus, rebuilt',

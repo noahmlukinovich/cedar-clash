@@ -53,6 +53,7 @@ import { toWorld } from '../core/iso';
 import type { Game } from '../main';
 import { NAME_RULES, type VisitBuilding, type VisitResponse, validCampusName } from '../net/protocol';
 import { fmtTime } from '../village/villageScene';
+import { namePlatesOn, setNamePlates } from '../render/world';
 import { ICONS, icon } from './icons';
 import { buildingThumb, spellThumb, unitThumb } from './thumbs';
 
@@ -1247,7 +1248,13 @@ export class UI {
         if (online) this.toast('Synced with the server.', 'good');
         else if (!staleSave) this.toast('Saved!', 'good');
       };
-      row1.append(mute, save, news);
+      const plates = el('button', 'btn blue', namePlatesOn() ? '🏷️ Name plates: On' : '🏷️ Name plates: Off');
+      plates.onclick = () => {
+        sfx('click');
+        setNamePlates(!namePlatesOn());
+        render();
+      };
+      row1.append(mute, plates, save, news);
       row1.style.flexWrap = 'wrap';
       m.body.appendChild(row1);
 
