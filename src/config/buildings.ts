@@ -362,7 +362,7 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
     category: 'defense',
     size: 2,
     desc: 'Locks a blue smiting beam onto the nearest raider. The longer it stays on one target, the harder it hits. Melts tanks and heroes; swarms keep resetting it.',
-    flavor: 'Polished weekly. Stares at the student center. Has opinions about your raid.',
+    flavor: 'Definitely NOT a graven image. Nobody bows to it. People just polish it weekly and take photos with it. Totally different.',
     counts: [0, 0, 0, 0, 1, 1, 2],
     levels: mk(
       3,
