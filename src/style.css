@@ -1160,6 +1160,22 @@ button.up-main:hover {
   left: 16px;
   bottom: 16px;
 }
+.replay-bar {
+  position: absolute;
+  left: 16px;
+  bottom: 68px;
+  display: flex;
+  gap: 6px;
+}
+.result-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+.replay-row small {
+  margin-left: 0;
+}
 .raid-hint {
   position: absolute;
   bottom: 120px;

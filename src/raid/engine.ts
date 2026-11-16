@@ -26,7 +26,7 @@ export interface RaidSetup {
   army: Partial<Record<TroopType, number>>;
   spells: Partial<Record<SpellType, number>>;
   /** Online raids against a real player. */
-  defender?: { name: string; trophies: number };
+  defender?: { name: string; trophies: number; revenge?: boolean };
   /** Daily Challenge raids: which day's challenge, at which DMC level. The army is lent. */
   daily?: { day: string; dmc: number };
 }

@@ -10,7 +10,7 @@ import { dmcLevel, hasEvent, spend, tickEconomy } from '../src/game/economy';
 import { checkChapelSkip, tickEvents } from '../src/game/events';
 import { migrate } from '../src/game/save';
 import { type GameState, newGame } from '../src/game/state';
-import { type DefenseEntry, NAME_RE, NAME_RULES, type Note, type RenameResponse, type StateMsg, type VisitResponse, validCampusName } from '../src/net/protocol';
+import { type DefenseEntry, NAME_RE, NAME_RULES, type Note, type RenameResponse, type ReplayResponse, type ReplayRow, type StateMsg, type VisitResponse, validCampusName } from '../src/net/protocol';
 import type { BaseLayout, BasePiece } from '../src/raid/basegen';
 import { MAX_INPUTS, type RaidInput, type RaidResult, type RaidSetup, SCOUT_TIME, replayRaid } from '../src/raid/engine';
 import { type RaidOutcome, applyRaidOutcome, dailySetup, localSetup, trophyDelta } from '../src/raid/outcome';
@@ -98,6 +98,8 @@ function defenses(db: DB, userId: number): DefenseEntry[] {
     const res = JSON.parse(r.result ?? '{}') as SettledResult;
     return {
       id: 0,
+      raidId: r.id,
+      revenge: revengeOpen(db, r, userId),
       attacker: res.attackerName ?? 'Someone',
       stars: res.outcome?.stars ?? 0,
       destruction: res.outcome?.destruction ?? 0,
@@ -219,8 +221,8 @@ export function baseFromState(s: GameState, name: string, attackerTrophies: numb
   };
 }
 
-export function startRaid(db: DB, userId: number, now: number, kind: unknown): { raidId: string; setup: RaidSetup } {
-  if (kind !== 'campaign' && kind !== 'random' && kind !== 'elephant' && kind !== 'daily') throw new GameError('Bad request');
+export function startRaid(db: DB, userId: number, now: number, kind: unknown, revengeOf?: unknown): { raidId: string; setup: RaidSetup } {
+  if (kind !== 'campaign' && kind !== 'random' && kind !== 'elephant' && kind !== 'revenge' && kind !== 'daily') throw new GameError('Bad request');
   takeNotes();
   return db.tx(() => {
     // Only one raid at a time: settle any raid this player left unfinished.
@@ -238,6 +240,14 @@ export function startRaid(db: DB, userId: number, now: number, kind: unknown): {
     } else if (kind === 'elephant') {
       if (!hasEvent(s, 'elephantrun')) throw new GameError('The Elephant Run is over');
       setup = localSetup(s, 'elephant', cryptoRand);
+    } else if (kind === 'revenge') {
+      // Free: no scouting cost, and no need to have beaten the campaign (you were attacked, after all).
+      defenderId = revengeTarget(db, userId, revengeOf, now);
+      const def = load(db, defenderId, now, true);
+      def.row.locked_until = now + RAID_WINDOW_MS;
+      save(db, def, now, false);
+      const local = localSetup(s, 'random', cryptoRand);
+      setup = { ...local, kind: 'player', base: baseFromState(def.state, def.row.name, s.trophies), defender: { name: def.row.name, trophies: def.state.trophies, revenge: true } };
     } else {
       if (!s.campaignDone) throw new GameError('Beat Rival State U first!');
       if (!spend(s, 'tuition', SCOUT_COST_PER_DMC * dmcLevel(s))) throw new GameError('Not enough Tuition to scout.');
@@ -384,6 +394,84 @@ function takeLoot(s: GameState, loot: { tuition: number; coffee: number }): { tu
     return Math.floor(amt) - left;
   };
   return { tuition: take('tuition', 'admissions', loot.tuition), coffee: take('coffee', 'coffeecart', loot.coffee) };
+}
+
+// ---------- Revenge ----------
+
+/**
+ * A raid on you can be answered once: revenge is open until you raid that player again
+ * (by revenge or by matchmaking). A raid you called off without deploying doesn't count.
+ */
+function revengeOpen(db: DB, r: Pick<RaidRow, 'attacker' | 'defender' | 'finished' | 'result' | 'created'>, userId: number): boolean {
+  if (r.defender !== userId || !r.finished) return false;
+  const res = JSON.parse(r.result ?? '{}') as Partial<SettledResult>;
+  if (!res.outcome || res.outcome.cancelled) return false;
+  return !db.st.revengeTaken.get(userId, r.attacker, r.created);
+}
+
+/** The player to raid back for the raid `raidId` on `userId`. Checks it is allowed right now. */
+function revengeTarget(db: DB, userId: number, raidId: unknown, now: number): number {
+  if (typeof raidId !== 'string' || !/^[0-9a-f]{32}$/.test(raidId)) throw new GameError('No such raid', 404);
+  const r = db.st.raid.get(raidId) as RaidRow | undefined;
+  if (!r || r.defender !== userId) throw new GameError('No such raid', 404);
+  if (!revengeOpen(db, r, userId)) throw new GameError("You've already had your revenge for that one.", 409);
+  const t = db.st.userById.get(r.attacker) as UserRow | undefined;
+  if (!t) throw new GameError('That campus is gone.', 404);
+  if (t.shield_until > now) throw new GameError(`${t.name} is shielded for another ${fmtWait(t.shield_until - now)}.`, 409);
+  if (t.locked_until > now) throw new GameError(`${t.name} is being raided right now. Try again in a few minutes.`, 409);
+  return t.id;
+}
+
+function fmtWait(ms: number): string {
+  const m = Math.ceil(ms / 60000);
+  return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`;
+}
+
+// ---------- Replays ----------
+
+const REPLAY_LIST = 20;
+
+/** GET /api/replays: the player's most recent finished raids, as attacker or defender. */
+export function replayList(db: DB, userId: number): ReplayRow[] {
+  const rows = db.st.replaysOf.all(userId, userId) as unknown as (Pick<RaidRow, 'id' | 'attacker' | 'defender' | 'result' | 'finished' | 'created'> & { target: string | null })[];
+  const out: ReplayRow[] = [];
+  for (const r of rows) {
+    if (out.length >= REPLAY_LIST) break;
+    const res = JSON.parse(r.result ?? '{}') as Partial<SettledResult>;
+    const o = res.outcome;
+    if (!o || o.cancelled) continue;
+    const base = { id: r.id, stars: o.stars, destruction: o.destruction, at: r.finished ?? 0 };
+    if (r.attacker === userId) out.push({ ...base, role: 'attack', opponent: r.target ?? 'A rival campus', tuition: Math.max(0, o.gotT), coffee: Math.max(0, o.gotC), trophies: o.trophyDelta });
+    else
+      out.push({
+        ...base,
+        role: 'defense',
+        opponent: res.attackerName ?? 'Someone',
+        tuition: res.defenderLost?.tuition ?? 0,
+        coffee: res.defenderLost?.coffee ?? 0,
+        trophies: res.defenderTrophies ?? 0,
+        revenge: revengeOpen(db, r, userId),
+      });
+  }
+  return out;
+}
+
+/** GET /api/replay: a finished raid's setup and moves. Only its attacker and its defender may watch. */
+export function replay(db: DB, userId: number, raidId: unknown): ReplayResponse {
+  if (typeof raidId !== 'string' || !/^[0-9a-f]{32}$/.test(raidId)) throw new GameError('No such raid', 404);
+  const r = db.st.raid.get(raidId) as RaidRow | undefined;
+  if (!r || !r.finished || !r.result || (r.attacker !== userId && r.defender !== userId)) throw new GameError('No such raid', 404);
+  const res = JSON.parse(r.result) as SettledResult;
+  if (res.outcome.cancelled) throw new GameError('No such raid', 404);
+  return {
+    id: r.id,
+    attacker: res.attackerName,
+    setup: JSON.parse(r.setup) as RaidSetup,
+    inputs: JSON.parse(r.inputs) as RaidInput[],
+    stars: res.outcome.stars,
+    destruction: res.outcome.destruction,
+    at: r.finished,
+  };
 }
 
 function settleStaleRaidsFor(db: DB, userId: number, now: number): void {

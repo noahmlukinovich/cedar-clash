@@ -4,7 +4,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { NAME_RULES, validCampusName } from '../src/net/protocol';
 import { DUMMY_HASH, RateLimiter, hashPassword, newInviteCode, newToken, tokenHash, verifyPassword } from './auth';
 import { type DB, type UserRow, openDb } from './db';
-import { GameError, finishRaid, me, newPlayerState, raidInputs, renameUser, settleStaleRaids, startRaid, sync, visit } from './game';
+import { GameError, finishRaid, me, newPlayerState, raidInputs, renameUser, replay, replayList, settleStaleRaids, startRaid, sync, visit } from './game';
 
 const SESSION_DAYS = 30;
 const COOKIE = 'cc_session';
@@ -200,9 +200,11 @@ export function createApp(db: DB, cfg: ServerConfig) {
       requireUser(req);
       return visit(db, now, url.searchParams.get('name'));
     }
+    if (method === 'GET' && path === '/api/replays') return replayList(db, requireUser(req));
+    if (method === 'GET' && path === '/api/replay') return replay(db, requireUser(req), url.searchParams.get('id'));
     if (post('/api/rename')) return renameUser(db, requireUser(req), now, body.name);
     if (post('/api/sync')) return sync(db, requireUser(req), now, body.client, body.seq, body.actions);
-    if (post('/api/raid/start')) return startRaid(db, requireUser(req), now, body.kind);
+    if (post('/api/raid/start')) return startRaid(db, requireUser(req), now, body.kind, body.raidId);
     if (post('/api/raid/inputs')) {
       raidInputs(db, requireUser(req), body.raidId, body.inputs);
       return { ok: true };

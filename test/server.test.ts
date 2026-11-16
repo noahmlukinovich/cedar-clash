@@ -2,7 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { hashPassword } from '../server/auth';
 import { newPlayerState } from '../server/game';
 import { setInviteUses, startServer } from '../server/main';
-import type { MeResponse, RaidFinishResponse, RaidStartResponse, SyncResponse, VisitResponse } from '../src/net/protocol';
+import type { MeResponse, RaidFinishResponse, RaidStartResponse, ReplayResponse, ReplayRow, SyncResponse, VisitResponse } from '../src/net/protocol';
+import { replayRaid } from '../src/raid/engine';
 import type { GameState } from '../src/game/state';
 import { OBJECTIVES, dailyFor, dayKey } from '../src/game/daily';
 import { playBot } from './helpers';
@@ -203,6 +204,67 @@ describe('real raids', () => {
     expect(bobMe.data.defenses[0].attacker).toBe('Alice Hall');
     expect(bobMe.data.state.resources.tuition).toBe(1000 - bobMe.data.defenses[0].tuition);
     expect((await bob.call<MeResponse>('/api/me')).data.defenses.length).toBe(0);
+
+    // both sides can list the raid and fetch its replay, which plays back to the official result
+    const raidId = start.data.raidId;
+    expect(bobMe.data.defenses[0].raidId).toBe(raidId);
+    const aLog = await alice.call<ReplayRow[]>('/api/replays');
+    expect(aLog.data).toEqual([expect.objectContaining({ id: raidId, role: 'attack', opponent: 'Bob_U', stars: fin.data.outcome.stars, tuition: fin.data.outcome.gotT, trophies: fin.data.outcome.trophyDelta })]);
+    const bLog = await bob.call<ReplayRow[]>('/api/replays');
+    expect(bLog.data).toEqual([expect.objectContaining({ id: raidId, role: 'defense', opponent: 'Alice Hall', tuition: bobMe.data.defenses[0].tuition })]);
+    for (const c of [alice, bob]) {
+      const rp = await c.call<ReplayResponse>('/api/replay?id=' + raidId);
+      expect(rp.status).toBe(200);
+      expect(rp.data.attacker).toBe('Alice Hall');
+      const played = replayRaid(rp.data.setup, rp.data.inputs);
+      expect(played.stars).toBe(rp.data.stars);
+      expect(played.destruction).toBe(rp.data.destruction);
+    }
+    // nobody else can watch it; cancelled raids aren't listed or served; a login is required
+    expect((await carol.call('/api/replay?id=' + raidId)).status).toBe(404);
+    expect((await carol.call<ReplayRow[]>('/api/replays')).data).toEqual([]);
+    expect((await carol.call('/api/replay?id=' + other.data.raidId)).status).toBe(404);
+    expect((await alice.call('/api/replay?id=nope')).status).toBe(404);
+    expect((await new Client().call('/api/replays')).status).toBe(401);
+  });
+
+  it('lets a defender take revenge once, free, and not through a shield', async () => {
+    const log = await bob.call<ReplayRow[]>('/api/replays');
+    const def = log.data.find((r) => r.role === 'defense' && r.opponent === 'Alice Hall')!;
+    expect(def.revenge).toBe(true);
+    // the attacker can't use it, and nonsense ids are refused
+    expect((await alice.call('/api/raid/start', { kind: 'revenge', raidId: def.id })).status).toBe(404);
+    expect((await bob.call('/api/raid/start', { kind: 'revenge', raidId: 'nope' })).status).toBe(404);
+    // not through a shield
+    srv.db.raw.prepare('UPDATE users SET shield_until = ? WHERE name = ?').run(Date.now() + 3600_000, 'Alice Hall');
+    const shielded = await bob.call<{ error: string }>('/api/raid/start', { kind: 'revenge', raidId: def.id });
+    expect(shielded.status).toBe(409);
+    expect(shielded.data.error).toMatch(/shielded/);
+    srv.db.raw.prepare('UPDATE users SET shield_until = 0 WHERE name = ?').run('Alice Hall');
+
+    patchState('Bob_U', (s) => {
+      s.army = { freshman: 10 };
+      s.campaignDone = false; // revenge needs no campaign win
+      s.resources.tuition = 0; // and costs no scouting fee
+    });
+    // calling it off without deploying doesn't use it up
+    const first = await bob.call<RaidStartResponse>('/api/raid/start', { kind: 'revenge', raidId: def.id });
+    expect(first.status).toBe(200);
+    expect(first.data.setup.defender).toEqual({ name: 'Alice Hall', trophies: expect.any(Number), revenge: true });
+    await bob.call('/api/raid/finish', { raidId: first.data.raidId, inputs: [{ t: 0, k: 'end' }] });
+    expect((await bob.call<ReplayRow[]>('/api/replays')).data.find((r) => r.id === def.id)!.revenge).toBe(true);
+
+    const start = await bob.call<RaidStartResponse>('/api/raid/start', { kind: 'revenge', raidId: def.id });
+    expect(start.status).toBe(200);
+    const fin = await bob.call<RaidFinishResponse>('/api/raid/finish', { raidId: start.data.raidId, inputs: [{ t: 0, k: 'troop', type: 'freshman', x: 1, y: 1 }] });
+    expect(fin.data.outcome.cancelled).toBe(false);
+    // used up, for both the log and a second try
+    expect((await bob.call<ReplayRow[]>('/api/replays')).data.find((r) => r.id === def.id)!.revenge).toBe(false);
+    expect((await bob.call('/api/raid/start', { kind: 'revenge', raidId: def.id })).status).toBe(409);
+    // Alice hears about it, with her own revenge button
+    const aliceMe = await alice.call<MeResponse>('/api/me');
+    expect(aliceMe.data.defenses).toEqual([expect.objectContaining({ attacker: 'Bob_U', raidId: start.data.raidId, revenge: true })]);
+    patchState('Bob_U', (s) => (s.campaignDone = true));
   });
 
   it('cannot finish someone else\'s raid or send malformed inputs', async () => {
@@ -380,6 +442,7 @@ describe('daily challenge on the server', () => {
   it("serves today's challenge, verifies it by replay, and pays once per day without touching the army", async () => {
     patchState('Alice Hall', (s) => {
       s.army = { freshman: 7 };
+      s.trainQueue = []; // no reserve troops waiting to move in after the raid
       s.trophies = 300;
       s.daily = { day: null, done: false, attempts: 0, bestStars: 0 };
     });

@@ -1,5 +1,5 @@
 // Renders a raid: ground, deploy zone, spell zones, depth-sorted buildings and units,
-// projectiles, beams and health bars.
+// projectiles, beams, letters and health bars.
 import { STINGER_TIP_Z } from '../render/buildingSprites';
 import { GRID } from '../config/balance';
 import { TROOPS } from '../config/troops';
@@ -11,7 +11,6 @@ import { drawBar, drawBuildingAt, drawGround, drawLabel, drawTree } from '../ren
 import { beamStage } from './sim';
 import type { Archetype } from './basegen';
 import type { RaidScene } from './raidScene';
-
 
 export interface Beam {
   x1: number;
@@ -27,7 +26,6 @@ export interface Grave {
   y: number;
   t: number;
 }
-
 
 /** A faint wash over the grass so different kinds of rival campus read differently at a glance. */
 const LAYOUT_TINT: Record<Archetype, string | undefined> = {
@@ -52,7 +50,7 @@ export function drawRaid(ctx: CanvasRenderingContext2D, dpr: number, sc: RaidSce
 
   // deploy zone overlay
   const c = sc.cards[sc.sel];
-  if (!sc.ended && c && c.kind !== 'spell') {
+  if (!sc.ended && !sc.replay && c && c.kind !== 'spell') {
     const a = 0.12 + sc.forbidFlash * 0.35;
     ctx.save();
     ctx.transform(32, 16, -32, 16, 0, 0);

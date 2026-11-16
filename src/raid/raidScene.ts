@@ -1,7 +1,7 @@
 import { STINGER_TIP_Z } from '../render/buildingSprites';
 import { BUILDINGS } from '../config/buildings';
 import { GRID } from '../config/balance';
-import { EVENT_INFO, LOSE_LINES, WIN_LINES, WIND_LINES, LAYOUT_INFO } from '../config/humor';
+import { EVENT_INFO, LAYOUT_INFO, LOSE_LINES, WIND_LINES, WIN_LINES } from '../config/humor';
 import { HEROES, TROOPS, TROOP_ORDER } from '../config/troops';
 import { SPELLS, SPELL_ORDER } from '../config/spells';
 import type { HeroType, SpellType, TroopType } from '../config/types';
@@ -18,19 +18,36 @@ import { ICONS, icon } from '../ui/icons';
 import { spellThumb, unitThumb } from '../ui/thumbs';
 import { el, esc, fmt } from '../ui/ui';
 import type { BaseLayout } from './basegen';
-import { RaidEngine, type RaidSetup, TICK, q } from './engine';
+import { RaidEngine, type RaidInput, type RaidSetup, TICK, q } from './engine';
 import { type RaidOutcome, challengeOf } from './outcome';
 import { OBJECTIVES } from '../game/daily';
 import { type Beam, type Grave, drawRaid } from './raidDraw';
 import { LETTER_FLIGHT, playSimEvents } from './raidEffects';
 import { RaidHud } from './raidHud';
-import { showResults } from './raidResults';
+import { finishReplay, showResults } from './raidResults';
 import { type RU, type RaidSim, beamStage } from './sim';
 
 export type { RaidKind } from './engine';
 
 
 type Card = { kind: 'troop'; type: TroopType } | { kind: 'hero'; type: HeroType } | { kind: 'spell'; type: SpellType };
+
+
+
+/** A finished raid to play back: the scene replays `inputs` instead of taking them from the player. */
+export interface ReplayData {
+  setup: RaidSetup;
+  inputs: RaidInput[];
+  attacker: string;
+  /** The official result, to compare with what the playback shows. */
+  stars: number;
+  destruction: number;
+}
+
+export const REPLAY_SPEEDS = [1, 2, 4];
+/** Playback starts this many ticks before the first move, skipping the quiet scouting time. */
+const REPLAY_LEAD = 45;
+
 export class RaidScene implements Scene {
   cam = new Camera();
   particles = new Particles();
@@ -41,7 +58,7 @@ export class RaidScene implements Scene {
   time = 0;
   /** True once the raid is over (finishing or showing results). */
   ended = false;
-  private acc = 0;
+  acc = 0;
   trees: TreeSpot[] = borderTrees(0);
   beams: Beam[] = [];
   graves: Grave[] = [];
@@ -55,15 +72,28 @@ export class RaidScene implements Scene {
   private deployTimer = 0;
   private keys = new Set<string>();
   private windT = 0;
+  /** Replay playback state. */
+  private ri = 0;
+  paused = false;
+  speed = 1;
+  again = false;
+  playBtn: HTMLElement | null = null;
 
   constructor(
     public game: Game,
     public setup: RaidSetup,
     /** Settles the raid (locally offline, or on the server online) and returns the official outcome. */
     private settle: (engine: RaidEngine) => Promise<RaidOutcome>,
+    /** Set when this scene plays back a finished raid; nothing is deployed or settled. */
+    public replay: ReplayData | null = null,
   ) {
     this.base = setup.base;
     this.engine = new RaidEngine(setup);
+    if (replay) {
+      const first = replay.inputs[0]?.t ?? 0;
+      while (this.engine.tick < first - REPLAY_LEAD && !this.engine.ended) this.engine.step();
+      this.sim.events.length = 0;
+    }
     const c = toWorld(20, 20);
     this.cam.x = c.x;
     this.cam.y = c.y - 40;
@@ -99,13 +129,13 @@ export class RaidScene implements Scene {
   enter(): void {
     this.game.ui.root.appendChild(this.hud.root);
     this.hud.build();
-    this.game.ui.banner(esc(this.base.name), '#ffe066');
+    this.game.ui.banner(this.replay ? `🎬 Replay: ${esc(this.base.name)}` : esc(this.base.name), '#ffe066');
     const c = challengeOf(this.setup);
     if (this.kind === 'elephant') setTimeout(() => this.game.ui.toast(`🐘 ${EVENT_INFO.elephantrun.desc}`, 'event'), 600);
-    else if (c) {
+    else if (c && !this.replay) {
       const o = OBJECTIVES[c.objectiveId];
       setTimeout(() => this.game.ui.toast(`🎯 ${o.name}: ${o.desc} This army is lent; yours is not used.`, 'event'), 600);
-    } else if (this.base.archetype && !this.setup.defender) {
+    } else if (this.base.archetype && !this.setup.defender && !this.replay) {
       const info = LAYOUT_INFO[this.base.archetype];
       setTimeout(() => this.game.ui.toast(`🗺️ ${info.name}: ${info.hint}`, 'info', 4500), 600);
     }
@@ -118,6 +148,13 @@ export class RaidScene implements Scene {
   }
 
   // ---------- HUD ----------
+
+
+  togglePause(): void {
+    if (this.ended) return;
+    this.paused = !this.paused;
+    if (this.playBtn) this.playBtn.textContent = this.paused ? '▶ Play' : '❚❚ Pause';
+  }
 
 
   clickCard(i: number): void {
@@ -203,7 +240,7 @@ export class RaidScene implements Scene {
     this.last = { x, y };
     if (this.ended) return;
     let deploying = false;
-    if (button === 0) {
+    if (button === 0 && !this.replay) {
       deploying = this.deployAt(x, y);
       this.deployTimer = 0.25;
     }
@@ -235,6 +272,10 @@ export class RaidScene implements Scene {
     if (down) this.keys.add(key.toLowerCase());
     else this.keys.delete(key.toLowerCase());
     if (!down || this.ended) return;
+    if (this.replay) {
+      if (key === ' ') this.togglePause();
+      return;
+    }
     const n = parseInt(key, 10);
     if (n >= 1 && n <= 9) this.clickCard(n - 1);
     if (key === ' ') {
@@ -260,23 +301,36 @@ export class RaidScene implements Scene {
     this.forbidFlash = Math.max(0, this.forbidFlash - dt * 1.5);
 
     if (!this.ended) {
-      // hold-to-deploy
-      if (this.down && this.down.deploying && this.down.button === 0) {
-        this.deployTimer -= dt;
-        if (this.deployTimer <= 0) {
-          this.deployTimer = 0.09;
-          const c = this.cards[this.sel];
-          if (c && c.kind === 'troop') this.deployAt(this.last.x, this.last.y);
+      if (this.replay) {
+        if (!this.paused) {
+          this.acc = Math.min(this.acc + dt * this.speed, TICK * 10 * this.speed);
+          while (this.acc >= TICK && !this.engine.ended) {
+            this.acc -= TICK;
+            this.replayTick(this.replay.inputs);
+          }
+        }
+      } else {
+        // hold-to-deploy
+        if (this.down && this.down.deploying && this.down.button === 0) {
+          this.deployTimer -= dt;
+          if (this.deployTimer <= 0) {
+            this.deployTimer = 0.09;
+            const c = this.cards[this.sel];
+            if (c && c.kind === 'troop') this.deployAt(this.last.x, this.last.y);
+          }
+        }
+        // fixed-step simulation (deterministic, so the server can replay it)
+        this.acc = Math.min(this.acc + dt, TICK * 10);
+        while (this.acc >= TICK && !this.engine.ended) {
+          this.acc -= TICK;
+          this.engine.step();
         }
       }
-      // fixed-step simulation (deterministic, so the server can replay it)
-      this.acc = Math.min(this.acc + dt, TICK * 10);
-      while (this.acc >= TICK && !this.engine.ended) {
-        this.acc -= TICK;
-        this.engine.step();
-      }
       playSimEvents(this);
-      if (this.engine.ended) this.finish();
+      if (this.engine.ended) {
+        if (this.replay) finishReplay(this, this.replay);
+        else this.finish();
+      }
       this.hud.update();
       // hero hp on cards
       if (Math.floor(this.time * 4) !== Math.floor((this.time - dt) * 4)) {
@@ -319,6 +373,31 @@ export class RaidScene implements Scene {
       }
     }
   }
+
+  /** One tick of playback: applies the recorded moves for this tick, then steps (same order as `replayRaid`). */
+  private replayTick(inputs: RaidInput[]): void {
+    const eng = this.engine;
+    while (this.ri < inputs.length && inputs[this.ri].t <= eng.tick) {
+      const inp = inputs[this.ri++];
+      if (inp.t !== eng.tick) continue;
+      const r = eng.apply(inp);
+      if (!r) continue;
+      if (inp.k === 'troop' && r !== true) {
+        const p = toWorld(r.x, r.y);
+        this.particles.burst(p.x, p.y, 2, 5, { kind: 'puff', color: '#fff', size: 5, speed: 40, max: 0.4, grow: 8 });
+        sfx('deploy');
+        this.hud.renderCardCounts();
+      } else if (inp.k === 'hero') {
+        const p = toWorld(inp.x, inp.y);
+        this.particles.burst(p.x, p.y, 2, 16, { kind: 'spark', color: C.gold, size: 5, speed: 90, max: 0.7, vz: 120, gravity: 200 });
+        sfx('chime');
+        this.hud.renderCards();
+      } else this.hud.renderCards();
+    }
+    if (!eng.ended) eng.step();
+  }
+
+
 
 
   // ---------- Results ----------

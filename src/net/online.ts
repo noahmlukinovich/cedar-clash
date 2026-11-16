@@ -10,6 +10,8 @@ import type {
   RaidStartRequest,
   RaidStartResponse,
   RenameResponse,
+  ReplayResponse,
+  ReplayRow,
   StateMsg,
   SyncRequest,
   SyncResponse,
@@ -158,9 +160,9 @@ export class OnlineSession {
     }
   }
 
-  async startRaid(kind: RaidStartRequest['kind']): Promise<RaidStartResponse> {
+  async startRaid(kind: RaidStartRequest['kind'], raidId?: string): Promise<RaidStartResponse> {
     await this.flush();
-    return api<RaidStartResponse>('/api/raid/start', { kind } satisfies RaidStartRequest);
+    return api<RaidStartResponse>('/api/raid/start', { kind, ...(raidId ? { raidId } : {}) } satisfies RaidStartRequest);
   }
 
   private lastPushed = 0;
@@ -201,6 +203,14 @@ export class OnlineSession {
 
   visit(name: string): Promise<VisitResponse> {
     return api<VisitResponse>('/api/visit?name=' + encodeURIComponent(name));
+  }
+
+  replays(): Promise<ReplayRow[]> {
+    return api<ReplayRow[]>('/api/replays');
+  }
+
+  replay(id: string): Promise<ReplayResponse> {
+    return api<ReplayResponse>('/api/replay?id=' + encodeURIComponent(id));
   }
 
   async logout(): Promise<void> {

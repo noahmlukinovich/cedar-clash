@@ -40,7 +40,7 @@ export function playSimEvents(sc: RaidScene): void {
         // GO Team members whose trip is over just head home: no gravestone
         if (ev.u.side === 'atk' && !(ev.u.expireAt > 0 && sc.sim.time >= ev.u.expireAt)) sc.graves.push({ x: ev.u.x, y: ev.u.y, t: 0 });
         if (ev.u.hero) {
-          sc.game.ui.toast(`${HEROES[ev.u.hero].name} has been knocked out! (They'll recover back home.)`, 'bad');
+          sc.game.ui.toast(`${HEROES[ev.u.hero].name} has been knocked out!${sc.replay ? '' : " (They'll recover back home.)"}`, 'bad');
           sc.hud.renderCards();
         }
         sfx('pop');

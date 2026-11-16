@@ -1,12 +1,12 @@
-// The results popup at the end of a raid.
+// The results popup at the end of a raid, and the end-of-replay popup.
 import { DAILY_DONE_LINES, LOSE_LINES, WIN_LINES } from '../config/humor';
-import { OBJECTIVES } from '../game/daily';
 import { sfx } from '../core/audio';
 import { pick } from '../core/rng';
 import { ICONS, icon } from '../ui/icons';
-import { el, fmt } from '../ui/ui';
+import { el, esc, fmt } from '../ui/ui';
 import type { RaidOutcome } from './outcome';
-import type { RaidScene } from './raidScene';
+import { OBJECTIVES } from '../game/daily';
+import type { RaidScene, ReplayData } from './raidScene';
 
 export function showResults(sc: RaidScene, r: RaidOutcome): void {
   const ui = sc.game.ui;
@@ -38,30 +38,69 @@ export function showResults(sc: RaidScene, r: RaidOutcome): void {
     if (r.gotT < r.tuition || r.gotC < r.coffee) m.body.appendChild(el('div', 'flavor', 'Some loot was left behind: your storages are full! Upgrade the Registrar / Rinnova.'));
     if (sc.kind === 'campaign' && r.win) m.body.appendChild(el('div', 'result-line', '🎉 Random rivals unlocked! Use <b>Find a Rival</b> from the Attack menu.'));
   }
-  const row = el('div', 'row');
-  row.style.marginTop = '14px';
-  const b = el('button', 'btn big', 'Return to Campus');
-  b.style.flex = '1';
-  b.onclick = () => {
-    ui.closeModal();
-    sc.game.endRaid();
-  };
-  row.appendChild(b);
+  addReplayButtons(
+    sc,
+    m.body,
+    { setup: sc.setup, inputs: sc.engine.inputs.slice(), attacker: sc.game.online?.user.name ?? (sc.game.state.playerName || 'You'), stars: r.stars, destruction: r.destruction },
+    'Watch replay',
+  );
   if (d && !d.passed) {
     const again = el('button', 'btn big purple', '🔁 Try again');
-    again.style.flex = '1';
     again.onclick = () => {
-      ui.closeModal(); // also leaves the raid (see below)
+      sfx('click');
+      ui.closeModal(); // also leaves this raid
       void sc.game.startRaid({ kind: 'daily' });
     };
-    row.appendChild(again);
+    m.body.querySelector('.result-btns')?.prepend(again);
   }
-  m.body.appendChild(row);
-  // closing the modal any other way also returns home
+}
+
+export function finishReplay(sc: RaidScene, rp: ReplayData): void {
+  if (sc.ended) return;
+  sc.ended = true;
+  const ui = sc.game.ui;
+  const stars = sc.sim.stars;
+  const m = ui.modal('Replay over', { narrow: true });
+  const starsRow = el('div', 'result-stars');
+  for (let i = 0; i < 3; i++) {
+    const sp = el('span', `ic ${i < stars ? 'on' : ''}`, i < stars ? ICONS.star : ICONS.starEmpty);
+    sp.style.animationDelay = `${0.2 + i * 0.35}s`;
+    starsRow.appendChild(sp);
+  }
+  m.body.appendChild(starsRow);
+  m.body.appendChild(el('div', 'result-big', `${Math.floor(sc.sim.destruction * 100)}% <span style="font-size:18px">destruction</span>`));
+  m.body.appendChild(el('div', 'result-line flavor', `${esc(rp.attacker)} vs ${esc(sc.base.name)}`));
+  if (stars !== rp.stars || Math.floor(sc.sim.destruction * 100) !== Math.floor(rp.destruction * 100)) {
+    m.body.appendChild(
+      el(
+        'div',
+        'flavor',
+        `This playback came out differently from the real raid, which scored ${'★'.repeat(rp.stars)}${'☆'.repeat(3 - rp.stars)} ${Math.floor(rp.destruction * 100)}%. The game has probably been updated since it was recorded.`,
+      ),
+    );
+  }
+  addReplayButtons(sc, m.body, rp, 'Watch again');
+}
+
+/** Bottom buttons of a results window: watch the replay, or go home. Closing the window any other way also goes home. */
+export function addReplayButtons(sc: RaidScene, body: HTMLElement, rp: ReplayData, watchLabel: string): void {
+  const ui = sc.game.ui;
+  const row = el('div', 'result-btns');
+  const watch = el('button', 'btn big blue', `🎬 ${watchLabel}`);
+  watch.onclick = () => {
+    sfx('click');
+    sc.again = true;
+    ui.closeModal();
+    sc.game.playReplay(rp);
+  };
+  const b = el('button', 'btn big', 'Return to Campus');
+  b.onclick = () => ui.closeModal();
+  row.append(watch, b);
+  body.appendChild(row);
   const orig = ui.closeModal.bind(ui);
   ui.closeModal = () => {
     ui.closeModal = orig;
     orig();
-    if (sc.game.scene === sc) sc.game.endRaid();
+    if (sc.game.scene === sc && !sc.again) sc.game.endRaid();
   };
 }

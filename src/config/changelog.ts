@@ -10,7 +10,7 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
-    v: 14,
+    v: 16,
     date: 'Nov 16, 2026',
     title: 'Daily Challenge and smarter rivals',
     items: [
@@ -18,6 +18,26 @@ export const CHANGELOG: ChangeEntry[] = [
       'Computer rivals now come in six layouts, from a single brick ring to a vault with the DMC left outside as bait. The raid screen names the layout and how tough it is.',
       'Rivals are matched to your trophies: climb the ladder and campuses get bigger, better built and richer; slide down and they ease off. The raid screen shows the trophies at stake.',
       'Three new achievements, and offline saves are now checked on load and backed up, with Import in Settings.',
+    ],
+  },
+  {
+    v: 15,
+    date: 'Nov 16, 2026',
+    title: 'Revenge',
+    items: [
+      'Someone raided you? Hit ⚔️ Revenge on the "you were raided" popup or in the Raid Log to attack their campus right back.',
+      'Revenge is free (no scouting cost) and works once per raid on you. Calling it off before deploying anything doesn\'t use it up.',
+      "You can't take revenge through a shield, or while someone else is already raiding them.",
+    ],
+  },
+  {
+    v: 14,
+    date: 'Nov 16, 2026',
+    title: 'Raid replays',
+    items: [
+      'Watch any raid again. After a raid, press Watch replay on the results screen.',
+      'Online, the new Raid Log button (🎬) lists your recent raids and the raids on your campus, each with a Watch button. The "you were raided" popup has one too, so you can see exactly how they got in.',
+      'Replays can be paused (Space) and played at 1×, 2× or 4× speed.',
     ],
   },
   {

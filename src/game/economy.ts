@@ -30,10 +30,14 @@ export function caps(s: GameState): Record<ResourceId, number> {
   return c;
 }
 
+/**
+ * Adds (or, for a negative amount, removes) a resource and returns how much actually changed.
+ * Storage caps only stop gains: a player already over the cap (after a storage is removed,
+ * for example) keeps what they have instead of being clamped down by a gain.
+ */
 export function addRes(s: GameState, res: ResourceId, amt: number): number {
-  const cap = caps(s)[res];
   const before = s.resources[res];
-  s.resources[res] = Math.max(0, Math.min(cap, before + amt));
+  s.resources[res] = amt >= 0 ? Math.max(before, Math.min(caps(s)[res], before + amt)) : Math.max(0, before + amt);
   return s.resources[res] - before;
 }
 
