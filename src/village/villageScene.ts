@@ -16,7 +16,7 @@ import {
 import { constructionTile } from '../game/events';
 import type { Action, ActionResult } from '../game/actions';
 import type { BuildingInst, GameState } from '../game/state';
-import { drawBar, drawBuildingAt, drawConstructionFence, drawGround, drawLabel, drawTree, borderTrees, type TreeSpot } from '../render/world';
+import { drawBar, drawBuildingAt, drawConstructionFence, drawGround, drawLabel, drawNamePlate, drawTree, borderTrees, namePlatesOn, plateText, type TreeSpot } from '../render/world';
 import { drawUnit } from '../render/unitSprites';
 import { TROOPS } from '../config/troops';
 import type { TroopType } from '../config/types';
@@ -42,6 +42,8 @@ export class VillageScene implements Scene {
   cam = new Camera();
   particles = new Particles();
   selectedId = -1;
+  /** Building under the mouse, for its name plate. */
+  hoverId = -1;
   mode: Mode = { kind: 'idle' };
   anim = new Map<number, number>(); // building id -> squash time remaining
   trees: TreeSpot[] = borderTrees(BORDER);
@@ -290,6 +292,7 @@ export class VillageScene implements Scene {
       this.mode.gx = Math.round(g.gx - sz / 2);
       this.mode.gy = Math.round(g.gy - sz / 2);
     }
+    this.hoverId = !this.down && this.mode.kind === 'idle' && this.game.pointerOnCanvas ? (this.pick(x, y)?.id ?? -1) : -1;
     if (!this.down) return;
     if (!this.down.dragged && Math.hypot(x - this.down.x, y - this.down.y) > 6) {
       this.down.dragged = true;
@@ -586,6 +589,14 @@ export class VillageScene implements Scene {
         ctx.ellipse(c.x, c.y, r * 45.25, r * 22.6, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
+      }
+    }
+    // name plates for the hovered and the selected building, above everything else
+    if (namePlatesOn() && this.mode.kind === 'idle') {
+      const minY = this.cam.screenToWorld(0, 96).y;
+      for (const id of this.hoverId === this.selectedId ? [this.selectedId] : [this.hoverId, this.selectedId]) {
+        const b = id === -1 ? undefined : s.buildings.find((o) => o.id === id);
+        if (b) drawNamePlate(ctx, b, plateText(b.type, b.level, b.name), this.cam.zoom, minY);
       }
     }
     this.particles.draw(ctx);

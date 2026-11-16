@@ -36,6 +36,8 @@ export interface Scene {
 export class Game {
   canvas = document.getElementById('game') as HTMLCanvasElement;
   ctx = this.canvas.getContext('2d')!;
+  /** False while the pointer is over a button or panel rather than the campus. */
+  pointerOnCanvas = false;
   dpr = Math.min(2, window.devicePixelRatio || 1);
   state: GameState;
   ui: UI;
@@ -217,7 +219,10 @@ export class Game {
       c.classList.add('dragging');
       this.scene.onMouseDown(e.clientX, e.clientY, e.button);
     });
-    window.addEventListener('mousemove', (e) => this.scene.onMouseMove(e.clientX, e.clientY));
+    window.addEventListener('mousemove', (e) => {
+      this.pointerOnCanvas = e.target === c;
+      this.scene.onMouseMove(e.clientX, e.clientY);
+    });
     window.addEventListener('mouseup', (e) => {
       c.classList.remove('dragging');
       if (e.target === c || this.scene === this.raid) this.scene.onMouseUp(e.clientX, e.clientY, e.button);

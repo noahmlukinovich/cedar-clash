@@ -595,6 +595,86 @@ export function drawBar(ctx: Ctx, x: number, y: number, w: number, frac: number,
   ctx.fillRect(x - w / 2, y, w * Math.max(0, Math.min(1, frac)), 2);
 }
 
+// ---------- Name plates ----------
+const PLATES_KEY = 'cedarville-clash-nameplates';
+let platesOn: boolean | undefined;
+
+/** Display preference for this device: floating name plates over hovered and selected buildings. */
+export function namePlatesOn(): boolean {
+  if (platesOn === undefined) {
+    try {
+      platesOn = localStorage.getItem(PLATES_KEY) !== 'off';
+    } catch {
+      platesOn = true;
+    }
+  }
+  return platesOn;
+}
+
+export function setNamePlates(on: boolean): void {
+  platesOn = on;
+  try {
+    localStorage.setItem(PLATES_KEY, on ? 'on' : 'off');
+  } catch {
+    // private window: the choice lasts for this visit only
+  }
+}
+
+/** "Rinnova · Lv 3". No level for single-level buildings; "Building" while first being built. */
+export function plateText(type: BuildingType, level: number, name?: string): string {
+  const d = BUILDINGS[type];
+  const n = name ?? d.name;
+  if (level < 1) return `${n} · Building`;
+  return d.levels.length > 1 ? `${n} · Lv ${level}` : n;
+}
+
+const spriteTops = new WeakMap<HTMLCanvasElement, number>();
+/** How far the drawn building rises above its anchor, in world pixels (first non-empty sprite row). */
+function spriteTop(sp: { canvas: HTMLCanvasElement; ay: number; scale: number }): number {
+  let top = spriteTops.get(sp.canvas);
+  if (top === undefined) {
+    const { width, height } = sp.canvas;
+    let row = 0;
+    try {
+      const data = sp.canvas.getContext('2d')!.getImageData(0, 0, width, height).data;
+      scan: for (; row < height; row++) for (let x = 0; x < width; x += 2) if (data[(row * width + x) * 4 + 3] > 40) break scan;
+    } catch {
+      row = 0;
+    }
+    top = (sp.ay - row) / sp.scale;
+    spriteTops.set(sp.canvas, top);
+  }
+  return top;
+}
+
+/** A navy plate floating above a building. Same size on screen at any zoom; kept below `minY` (world). */
+export function drawNamePlate(ctx: Ctx, b: { type: BuildingType; level: number; x: number; y: number }, text: string, zoom: number, minY: number): void {
+  const size = BUILDINGS[b.type].size;
+  const c = toWorld(b.x + size / 2, b.y + size / 2);
+  const top = spriteTop(getBuildingSprite(b.type, b.level, 0));
+  ctx.save();
+  ctx.translate(c.x, Math.max(minY, c.y - top - 16 / zoom));
+  ctx.scale(1 / zoom, 1 / zoom);
+  ctx.font = '900 13px "Trebuchet MS", system-ui, sans-serif';
+  const w = ctx.measureText(text).width + 18;
+  const h = 24;
+  ctx.beginPath();
+  ctx.roundRect(-w / 2, -h / 2, w, h, 6);
+  ctx.fillStyle = '#1f2f5c';
+  ctx.fill();
+  ctx.lineWidth = 4.5;
+  ctx.strokeStyle = OUT;
+  ctx.stroke();
+  ctx.lineWidth = 1.6;
+  ctx.strokeStyle = '#f4ead2';
+  ctx.stroke();
+  ctx.fillStyle = '#fbf7ea';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 0, 1);
+  ctx.restore();
+}
+
 export function drawLabel(ctx: Ctx, x: number, y: number, text: string, color = '#fff', size = 12): void {
   ctx.font = `900 ${size}px "Trebuchet MS", system-ui, sans-serif`;
   ctx.textAlign = 'center';
