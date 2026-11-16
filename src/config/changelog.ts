@@ -10,6 +10,16 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 14,
+    date: 'Nov 16, 2026',
+    title: 'Raid replays',
+    items: [
+      'Watch any raid again. After a raid, press Watch replay on the results screen.',
+      'Online, the new Raid Log button (🎬) lists your recent raids and the raids on your campus, each with a Watch button. The "you were raided" popup has one too, so you can see exactly how they got in.',
+      'Replays can be paused (Space) and played at 1×, 2× or 4× speed.',
+    ],
+  },
+  {
     v: 13,
     date: 'Nov 16, 2026',
     title: 'Name plates',

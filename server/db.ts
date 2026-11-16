@@ -131,6 +131,9 @@ export function openDb(path: string) {
     finishRaid: db.prepare('UPDATE raids SET finished = ?, result = ?, inputs = ? WHERE id = ?'),
     openRaidsOf: db.prepare('SELECT * FROM raids WHERE attacker = ? AND finished IS NULL'),
     staleRaids: db.prepare('SELECT * FROM raids WHERE finished IS NULL AND created < ?'),
+    replaysOf: db.prepare(
+      "SELECT id, attacker, defender, result, finished, json_extract(setup, '$.base.name') AS target FROM raids WHERE (attacker = ? OR defender = ?) AND finished IS NOT NULL ORDER BY finished DESC LIMIT 60",
+    ),
     unseenDefenses: db.prepare('SELECT * FROM raids WHERE defender = ? AND seen = 0 AND finished IS NOT NULL ORDER BY finished'),
     markSeen: db.prepare('UPDATE raids SET seen = 1 WHERE defender = ? AND seen = 0 AND finished IS NOT NULL'),
   };

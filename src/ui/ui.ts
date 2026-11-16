@@ -263,6 +263,10 @@ export class UI {
     mk('medal', 'Achievements', () => this.openAchievements(), 'gold');
     // The leaderboard lives on the server, so it only exists when playing online.
     if (this.game.online) mk('trophy', 'Leaderboard', () => void this.openLeaderboard(), 'blue');
+    if (this.game.online) {
+      const log = mk('', 'Raid log & replays', () => void this.openReplays(), 'blue');
+      log.innerHTML = '<span style="font-size:26px">🎬</span>';
+    }
     mk('chapel', 'Chapel', () => this.openChapel(), 'purple');
     const lay = mk('', 'Base layouts', () => this.openLayouts(), 'blue');
     lay.innerHTML = '<span style="font-size:26px">🗺️</span>';
@@ -1581,6 +1585,40 @@ export class UI {
       list.appendChild(row);
     });
     if (!rows.length) list.appendChild(el('div', 'flavor', 'Nobody here yet.'));
+    m.body.appendChild(list);
+  }
+
+  /** The raid log: recent raids you made and raids on you, each with a replay. */
+  async openReplays(): Promise<void> {
+    const online = this.game.online;
+    if (!online) return;
+    let rows;
+    try {
+      rows = await online.replays();
+    } catch (e) {
+      this.toast((e as Error).message, 'bad');
+      return;
+    }
+    const m = this.modal('Raid Log', { headIcon: '<span style="font-size:30px">🎬</span>' });
+    const list = el('div', 'league-list');
+    for (const r of rows) {
+      const atk = r.role === 'attack';
+      const sign = atk ? '+' : '−';
+      const row = el(
+        'div',
+        'league-row replay-row',
+        `<span>${atk ? '⚔️ You raided' : '🛡️ Raided by'} <b>${esc(r.opponent)}</b><br><small>${'★'.repeat(r.stars)}${'☆'.repeat(3 - r.stars)} ${Math.floor(r.destruction * 100)}% · ${sign}${fmt(r.tuition)} Tuition · ${sign}${fmt(r.coffee)} Coffee · ${r.trophies >= 0 ? '+' : ''}${r.trophies} trophies · ${fmtTime(Math.max(0, (Date.now() - r.at) / 1000))} ago</small></span><span class="lb-side"></span>`,
+      );
+      const go = el('button', 'btn small gold', '🎬 Watch');
+      go.title = 'Watch this raid again';
+      go.onclick = () => {
+        sfx('click');
+        void this.game.watchReplay(r.id);
+      };
+      row.lastElementChild!.appendChild(go);
+      list.appendChild(row);
+    }
+    if (!rows.length) list.appendChild(el('div', 'flavor', 'No raids yet. Go pick a fight, or wait for someone to pick one with you.'));
     m.body.appendChild(list);
   }
 

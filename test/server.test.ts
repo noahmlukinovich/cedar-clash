@@ -2,7 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { hashPassword } from '../server/auth';
 import { newPlayerState } from '../server/game';
 import { setInviteUses, startServer } from '../server/main';
-import type { MeResponse, RaidFinishResponse, RaidStartResponse, SyncResponse, VisitResponse } from '../src/net/protocol';
+import type { MeResponse, RaidFinishResponse, RaidStartResponse, ReplayResponse, ReplayRow, SyncResponse, VisitResponse } from '../src/net/protocol';
+import { replayRaid } from '../src/raid/engine';
 import type { GameState } from '../src/game/state';
 
 let srv: ReturnType<typeof startServer>;
@@ -201,6 +202,28 @@ describe('real raids', () => {
     expect(bobMe.data.defenses[0].attacker).toBe('Alice Hall');
     expect(bobMe.data.state.resources.tuition).toBe(1000 - bobMe.data.defenses[0].tuition);
     expect((await bob.call<MeResponse>('/api/me')).data.defenses.length).toBe(0);
+
+    // both sides can list the raid and fetch its replay, which plays back to the official result
+    const raidId = start.data.raidId;
+    expect(bobMe.data.defenses[0].raidId).toBe(raidId);
+    const aLog = await alice.call<ReplayRow[]>('/api/replays');
+    expect(aLog.data).toEqual([expect.objectContaining({ id: raidId, role: 'attack', opponent: 'Bob_U', stars: fin.data.outcome.stars, tuition: fin.data.outcome.gotT, trophies: fin.data.outcome.trophyDelta })]);
+    const bLog = await bob.call<ReplayRow[]>('/api/replays');
+    expect(bLog.data).toEqual([expect.objectContaining({ id: raidId, role: 'defense', opponent: 'Alice Hall', tuition: bobMe.data.defenses[0].tuition })]);
+    for (const c of [alice, bob]) {
+      const rp = await c.call<ReplayResponse>('/api/replay?id=' + raidId);
+      expect(rp.status).toBe(200);
+      expect(rp.data.attacker).toBe('Alice Hall');
+      const played = replayRaid(rp.data.setup, rp.data.inputs);
+      expect(played.stars).toBe(rp.data.stars);
+      expect(played.destruction).toBe(rp.data.destruction);
+    }
+    // nobody else can watch it; cancelled raids aren't listed or served; a login is required
+    expect((await carol.call('/api/replay?id=' + raidId)).status).toBe(404);
+    expect((await carol.call<ReplayRow[]>('/api/replays')).data).toEqual([]);
+    expect((await carol.call('/api/replay?id=' + other.data.raidId)).status).toBe(404);
+    expect((await alice.call('/api/replay?id=nope')).status).toBe(404);
+    expect((await new Client().call('/api/replays')).status).toBe(401);
   });
 
   it('cannot finish someone else\'s raid or send malformed inputs', async () => {

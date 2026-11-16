@@ -19,6 +19,8 @@ export type Note =
 
 export interface DefenseEntry {
   id: number;
+  /** The raid's id, for watching its replay. */
+  raidId: string;
   attacker: string;
   stars: number;
   destruction: number;
@@ -95,6 +97,34 @@ export interface VisitResponse {
   trophies: number;
   dmc: number;
   buildings: VisitBuilding[];
+}
+
+/** One line of the raid log (GET /api/replays): a finished raid you made or defended against. */
+export interface ReplayRow {
+  id: string;
+  role: 'attack' | 'defense';
+  /** The other side: the campus you raided, or the player who raided you. */
+  opponent: string;
+  stars: number;
+  destruction: number;
+  /** Loot you gained (attack) or lost (defense). */
+  tuition: number;
+  coffee: number;
+  /** Your trophy change. */
+  trophies: number;
+  at: number;
+}
+
+/** Everything needed to play a finished raid back (GET /api/replay?id=...). */
+export interface ReplayResponse {
+  id: string;
+  attacker: string;
+  setup: RaidSetup;
+  inputs: RaidInput[];
+  /** What the server scored when the raid happened. */
+  stars: number;
+  destruction: number;
+  at: number;
 }
 
 export const NAME_RE = /^[A-Za-z0-9_][A-Za-z0-9_ .'-]{1,18}[A-Za-z0-9_.]$/;

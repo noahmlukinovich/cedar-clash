@@ -18,7 +18,7 @@ import { ICONS, icon } from '../ui/icons';
 import { spellThumb, unitThumb } from '../ui/thumbs';
 import { el, esc, fmt } from '../ui/ui';
 import type { BaseLayout } from './basegen';
-import { RaidEngine, type RaidSetup, TICK, q } from './engine';
+import { RaidEngine, type RaidInput, type RaidSetup, TICK, q } from './engine';
 import type { RaidOutcome } from './outcome';
 import { type RU, type RaidSim, beamStage } from './sim';
 
@@ -46,6 +46,20 @@ interface Grave {
   t: number;
 }
 
+/** A finished raid to play back: the scene replays `inputs` instead of taking them from the player. */
+export interface ReplayData {
+  setup: RaidSetup;
+  inputs: RaidInput[];
+  attacker: string;
+  /** The official result, to compare with what the playback shows. */
+  stars: number;
+  destruction: number;
+}
+
+const REPLAY_SPEEDS = [1, 2, 4];
+/** Playback starts this many ticks before the first move, skipping the quiet scouting time. */
+const REPLAY_LEAD = 45;
+
 export class RaidScene implements Scene {
   cam = new Camera();
   particles = new Particles();
@@ -72,15 +86,28 @@ export class RaidScene implements Scene {
   private windT = 0;
   private hudEls: Record<string, HTMLElement> = {};
   private starsShown = 0;
+  /** Replay playback state. */
+  private ri = 0;
+  private paused = false;
+  private speed = 1;
+  private again = false;
+  private playBtn: HTMLElement | null = null;
 
   constructor(
     public game: Game,
     public setup: RaidSetup,
     /** Settles the raid (locally offline, or on the server online) and returns the official outcome. */
     private settle: (engine: RaidEngine) => Promise<RaidOutcome>,
+    /** Set when this scene plays back a finished raid; nothing is deployed or settled. */
+    public replay: ReplayData | null = null,
   ) {
     this.base = setup.base;
     this.engine = new RaidEngine(setup);
+    if (replay) {
+      const first = replay.inputs[0]?.t ?? 0;
+      while (this.engine.tick < first - REPLAY_LEAD && !this.engine.ended) this.engine.step();
+      this.sim.events.length = 0;
+    }
     const c = toWorld(20, 20);
     this.cam.x = c.x;
     this.cam.y = c.y - 40;
@@ -116,7 +143,7 @@ export class RaidScene implements Scene {
   enter(): void {
     this.game.ui.root.appendChild(this.hud);
     this.buildHud();
-    this.game.ui.banner(esc(this.base.name), '#ffe066');
+    this.game.ui.banner(this.replay ? `🎬 Replay: ${esc(this.base.name)}` : esc(this.base.name), '#ffe066');
     if (this.kind === 'elephant') setTimeout(() => this.game.ui.toast(`🐘 ${EVENT_INFO.elephantrun.desc}`, 'event'), 600);
     if (this.sim.opts.ringBySpring) setTimeout(() => this.game.ui.toast('💍 Ring by Spring: troops that pair up get +20% damage & speed!', 'event'), 1200);
     sfx('whistle');
@@ -131,24 +158,31 @@ export class RaidScene implements Scene {
     const h = this.hud;
     h.innerHTML = '';
     const top = el('div', 'raid-top stroke');
-    const who = this.setup.defender ? `🏆 ${this.setup.defender.trophies} · a real campus!` : esc(this.base.tagline);
+    const who = this.replay ? `🎬 Replay of ${esc(this.replay.attacker)}'s raid` : this.setup.defender ? `🏆 ${this.setup.defender.trophies} · a real campus!` : esc(this.base.tagline);
     top.innerHTML = `<div class="enemy">${esc(this.base.name)}</div><div class="tag">DMC ${this.base.dmc} · ${who}</div><div class="loot"><span>Available:</span><span class="lt">${icon('tuition', 22)} <b></b></span><span class="lc">${icon('coffee', 22)} <b></b></span></div><div class="loot"><span>Looted:</span><span class="gt">${icon('tuition', 22)} <b>0</b></span><span class="gc">${icon('coffee', 22)} <b>0</b></span></div>`;
     h.appendChild(top);
     const timer = el('div', 'raid-timer stroke', `<div class="lbl">Scouting…</div><div class="t">3:00</div>`);
     h.appendChild(timer);
     const stars = el('div', 'raid-stars stroke', `<div class="stars">${icon('starEmpty', 34).repeat(3)}</div><div class="pct">0%</div><div style="font-size:12px">destruction</div>`);
     h.appendChild(stars);
-    const end = el('button', 'btn red raid-end', 'End Raid');
+    const end = el('button', 'btn red raid-end', this.replay ? 'Exit Replay' : 'End Raid');
     end.onclick = () => {
       sfx('click');
+      if (this.replay) {
+        this.game.endRaid();
+        return;
+      }
       if (this.ended) return;
       this.engine.apply({ t: 0, k: 'end' });
       this.finish();
     };
     h.appendChild(end);
-    const hint = el('div', 'hint stroke raid-hint', 'Pick a card, then click (or hold) on open grass outside the white zone to deploy.');
-    h.appendChild(hint);
-    setTimeout(() => hint.remove(), 6000);
+    if (this.replay) h.appendChild(this.buildReplayBar());
+    else {
+      const hint = el('div', 'hint stroke raid-hint', 'Pick a card, then click (or hold) on open grass outside the white zone to deploy.');
+      h.appendChild(hint);
+      setTimeout(() => hint.remove(), 6000);
+    }
     const bar = el('div', 'deploy-bar');
     h.appendChild(bar);
     this.hudEls = {
@@ -167,11 +201,46 @@ export class RaidScene implements Scene {
     this.renderCards();
   }
 
+  /** Replay controls: pause/play and playback speed. */
+  private buildReplayBar(): HTMLElement {
+    const bar = el('div', 'replay-bar');
+    const play = el('button', 'btn small blue', '❚❚ Pause');
+    play.title = 'Pause or resume (Space)';
+    play.onclick = () => {
+      sfx('click');
+      this.togglePause();
+    };
+    bar.appendChild(play);
+    this.playBtn = play;
+    for (const sp of REPLAY_SPEEDS) {
+      const b = el('button', `btn small ${sp === this.speed ? 'gold' : 'gray'}`, `${sp}×`);
+      b.dataset.speed = String(sp);
+      b.title = `Play at ${sp}× speed`;
+      b.onclick = () => {
+        sfx('click');
+        this.speed = sp;
+        bar.querySelectorAll<HTMLElement>('[data-speed]').forEach((x) => {
+          const on = x.dataset.speed === String(sp);
+          x.classList.toggle('gold', on);
+          x.classList.toggle('gray', !on);
+        });
+      };
+      bar.appendChild(b);
+    }
+    return bar;
+  }
+
+  private togglePause(): void {
+    if (this.ended) return;
+    this.paused = !this.paused;
+    if (this.playBtn) this.playBtn.textContent = this.paused ? '▶ Play' : '❚❚ Pause';
+  }
+
   private renderCards(): void {
     const bar = this.hudEls.bar;
     bar.innerHTML = '';
     this.cards.forEach((c, i) => {
-      const d = el('div', `dcard ${i === this.sel ? 'sel' : ''}`);
+      const d = el('div', `dcard ${i === this.sel && !this.replay ? 'sel' : ''}`);
       const n = this.count(c);
       if (c.kind === 'troop') {
         d.appendChild(unitThumb(c.type, 72, 66, this.engine.setup.troopLevels[c.type] ?? 1));
@@ -197,7 +266,7 @@ export class RaidScene implements Scene {
         if (n <= 0) d.classList.add('empty');
       }
       d.title = c.kind === 'troop' ? TROOPS[c.type].desc : c.kind === 'hero' ? `${HEROES[c.type].desc}` : SPELLS[c.type].desc;
-      d.onclick = () => this.clickCard(i);
+      if (!this.replay) d.onclick = () => this.clickCard(i);
       bar.appendChild(d);
     });
     if (!this.cards.length) bar.appendChild(el('div', 'hint stroke', 'No troops! (End the raid and train some.)'));
@@ -227,7 +296,7 @@ export class RaidScene implements Scene {
     const eng = this.engine;
     const t = Math.max(0, eng.started ? eng.timeLeft : eng.scoutLeft);
     e.timerT.textContent = `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
-    e.timerL.textContent = eng.started ? 'Raid ends in' : 'Scouting… (deploy to start)';
+    e.timerL.textContent = eng.started ? 'Raid ends in' : this.replay ? 'Scouting…' : 'Scouting… (deploy to start)';
     e.pct.textContent = `${Math.floor(this.sim.destruction * 100)}%`;
     e.lt.textContent = fmt(this.sim.lootAvail.tuition - this.sim.loot.tuition);
     e.lc.textContent = fmt(this.sim.lootAvail.coffee - this.sim.loot.coffee);
@@ -300,7 +369,7 @@ export class RaidScene implements Scene {
         if (n) n.textContent = `×${k}`;
         d.classList.toggle('empty', k <= 0);
       }
-      d.classList.toggle('sel', i === this.sel);
+      d.classList.toggle('sel', i === this.sel && !this.replay);
     });
   }
 
@@ -321,7 +390,7 @@ export class RaidScene implements Scene {
     this.last = { x, y };
     if (this.ended) return;
     let deploying = false;
-    if (button === 0) {
+    if (button === 0 && !this.replay) {
       deploying = this.deployAt(x, y);
       this.deployTimer = 0.25;
     }
@@ -353,6 +422,10 @@ export class RaidScene implements Scene {
     if (down) this.keys.add(key.toLowerCase());
     else this.keys.delete(key.toLowerCase());
     if (!down || this.ended) return;
+    if (this.replay) {
+      if (key === ' ') this.togglePause();
+      return;
+    }
     const n = parseInt(key, 10);
     if (n >= 1 && n <= 9) this.clickCard(n - 1);
     if (key === ' ') {
@@ -378,23 +451,36 @@ export class RaidScene implements Scene {
     this.forbidFlash = Math.max(0, this.forbidFlash - dt * 1.5);
 
     if (!this.ended) {
-      // hold-to-deploy
-      if (this.down && this.down.deploying && this.down.button === 0) {
-        this.deployTimer -= dt;
-        if (this.deployTimer <= 0) {
-          this.deployTimer = 0.09;
-          const c = this.cards[this.sel];
-          if (c && c.kind === 'troop') this.deployAt(this.last.x, this.last.y);
+      if (this.replay) {
+        if (!this.paused) {
+          this.acc = Math.min(this.acc + dt * this.speed, TICK * 10 * this.speed);
+          while (this.acc >= TICK && !this.engine.ended) {
+            this.acc -= TICK;
+            this.replayTick(this.replay.inputs);
+          }
+        }
+      } else {
+        // hold-to-deploy
+        if (this.down && this.down.deploying && this.down.button === 0) {
+          this.deployTimer -= dt;
+          if (this.deployTimer <= 0) {
+            this.deployTimer = 0.09;
+            const c = this.cards[this.sel];
+            if (c && c.kind === 'troop') this.deployAt(this.last.x, this.last.y);
+          }
+        }
+        // fixed-step simulation (deterministic, so the server can replay it)
+        this.acc = Math.min(this.acc + dt, TICK * 10);
+        while (this.acc >= TICK && !this.engine.ended) {
+          this.acc -= TICK;
+          this.engine.step();
         }
       }
-      // fixed-step simulation (deterministic, so the server can replay it)
-      this.acc = Math.min(this.acc + dt, TICK * 10);
-      while (this.acc >= TICK && !this.engine.ended) {
-        this.acc -= TICK;
-        this.engine.step();
-      }
       this.consumeEvents();
-      if (this.engine.ended) this.finish();
+      if (this.engine.ended) {
+        if (this.replay) this.finishReplay(this.replay);
+        else this.finish();
+      }
       this.updateHud();
       // hero hp on cards
       if (Math.floor(this.time * 4) !== Math.floor((this.time - dt) * 4)) {
@@ -438,6 +524,79 @@ export class RaidScene implements Scene {
     }
   }
 
+  /** One tick of playback: applies the recorded moves for this tick, then steps (same order as `replayRaid`). */
+  private replayTick(inputs: RaidInput[]): void {
+    const eng = this.engine;
+    while (this.ri < inputs.length && inputs[this.ri].t <= eng.tick) {
+      const inp = inputs[this.ri++];
+      if (inp.t !== eng.tick) continue;
+      const r = eng.apply(inp);
+      if (!r) continue;
+      if (inp.k === 'troop' && r !== true) {
+        const p = toWorld(r.x, r.y);
+        this.particles.burst(p.x, p.y, 2, 5, { kind: 'puff', color: '#fff', size: 5, speed: 40, max: 0.4, grow: 8 });
+        sfx('deploy');
+        this.renderCardCounts();
+      } else if (inp.k === 'hero') {
+        const p = toWorld(inp.x, inp.y);
+        this.particles.burst(p.x, p.y, 2, 16, { kind: 'spark', color: C.gold, size: 5, speed: 90, max: 0.7, vz: 120, gravity: 200 });
+        sfx('chime');
+        this.renderCards();
+      } else this.renderCards();
+    }
+    if (!eng.ended) eng.step();
+  }
+
+  private finishReplay(rp: ReplayData): void {
+    if (this.ended) return;
+    this.ended = true;
+    const ui = this.game.ui;
+    const stars = this.sim.stars;
+    const m = ui.modal('Replay over', { narrow: true });
+    const starsRow = el('div', 'result-stars');
+    for (let i = 0; i < 3; i++) {
+      const sp = el('span', `ic ${i < stars ? 'on' : ''}`, i < stars ? ICONS.star : ICONS.starEmpty);
+      sp.style.animationDelay = `${0.2 + i * 0.35}s`;
+      starsRow.appendChild(sp);
+    }
+    m.body.appendChild(starsRow);
+    m.body.appendChild(el('div', 'result-big', `${Math.floor(this.sim.destruction * 100)}% <span style="font-size:18px">destruction</span>`));
+    m.body.appendChild(el('div', 'result-line flavor', `${esc(rp.attacker)} vs ${esc(this.base.name)}`));
+    if (stars !== rp.stars || Math.floor(this.sim.destruction * 100) !== Math.floor(rp.destruction * 100)) {
+      m.body.appendChild(
+        el(
+          'div',
+          'flavor',
+          `This playback came out differently from the real raid, which scored ${'★'.repeat(rp.stars)}${'☆'.repeat(3 - rp.stars)} ${Math.floor(rp.destruction * 100)}%. The game has probably been updated since it was recorded.`,
+        ),
+      );
+    }
+    this.addReplayButtons(m.body, rp, 'Watch again');
+  }
+
+  /** Bottom buttons of a results window: watch the replay, or go home. Closing the window any other way also goes home. */
+  private addReplayButtons(body: HTMLElement, rp: ReplayData, watchLabel: string): void {
+    const ui = this.game.ui;
+    const row = el('div', 'result-btns');
+    const watch = el('button', 'btn big blue', `🎬 ${watchLabel}`);
+    watch.onclick = () => {
+      sfx('click');
+      this.again = true;
+      ui.closeModal();
+      this.game.playReplay(rp);
+    };
+    const b = el('button', 'btn big', 'Return to Campus');
+    b.onclick = () => ui.closeModal();
+    row.append(watch, b);
+    body.appendChild(row);
+    const orig = ui.closeModal.bind(ui);
+    ui.closeModal = () => {
+      ui.closeModal = orig;
+      orig();
+      if (this.game.scene === this && !this.again) this.game.endRaid();
+    };
+  }
+
   private consumeEvents(): void {
     const P2 = this.particles;
     for (const ev of this.sim.events) {
@@ -463,7 +622,7 @@ export class RaidScene implements Scene {
           // GO Team members whose trip is over just head home: no gravestone
           if (ev.u.side === 'atk' && !(ev.u.expireAt > 0 && this.sim.time >= ev.u.expireAt)) this.graves.push({ x: ev.u.x, y: ev.u.y, t: 0 });
           if (ev.u.hero) {
-            this.game.ui.toast(`${HEROES[ev.u.hero].name} has been knocked out! (They'll recover back home.)`, 'bad');
+            this.game.ui.toast(`${HEROES[ev.u.hero].name} has been knocked out!${this.replay ? '' : " (They'll recover back home.)"}`, 'bad');
             this.renderCards();
           }
           sfx('pop');
@@ -669,22 +828,11 @@ export class RaidScene implements Scene {
     m.body.appendChild(loot);
     if (r.gotT < r.tuition || r.gotC < r.coffee) m.body.appendChild(el('div', 'flavor', 'Some loot was left behind: your storages are full! Upgrade the Registrar / Rinnova.'));
     if (this.kind === 'campaign' && r.win) m.body.appendChild(el('div', 'result-line', '🎉 Random rivals unlocked! Use <b>Find a Rival</b> from the Attack menu.'));
-    const b = el('button', 'btn big', 'Return to Campus');
-    b.style.marginTop = '14px';
-    b.style.width = '100%';
-    const back = (): void => {
-      ui.closeModal();
-      this.game.endRaid();
-    };
-    b.onclick = back;
-    m.body.appendChild(b);
-    // closing the modal any other way also returns home
-    const orig = ui.closeModal.bind(ui);
-    ui.closeModal = () => {
-      ui.closeModal = orig;
-      orig();
-      if (this.game.scene === this) this.game.endRaid();
-    };
+    this.addReplayButtons(
+      m.body,
+      { setup: this.setup, inputs: this.engine.inputs.slice(), attacker: this.game.online?.user.name ?? (this.game.state.playerName || 'You'), stars: r.stars, destruction: r.destruction },
+      'Watch replay',
+    );
   }
 
   // ---------- Draw ----------
@@ -696,7 +844,7 @@ export class RaidScene implements Scene {
 
     // deploy zone overlay
     const c = this.cards[this.sel];
-    if (!this.ended && c && c.kind !== 'spell') {
+    if (!this.ended && !this.replay && c && c.kind !== 'spell') {
       const a = 0.12 + this.forbidFlash * 0.35;
       ctx.save();
       ctx.transform(32, 16, -32, 16, 0, 0);

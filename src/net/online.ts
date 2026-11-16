@@ -10,6 +10,8 @@ import type {
   RaidStartRequest,
   RaidStartResponse,
   RenameResponse,
+  ReplayResponse,
+  ReplayRow,
   StateMsg,
   SyncRequest,
   SyncResponse,
@@ -201,6 +203,14 @@ export class OnlineSession {
 
   visit(name: string): Promise<VisitResponse> {
     return api<VisitResponse>('/api/visit?name=' + encodeURIComponent(name));
+  }
+
+  replays(): Promise<ReplayRow[]> {
+    return api<ReplayRow[]>('/api/replays');
+  }
+
+  replay(id: string): Promise<ReplayResponse> {
+    return api<ReplayResponse>('/api/replay?id=' + encodeURIComponent(id));
   }
 
   async logout(): Promise<void> {

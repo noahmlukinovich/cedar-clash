@@ -13,6 +13,7 @@ import { type GameState, newGame } from './game/state';
 import { type StartChoice, chooseStart } from './net/login';
 import { OnlineSession, adoptState } from './net/online';
 import type { DefenseEntry, Note, StateMsg } from './net/protocol';
+import type { ReplayData } from './raid/raidScene';
 import type { RaidKind, RaidSetup } from './raid/engine';
 import { applyRaidOutcome, localSetup, type RaidOutcome } from './raid/outcome';
 import { RaidScene } from './raid/raidScene';
@@ -189,12 +190,15 @@ export class Game {
       const rows = ds
         .map(
           (d) =>
-            `<button class="btn small blue" data-visit="${esc(d.attacker)}">Visit</button> <b>${esc(d.attacker)}</b> raided you: ${'★'.repeat(d.stars)}${'☆'.repeat(3 - d.stars)} ${Math.floor(d.destruction * 100)}%, took ${fmt(d.tuition)} Tuition and ${fmt(d.coffee)} Coffee (${d.trophies >= 0 ? '+' : ''}${d.trophies} trophies).`,
+            `<button class="btn small blue" data-visit="${esc(d.attacker)}">Visit</button> ${d.raidId ? `<button class="btn small gold" data-replay="${esc(d.raidId)}">🎬 Watch</button> ` : ''}<b>${esc(d.attacker)}</b> raided you: ${'★'.repeat(d.stars)}${'☆'.repeat(3 - d.stars)} ${Math.floor(d.destruction * 100)}%, took ${fmt(d.tuition)} Tuition and ${fmt(d.coffee)} Coffee (${d.trophies >= 0 ? '+' : ''}${d.trophies} trophies).`,
         )
         .join('<br>');
       this.ui.popup(ds.length === 1 ? 'Your campus was raided!' : `Your campus was raided ${ds.length} times!`, rows, 'Back to work');
       this.ui.modalBack?.querySelectorAll<HTMLElement>('[data-visit]').forEach((b) => {
         b.onclick = () => void this.startVisit(b.dataset.visit ?? '');
+      });
+      this.ui.modalBack?.querySelectorAll<HTMLElement>('[data-replay]').forEach((b) => {
+        b.onclick = () => void this.watchReplay(b.dataset.replay ?? '');
       });
     }
   }
@@ -355,6 +359,41 @@ export class Game {
     this.visit.cam.height = window.innerHeight;
     this.scene = this.visit;
     this.ui.showVisit(info);
+  }
+
+  /** Fetches a finished raid from the server and plays it back. */
+  async watchReplay(id: string): Promise<void> {
+    const online = this.online;
+    if (!online || this.scene !== this.village || this.visiting) return;
+    this.visiting = true;
+    let r;
+    try {
+      await online.flush(); // syncing pauses while away, so send anything pending first
+      r = await online.replay(id);
+    } catch (e) {
+      this.ui.toast((e as Error).message, 'bad');
+      sfx('error');
+      return;
+    } finally {
+      this.visiting = false;
+    }
+    if (this.scene !== this.village) return; // something else started while we waited
+    this.ui.closeModal();
+    this.playReplay({ setup: r.setup, inputs: r.inputs, attacker: r.attacker, stars: r.stars, destruction: r.destruction });
+  }
+
+  /** Plays a raid back in the raid scene. Nothing is deployed, spent or settled. */
+  playReplay(data: ReplayData): void {
+    if (this.raid) this.raid.exit();
+    else {
+      this.scene.exit();
+      this.ui.showVillage(false);
+    }
+    this.raid = new RaidScene(this, data.setup, () => Promise.reject(new Error('replay')), data);
+    this.raid.cam.width = window.innerWidth;
+    this.raid.cam.height = window.innerHeight;
+    this.scene = this.raid;
+    this.raid.enter();
   }
 
   endVisit(): void {

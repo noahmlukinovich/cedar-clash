@@ -10,7 +10,7 @@ import { dmcLevel, hasEvent, spend, tickEconomy } from '../src/game/economy';
 import { checkChapelSkip, tickEvents } from '../src/game/events';
 import { migrate } from '../src/game/save';
 import { type GameState, newGame } from '../src/game/state';
-import { type DefenseEntry, NAME_RE, NAME_RULES, type Note, type RenameResponse, type StateMsg, type VisitResponse, validCampusName } from '../src/net/protocol';
+import { type DefenseEntry, NAME_RE, NAME_RULES, type Note, type RenameResponse, type ReplayResponse, type ReplayRow, type StateMsg, type VisitResponse, validCampusName } from '../src/net/protocol';
 import type { BaseLayout, BasePiece } from '../src/raid/basegen';
 import { MAX_INPUTS, type RaidInput, type RaidResult, type RaidSetup, SCOUT_TIME, replayRaid } from '../src/raid/engine';
 import { type RaidOutcome, applyRaidOutcome, localSetup, trophyDelta } from '../src/raid/outcome';
@@ -97,6 +97,7 @@ function defenses(db: DB, userId: number): DefenseEntry[] {
     const res = JSON.parse(r.result ?? '{}') as SettledResult;
     return {
       id: 0,
+      raidId: r.id,
       attacker: res.attackerName ?? 'Someone',
       stars: res.outcome?.stars ?? 0,
       destruction: res.outcome?.destruction ?? 0,
@@ -380,6 +381,44 @@ function takeLoot(s: GameState, loot: { tuition: number; coffee: number }): { tu
     return Math.floor(amt) - left;
   };
   return { tuition: take('tuition', 'admissions', loot.tuition), coffee: take('coffee', 'coffeecart', loot.coffee) };
+}
+
+// ---------- Replays ----------
+
+const REPLAY_LIST = 20;
+
+/** GET /api/replays: the player's most recent finished raids, as attacker or defender. */
+export function replayList(db: DB, userId: number): ReplayRow[] {
+  const rows = db.st.replaysOf.all(userId, userId) as unknown as (Pick<RaidRow, 'id' | 'attacker' | 'defender' | 'result' | 'finished'> & { target: string | null })[];
+  const out: ReplayRow[] = [];
+  for (const r of rows) {
+    if (out.length >= REPLAY_LIST) break;
+    const res = JSON.parse(r.result ?? '{}') as Partial<SettledResult>;
+    const o = res.outcome;
+    if (!o || o.cancelled) continue;
+    const base = { id: r.id, stars: o.stars, destruction: o.destruction, at: r.finished ?? 0 };
+    if (r.attacker === userId) out.push({ ...base, role: 'attack', opponent: r.target ?? 'A rival campus', tuition: Math.max(0, o.gotT), coffee: Math.max(0, o.gotC), trophies: o.trophyDelta });
+    else out.push({ ...base, role: 'defense', opponent: res.attackerName ?? 'Someone', tuition: res.defenderLost?.tuition ?? 0, coffee: res.defenderLost?.coffee ?? 0, trophies: res.defenderTrophies ?? 0 });
+  }
+  return out;
+}
+
+/** GET /api/replay: a finished raid's setup and moves. Only its attacker and its defender may watch. */
+export function replay(db: DB, userId: number, raidId: unknown): ReplayResponse {
+  if (typeof raidId !== 'string' || !/^[0-9a-f]{32}$/.test(raidId)) throw new GameError('No such raid', 404);
+  const r = db.st.raid.get(raidId) as RaidRow | undefined;
+  if (!r || !r.finished || !r.result || (r.attacker !== userId && r.defender !== userId)) throw new GameError('No such raid', 404);
+  const res = JSON.parse(r.result) as SettledResult;
+  if (res.outcome.cancelled) throw new GameError('No such raid', 404);
+  return {
+    id: r.id,
+    attacker: res.attackerName,
+    setup: JSON.parse(r.setup) as RaidSetup,
+    inputs: JSON.parse(r.inputs) as RaidInput[],
+    stars: res.outcome.stars,
+    destruction: res.outcome.destruction,
+    at: r.finished,
+  };
 }
 
 function settleStaleRaidsFor(db: DB, userId: number, now: number): void {
