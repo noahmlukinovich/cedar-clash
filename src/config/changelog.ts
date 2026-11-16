@@ -10,12 +10,22 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
-    v: 12,
+    v: 13,
     date: 'Nov 16, 2026',
     title: 'Name plates',
     items: [
       'Point at a building, or select it, to see its name and level on a plate above it. Works on your campus and when visiting others.',
       'Prefer a clean view? Turn name plates off in Settings.',
+    ],
+  },
+  {
+    v: 12,
+    date: 'Nov 16, 2026',
+    title: 'The Stinger Statue',
+    items: [
+      'New defense at DMC 4: the Stinger Statue, the chrome yellow jacket from outside the student center, now armed.',
+      'It locks a blue beam onto the nearest raider and hits harder the longer it stays on one target. Great against Athletes and heroes; swarms keep resetting it.',
+      'A Snow Day or a stun breaks the lock and resets the beam. Rival campuses at DMC 4 and up have them too.',
     ],
   },
   {

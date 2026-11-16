@@ -3,7 +3,7 @@ import { GRID } from '../config/balance';
 import type { BuildingType } from '../config/types';
 import { hash2 } from '../core/rng';
 import { toWorld } from '../core/iso';
-import { getBuildingSprite, type Sprite } from './buildingSprites';
+import { STINGER_TIP_Z, getBuildingSprite, type Sprite } from './buildingSprites';
 import { C, OUT, P, box, poly, roundRect, shade } from './draw';
 import { drawBuilder } from './unitSprites';
 
@@ -397,6 +397,38 @@ function drawDynamic(ctx: Ctx, a: BuildingDrawArgs, size: number): void {
         ctx.fill();
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'stinger': {
+      // chrome glint + charge glow at the stinger tip
+      const [x, y] = P(0, 0, STINGER_TIP_Z);
+      const ch = a.charge ?? 0;
+      const idle = L >= 3 ? 0.25 + 0.15 * Math.sin(a.t * 3) : 0;
+      const k = Math.max(ch, idle);
+      if (k > 0 && !a.frozen && !a.stunned) {
+        const r = 6 + k * 14;
+        const g = ctx.createRadialGradient(x, y, 1, x, y, r);
+        g.addColorStop(0, `rgba(235,248,255,${0.5 + k * 0.5})`);
+        g.addColorStop(0.4, `rgba(90,175,255,${0.35 + k * 0.5})`);
+        g.addColorStop(1, 'rgba(70,160,255,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      const tw = (a.t * 0.7 + (a.x * 7 + a.y * 13) * 0.1) % 3;
+      if (tw < 0.35) {
+        const s = Math.sin((tw / 0.35) * Math.PI) * 5;
+        const [gx, gy] = P(0, 0, STINGER_TIP_Z - 22);
+        ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(gx - 7 - s, gy - 3);
+        ctx.lineTo(gx - 7 + s, gy - 3);
+        ctx.moveTo(gx - 7, gy - 3 - s);
+        ctx.lineTo(gx - 7, gy - 3 + s);
         ctx.stroke();
       }
       break;

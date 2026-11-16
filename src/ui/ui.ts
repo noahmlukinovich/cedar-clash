@@ -573,7 +573,8 @@ export class UI {
     if (cur.defense) {
       const d = cur.defense;
       const nd = nxt?.defense;
-      add('Damage/sec', d.dps, nd?.dps);
+      if (d.ramp) add('Beam dmg/sec (ramps)', d.ramp.join(' / '), nd?.ramp?.join(' / '));
+      else add('Damage/sec', d.dps, nd?.dps);
       add('Range', `${d.range} tiles`, nd ? `${nd.range} tiles` : undefined);
       if (d.splash) add('Splash radius', d.splash, nd?.splash);
       if (d.slow) add('Slow', `${Math.round(d.slow * 100)}%`);

@@ -86,13 +86,15 @@ export type Sfx =
   | 'heal'
   | 'wind'
   | 'chime'
-  | 'stun';
+  | 'stun'
+  | 'zap'
+  | 'ramp';
 
 export function sfx(name: Sfx): void {
   if (!ctx || muted) return;
   // rate limit noisy sounds
   const now = performance.now();
-  const minGap = name === 'hit' || name === 'shoot' ? 45 : name === 'cannon' ? 80 : 20;
+  const minGap = name === 'hit' || name === 'shoot' ? 45 : name === 'cannon' ? 80 : name === 'zap' ? 170 : 20;
   if (lastPlayed[name] && now - lastPlayed[name] < minGap) return;
   lastPlayed[name] = now;
   switch (name) {
@@ -141,6 +143,14 @@ export function sfx(name: Sfx): void {
     case 'boom':
       tone(90, 0.5, 'sine', 0.5, 30);
       noise(0.6, 0.4, 500);
+      break;
+    case 'zap':
+      tone(180, 0.2, 'sawtooth', 0.035, 230);
+      tone(1900, 0.08, 'sine', 0.02, 2400);
+      break;
+    case 'ramp':
+      tone(520, 0.28, 'square', 0.07, 1500);
+      tone(1040, 0.3, 'sine', 0.06, 2600, 0.05);
       break;
     case 'freeze':
       tone(2000, 0.3, 'sine', 0.12, 3500);
