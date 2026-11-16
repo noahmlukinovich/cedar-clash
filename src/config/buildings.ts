@@ -382,6 +382,38 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
     ),
     movable: true,
   },
+  stinger: {
+    type: 'stinger',
+    name: 'Stinger Statue',
+    category: 'defense',
+    size: 2,
+    desc: 'Locks a blue smiting beam onto the nearest raider. The longer it stays on one target, the harder it hits. Melts tanks and heroes; swarms keep resetting it.',
+    flavor: 'Definitely NOT a graven image. Nobody bows to it. People just polish it weekly and take photos with it. Totally different.',
+    counts: [0, 0, 0, 0, 1, 1, 2],
+    levels: mk(
+      3,
+      'tuition',
+      [20000, 45000, 90000],
+      [200, 300, 400],
+      [4, 5, 6],
+      [700, 850, 1000],
+      (i) => ({
+        defense: {
+          range: 7,
+          rate: 0,
+          dps: [8, 10, 13][i],
+          ramp: [
+            [8, 30, 90],
+            [10, 40, 120],
+            [13, 50, 150],
+          ][i],
+          rampTimes: [1.5, 4],
+          projectileSpeed: 0,
+        },
+      }),
+    ),
+    movable: true,
+  },
   nest: {
     type: 'nest',
     name: 'Yellow Jacket Nest',
@@ -448,7 +480,7 @@ export const SHOP_TABS: { id: string; label: string; types: BuildingType[] }[] =
   {
     id: 'defense',
     label: 'Defenses',
-    types: ['ratower', 'safetycart', 'sprayer', 'bibleprof', 'nest', 'wall'],
+    types: ['ratower', 'safetycart', 'sprayer', 'bibleprof', 'stinger', 'nest', 'wall'],
   },
   { id: 'deco', label: 'Decor', types: ['lake'] },
 ];

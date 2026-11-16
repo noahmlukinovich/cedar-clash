@@ -34,6 +34,7 @@ export interface RB {
   charge: number;
   prayT: number;
   prayTarget: { x: number; y: number } | null;
+  beamT: number; // stinger: seconds locked on the current target
   frozenUntil: number;
   stunUntil: number;
   hidden: boolean;
@@ -123,6 +124,13 @@ export interface Zone {
   dps: number;
 }
 
+/** Lock-on stage (0-based) of a ramping beam defense after `beamT` seconds on one target. */
+export function beamStage(d: DefenseStats, beamT: number): number {
+  let s = 0;
+  for (const t of d.rampTimes ?? []) if (beamT >= t) s++;
+  return Math.min(s, (d.ramp?.length ?? 1) - 1);
+}
+
 export type SimEvent =
   | { e: 'hit'; x: number; y: number; dmg: number; kind: string }
   | { e: 'death'; u: RU }
@@ -130,6 +138,7 @@ export type SimEvent =
   | { e: 'shoot'; b: RB; kind: string }
   | { e: 'freeze'; b: RB }
   | { e: 'pray'; b: RB; x: number; y: number; r: number }
+  | { e: 'ramp'; b: RB; stage: number }
   | { e: 'swarm'; x: number; y: number; r: number }
   | { e: 'heal'; u: RU }
   | { e: 'loot'; res: 'tuition' | 'coffee'; amt: number; x: number; y: number }
@@ -235,6 +244,7 @@ export class RaidSim {
         charge: 0,
         prayT: 0,
         prayTarget: null,
+        beamT: 0,
         frozenUntil: 0,
         stunUntil: 0,
         hidden: p.type === 'nest',
@@ -510,10 +520,16 @@ export class RaidSim {
       if (!b.def) continue;
       if (b.frozenUntil > this.time || b.stunUntil > this.time) {
         b.prayT = 0;
+        if (b.type === 'stinger') {
+          b.target = null;
+          b.beamT = 0;
+          b.charge = 0;
+        }
         continue;
       }
       if (b.type === 'sprayer') this.updateSprayer(b, dt);
       else if (b.type === 'bibleprof') this.updateBibleProf(b, dt);
+      else if (b.type === 'stinger') this.updateStinger(b, dt);
       else this.updateShooter(b, dt);
     }
 
@@ -692,6 +708,29 @@ export class RaidSim {
       b.prayTarget = { x: best.x, y: best.y };
       b.aim = Math.atan2(best.y - b.cy, best.x - b.cx);
     }
+  }
+
+  /** Stinger Statue: continuous beam on the nearest raider; damage ramps while the lock holds. */
+  private updateStinger(b: RB, dt: number): void {
+    const d = b.def!;
+    const t = b.target;
+    if (!t || t.dead || distToRect(t.x, t.y, b.x, b.y, b.size, b.size) > d.range) {
+      b.target = this.nearestAttacker(b.cx, b.cy, d.range, b);
+      b.beamT = 0;
+    }
+    if (!b.target) {
+      b.charge = 0;
+      return;
+    }
+    const before = beamStage(d, b.beamT);
+    b.beamT += dt;
+    const stage = beamStage(d, b.beamT);
+    if (stage > before) this.events.push({ e: 'ramp', b, stage });
+    const times = d.rampTimes ?? [];
+    b.charge = times.length ? Math.min(1, b.beamT / times[times.length - 1]) : 1;
+    b.aim = Math.atan2(b.target.y - b.cy, b.target.x - b.cx);
+    b.firing = 1;
+    this.damageUnit(b.target, (d.ramp?.[stage] ?? d.dps) * dt, 'beam', true);
   }
 
   private updateTrap(b: RB): void {
