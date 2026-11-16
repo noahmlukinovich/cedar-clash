@@ -1,4 +1,5 @@
 // Particle system. World particles use iso world px; z is height above ground.
+import { GOLD_BAR_FACES } from '../ui/icons';
 
 export type PKind = 'puff' | 'spark' | 'text' | 'ring' | 'shard' | 'glow' | 'bee' | 'confetti' | 'drop' | 'leaf' | 'snow' | 'heart';
 
@@ -242,25 +243,47 @@ export class Particles {
   }
 }
 
-/** Tiny procedural resource icons for flyers. */
-function drawIcon(ctx: CanvasRenderingContext2D, kind: string, x: number, y: number, r: number): void {
+/** Tiny procedural resource icons for flyers and collect bubbles. */
+export function drawIcon(ctx: CanvasRenderingContext2D, kind: string, x: number, y: number, r: number): void {
   ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
   ctx.strokeStyle = '#1e1b2b';
   if (kind === 'coffee') {
-    ctx.fillStyle = '#f4efe4';
+    // brown droplet
+    const cy = y + r * 0.3;
+    const w = r * 0.85;
+    ctx.fillStyle = '#7a4520';
     ctx.beginPath();
-    ctx.moveTo(x - r * 0.8, y - r);
-    ctx.lineTo(x + r * 0.8, y - r);
-    ctx.lineTo(x + r * 0.6, y + r);
-    ctx.lineTo(x - r * 0.6, y + r);
+    ctx.moveTo(x, y - r * 1.2);
+    ctx.bezierCurveTo(x + r * 0.2, y - r * 0.7, x + w, y - r * 0.2, x + w, cy);
+    ctx.arc(x, cy, w, 0, Math.PI);
+    ctx.bezierCurveTo(x - w, y - r * 0.2, x - r * 0.2, y - r * 0.7, x, y - r * 1.2);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = '#7a4520';
-    ctx.fillRect(x - r * 0.65, y - r * 0.2, r * 1.3, r * 0.7);
-    ctx.fillStyle = '#2e63b8';
-    ctx.fillRect(x - r, y - r * 1.25, r * 2, r * 0.4);
-    ctx.strokeRect(x - r, y - r * 1.25, r * 2, r * 0.4);
+    ctx.strokeStyle = '#c98a55';
+    ctx.lineWidth = Math.max(1.5, r * 0.18);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(x, cy, w * 0.55, Math.PI * 0.6, Math.PI);
+    ctx.stroke();
+  } else if (kind === 'tuition') {
+    // isometric stack of three gold bars
+    const k = (r * 2.5) / 32;
+    ctx.lineWidth = 1.5;
+    for (const f of GOLD_BAR_FACES) {
+      ctx.fillStyle = f.fill;
+      ctx.beginPath();
+      f.pts.forEach(([px, py], i) => {
+        const qx = x + (px - 16) * k;
+        const qy = y + (py - 16) * k;
+        if (i === 0) ctx.moveTo(qx, qy);
+        else ctx.lineTo(qx, qy);
+      });
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
   } else {
     ctx.fillStyle = kind === 'chapel' ? '#9b6dd6' : '#f5c32c';
     ctx.beginPath();

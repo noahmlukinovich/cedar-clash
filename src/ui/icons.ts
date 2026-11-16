@@ -1,7 +1,44 @@
 // Small original inline-SVG icons for the HUD.
+
+export interface IconFace {
+  fill: string;
+  pts: [number, number][];
+}
+
+/**
+ * Three gold bars (one on top of two) in isometric view, as filled faces in a
+ * 32x32 box, back to front. Shared by the SVG icon and the canvas flyers.
+ */
+export const GOLD_BAR_FACES: IconFace[] = (() => {
+  const S = 1.1;
+  const ax = 0.87 * S, ay = 0.5 * S; // bar length axis (down-right)
+  const bx = -0.87 * S, by = 0.5 * S; // bar width axis (down-left)
+  const L = 15, W = 7, H = 5 * S;
+  const ox = 16 - (L * ax + 2 * W * bx) / 2;
+  const oy = 16 - (L * ay + 2.5 * W * by) / 2;
+  const faces: IconFace[] = [];
+  const bar = (x: number, y: number): void => {
+    const p = (a: number, b: number, h = 0): [number, number] => [
+      +(x + a * ax + b * bx).toFixed(2),
+      +(y + a * ay + b * by + h).toFixed(2),
+    ];
+    faces.push({ fill: '#f5c32c', pts: [p(0, W), p(L, W), p(L, W, H), p(0, W, H)] }); // long side
+    faces.push({ fill: '#c9971a', pts: [p(L, 0), p(L, W), p(L, W, H), p(L, 0, H)] }); // end
+    faces.push({ fill: '#ffe066', pts: [p(0, 0), p(L, 0), p(L, W), p(0, W)] }); // top
+  };
+  bar(ox, oy);
+  bar(ox + W * bx, oy + W * by);
+  bar(ox + (W / 2) * bx, oy + (W / 2) * by - H);
+  return faces;
+})();
+
+function goldBarsSvg(): string {
+  const polys = GOLD_BAR_FACES.map((f) => `<polygon points="${f.pts.map((q) => q.join(',')).join(' ')}" fill="${f.fill}"/>`).join('');
+  return `<svg viewBox="0 0 32 32"><g stroke="#1e1b2b" stroke-width="2" stroke-linejoin="round">${polys}</g></svg>`;
+}
 export const ICONS: Record<string, string> = {
-  tuition: `<svg viewBox="0 0 32 32"><circle cx="16" cy="17" r="12" fill="#c9971a" stroke="#1e1b2b" stroke-width="2.5"/><circle cx="16" cy="15" r="12" fill="#f5c32c" stroke="#1e1b2b" stroke-width="2.5"/><path d="M8 13l8-4 8 4-8 4z" fill="#1c3d7a" stroke="#1e1b2b" stroke-width="1.5"/><path d="M11 15v4c3 2 7 2 10 0v-4" fill="none" stroke="#1c3d7a" stroke-width="2"/></svg>`,
-  coffee: `<svg viewBox="0 0 32 32"><path d="M7 10h16l-2 17H9z" fill="#f4efe4" stroke="#1e1b2b" stroke-width="2.5" stroke-linejoin="round"/><path d="M8 15h14l-1 7H9z" fill="#7a4520"/><rect x="5" y="7" width="20" height="4" rx="2" fill="#2e63b8" stroke="#1e1b2b" stroke-width="2"/><path d="M23 13c5 0 5 7 0 7" fill="none" stroke="#1e1b2b" stroke-width="2.5"/><path d="M12 5c0-2 2-2 2-4M17 5c0-2 2-2 2-4" stroke="#bbb" stroke-width="1.5" fill="none"/></svg>`,
+  tuition: goldBarsSvg(),
+  coffee: `<svg viewBox="0 0 32 32"><path d="M16 3C18 8 25.5 14 25.5 19.5A9.5 9.5 0 0 1 6.5 19.5C6.5 14 14 8 16 3Z" fill="#7a4520" stroke="#1e1b2b" stroke-width="2.5" stroke-linejoin="round"/><path d="M10.5 20a5.5 5.5 0 0 0 4 5" fill="none" stroke="#c98a55" stroke-width="2" stroke-linecap="round"/></svg>`,
   chapel: `<svg viewBox="0 0 32 32"><path d="M6 28V14l10-9 10 9v14z" fill="#9b6dd6" stroke="#1e1b2b" stroke-width="2.5" stroke-linejoin="round"/><rect x="13" y="19" width="6" height="9" fill="#4a2f6b" stroke="#1e1b2b" stroke-width="1.5"/><path d="M16 7v8M13 10h6" stroke="#f5c32c" stroke-width="2.5"/></svg>`,
   trophy: `<svg viewBox="0 0 32 32"><path d="M9 5h14v6a7 7 0 0 1-14 0z" fill="#f5c32c" stroke="#1e1b2b" stroke-width="2.5"/><path d="M9 8H4c0 5 3 7 6 7M23 8h5c0 5-3 7-6 7" fill="none" stroke="#1e1b2b" stroke-width="2.5"/><rect x="13" y="18" width="6" height="5" fill="#c9971a" stroke="#1e1b2b" stroke-width="2"/><rect x="9" y="23" width="14" height="5" rx="1.5" fill="#1c3d7a" stroke="#1e1b2b" stroke-width="2"/></svg>`,
   builder: `<svg viewBox="0 0 32 32"><path d="M6 18a10 10 0 0 1 20 0z" fill="#f5c32c" stroke="#1e1b2b" stroke-width="2.5"/><rect x="3" y="17" width="26" height="5" rx="2" fill="#f5c32c" stroke="#1e1b2b" stroke-width="2.5"/><path d="M16 8v6" stroke="#1e1b2b" stroke-width="2.5"/></svg>`,

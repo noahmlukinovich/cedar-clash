@@ -5,7 +5,7 @@ import { sfx } from '../core/audio';
 import { bus, toast } from '../core/bus';
 import { Camera } from '../core/camera';
 import { toGrid, toWorld } from '../core/iso';
-import { Particles } from '../core/particles';
+import { Particles, drawIcon } from '../core/particles';
 import {
   BORDER,
   canPlace,
@@ -566,10 +566,7 @@ export class VillageScene implements Scene {
           ctx.lineTo(bx, by + 20);
           ctx.lineTo(bx + 5, by + 12);
           ctx.fill();
-          ctx.font = '16px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(b.type === 'admissions' ? '🪙' : '☕', bx, by + 1);
+          drawIcon(ctx, b.type === 'admissions' ? 'tuition' : 'coffee', bx, by, 8);
           if (f >= 0.999) drawLabel(ctx, bx, by - 22, 'FULL', '#ff6b6b', 10);
         }
       }
