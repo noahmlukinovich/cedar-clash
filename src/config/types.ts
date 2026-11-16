@@ -163,3 +163,24 @@ export interface SpellDef {
   duration: number;
   color: string;
 }
+
+export type EventType = 'ringbyspring' | 'finals' | 'construction' | 'elephantrun';
+
+/** Lifetime counters kept in the save (GameState.stats). */
+export type StatKey =
+  | 'built'
+  | 'lakesBuilt'
+  | 'tickets'
+  | `trained_${TroopType}`
+  | `cast_${SpellType}`
+  | 'raids'
+  | 'wins'
+  | 'losses'
+  | 'threeStars'
+  | 'destroyed'
+  | 'wallsByEngineers'
+  | 'popQuizzes'
+  | 'ringWins'
+  | 'windWins'
+  | 'elephantRuns'
+  | 'dailies';

@@ -1,4 +1,3 @@
-import { BUILDINGS } from '../config/buildings';
 import {
   CHAPEL_DAILY_BASE,
   CHAPEL_STREAK_BONUS,
@@ -7,14 +6,17 @@ import {
   EVENT_CHECK_INTERVAL,
   GRID,
 } from '../config/balance';
-import { ACHIEVEMENTS, CHAPEL_SKIP_LINES, CONSTRUCTION_LINES, EVENT_INFO, TICKET_LINES } from '../config/humor';
+import { ACHIEVEMENTS, type AchievementId, CHAPEL_SKIP_LINES, CONSTRUCTION_LINES, EVENT_INFO, TICKET_LINES } from '../config/humor';
+import type { EventType } from '../config/types';
 import { bus, toast } from '../core/bus';
 import { pick } from '../core/rng';
 import { armyCapacity, armyUsed } from './army';
-import { BORDER, addRes, bump, hasEvent, occupancy, unlock } from './economy';
+import { bump, checkAchievements } from './achievements';
+import { dayKey } from './daily';
+import { BORDER, addRes, hasEvent, occupancy } from './economy';
 import type { ActiveEvent, GameState } from './state';
 
-export function startEvent(s: GameState, type: ActiveEvent['type'], duration?: number): void {
+export function startEvent(s: GameState, type: EventType, duration?: number): void {
   s.events = s.events.filter((e) => e.type !== type);
   const ev: ActiveEvent = { type, end: s.clock + (duration ?? defaultDuration(type)) };
   if (type === 'construction') {
@@ -38,7 +40,7 @@ export function startEvent(s: GameState, type: ActiveEvent['type'], duration?: n
   bus.emit('eventStart', ev);
 }
 
-function defaultDuration(type: ActiveEvent['type']): number {
+function defaultDuration(type: EventType): number {
   switch (type) {
     case 'finals':
       return 180;
@@ -56,7 +58,9 @@ export function isSpring(): boolean {
   return m >= 2 && m <= 4;
 }
 
-export function tickEvents(s: GameState, dt: number): void {
+export function tickEvents(s: GameState, _dt: number): void {
+  // Rules that are not driven by a counter (DMC level, trophies, chapel streak).
+  checkAchievements(s);
   const before = s.events.length;
   s.events = s.events.filter((e) => e.end > s.clock);
   if (s.events.length !== before) bus.emit('eventsChanged');
@@ -69,7 +73,7 @@ export function tickEvents(s: GameState, dt: number): void {
   if (s.clock >= s.nextEventCheck) {
     s.nextEventCheck = s.clock + EVENT_CHECK_INTERVAL;
     if (Math.random() < EVENT_CHANCE) {
-      const options: ActiveEvent['type'][] = ['finals', 'construction', 'elephantrun', 'ringbyspring'];
+      const options: EventType[] = ['finals', 'construction', 'elephantrun', 'ringbyspring'];
       const avail = options.filter((o) => !hasEvent(s, o));
       if (avail.length) startEvent(s, pick(avail));
     }
@@ -82,17 +86,12 @@ export function tickEvents(s: GameState, dt: number): void {
       const fine = Math.min(400, Math.max(25, Math.floor(s.resources.tuition * 0.03)));
       s.resources.tuition = Math.max(0, s.resources.tuition - fine);
       bump(s, 'tickets');
-      unlock(s, 'ticketed');
       bus.emit('ticket', { text: pick(TICKET_LINES), fine });
     }
   }
 }
 
 // ---------- Chapel ----------
-
-export function dayKey(d = new Date()): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
 
 function daysBetween(a: string, b: string): number {
   return Math.round((new Date(b + 'T12:00:00').getTime() - new Date(a + 'T12:00:00').getTime()) / 86400000);
@@ -115,7 +114,7 @@ export function attendChapel(s: GameState): number {
   const r = chapelReward({ ...s, chapel: { ...s.chapel, streak: s.chapel.streak - 1 } } as GameState);
   s.chapel.lastDay = today;
   addRes(s, 'chapel', r);
-  if (s.chapel.streak >= 3) unlock(s, 'chapelregular');
+  checkAchievements(s);
   return r;
 }
 
@@ -133,7 +132,7 @@ export function checkChapelSkip(s: GameState): string | null {
   return null;
 }
 
-export function claimAchievementReward(s: GameState, id: string): void {
+export function claimAchievementReward(s: GameState, id: AchievementId): void {
   const a = ACHIEVEMENTS.find((x) => x.id === id);
   if (a) addRes(s, 'chapel', a.reward);
 }
@@ -142,5 +141,3 @@ export function constructionTile(s: GameState): { x: number; y: number } | null 
   const e = s.events.find((e) => e.type === 'construction' && e.end > s.clock);
   return e && e.x !== undefined && e.y !== undefined ? { x: e.x, y: e.y } : null;
 }
-
-export { BUILDINGS };

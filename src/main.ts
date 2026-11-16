@@ -1,6 +1,7 @@
 import './style.css';
 import { DEBUG_SPEEDS } from './config/balance';
 import { ACHIEVEMENTS } from './config/humor';
+import { TROOPS } from './config/troops';
 import { setMuted, sfx, unlockAudio } from './core/audio';
 import { bus } from './core/bus';
 import { tickArmy } from './game/army';
@@ -10,7 +11,8 @@ import { BUILD_TIME, checkStale, loadGame, saveGame, staleSave } from './game/sa
 import type { GameState } from './game/state';
 import { RaidScene, type RaidKind } from './raid/raidScene';
 import { UI } from './ui/ui';
-import { VillageScene, fmtTime } from './village/villageScene';
+import { fmtTime } from './ui/dom';
+import { VillageScene } from './village/villageScene';
 
 export interface Scene {
   update(dt: number, realDt: number): void;
@@ -39,12 +41,14 @@ export class Game {
   private saveTimer = 0;
   offlineSeconds = 0;
   fresh = false;
+  recovered: 'backup' | 'lost' | undefined;
 
   constructor() {
     const loaded = loadGame();
     this.state = loaded.state;
     this.offlineSeconds = loaded.offlineSeconds;
     this.fresh = loaded.fresh;
+    this.recovered = loaded.recovered;
     setMuted(this.state.settings.muted);
     this.ui = new UI(this);
     this.village = new VillageScene(this);
@@ -58,19 +62,19 @@ export class Game {
       tickEconomy(this.state, dt);
       tickArmy(this.state, dt);
     }
-    bus.on('achievement', (id: string) => {
+    bus.on('achievement', (id) => {
       const a = ACHIEVEMENTS.find((x) => x.id === id);
       if (!a) return;
       claimAchievementReward(this.state, id);
       this.ui.toast(`🏅 Achievement: ${a.name}! +${a.reward} Chapel Credits`, 'good', 3500);
       sfx('star');
     });
-    bus.on('ticket', (d: { text: string; fine: number }) => {
+    bus.on('ticket', (d) => {
       this.ui.toast(`🚓 ${d.text} −${d.fine} Tuition`, 'bad', 4000);
       sfx('whistle');
     });
-    bus.on('researchDone', (t: string) => {
-      this.ui.toast(`📚 Research complete: ${t} upgraded!`, 'good');
+    bus.on('researchDone', (t) => {
+      this.ui.toast(`📚 Research complete: ${TROOPS[t].name} upgraded!`, 'good');
       sfx('complete');
     });
     bus.on('heroDone', () => {
@@ -221,7 +225,11 @@ async function boot(): Promise<void> {
   if (game.offlineSeconds > 60) {
     game.ui.toast(`Welcome back! ${fmtTime(game.offlineSeconds)} passed. Your Admissions Office kept recruiting.`, 'good', 4000);
   }
-  if (game.fresh) {
+  if (game.recovered === 'backup') {
+    game.ui.popup('Save restored from backup', 'Your latest save could not be read, so the campus was restored from the previous session\'s backup. The unreadable save was kept aside rather than deleted.', 'Carry on');
+  } else if (game.recovered === 'lost') {
+    game.ui.popup('Save could not be read', 'Your save was damaged and there was no backup to fall back on, so this is a fresh campus. The damaged save was kept aside (not deleted) in case it can be repaired.', 'Start over');
+  } else if (game.fresh) {
     game.ui.popup(
       'Welcome to Cedarville Clash!',
       `You've been appointed Campus Director. Collect <b>Tuition</b> from the Admissions Office and <b>Coffee</b> from the Coffee Cart, build up campus, train students, and raid rival schools!<br><br>Start by tapping the bubbles over your collectors, then visit the <b>Shop</b>. When ready, hit <b>Attack!</b> to raid Rival State U.`,

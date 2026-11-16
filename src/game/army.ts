@@ -1,9 +1,10 @@
 import { BUILDINGS } from '../config/buildings';
 import { HEROES, TROOPS } from '../config/troops';
 import { SPELLS, SPELL_CAPACITY } from '../config/spells';
-import type { HeroType, SpellType, TroopType } from '../config/types';
+import type { BuildingType, HeroType, SpellType, TroopType } from '../config/types';
 import { bus } from '../core/bus';
-import { bump, canAfford, hasEvent, resName, spend, unlock } from './economy';
+import { bump } from './achievements';
+import { canAfford, hasEvent, resName, spend } from './economy';
 import type { GameState } from './state';
 
 export function armyCapacity(s: GameState): number {
@@ -24,7 +25,7 @@ export function queueUsed(s: GameState): number {
   return s.trainQueue.reduce((a, q) => a + TROOPS[q.type].housing, 0);
 }
 
-export function barracksLevel(s: GameState, type: string): number {
+export function barracksLevel(s: GameState, type: BuildingType): number {
   let m = 0;
   for (const b of s.buildings) if (b.type === type) m = Math.max(m, b.level);
   return m;
@@ -48,8 +49,9 @@ export function train(s: GameState, t: TroopType): string | null {
   const err = trainCheck(s, t);
   if (err) return err;
   const d = TROOPS[t];
-  spend(s, d.res, d.levels[s.troopLevels[t] - 1].cost);
-  s.trainQueue.push({ type: t, left: d.trainTime, total: d.trainTime });
+  const paid = d.levels[s.troopLevels[t] - 1].cost;
+  spend(s, d.res, paid);
+  s.trainQueue.push({ type: t, left: d.trainTime, total: d.trainTime, paid });
   return null;
 }
 
@@ -57,7 +59,8 @@ export function cancelTrain(s: GameState, idx: number): void {
   const q = s.trainQueue[idx];
   if (!q) return;
   const d = TROOPS[q.type];
-  s.resources[d.res] += d.levels[s.troopLevels[q.type] - 1].cost;
+  // Refund what was charged, not today's price (research may have raised it since).
+  s.resources[d.res] += q.paid ?? d.levels[s.troopLevels[q.type] - 1].cost;
   s.trainQueue.splice(idx, 1);
 }
 
@@ -177,8 +180,7 @@ export function tickArmy(s: GameState, dt: number): void {
     if (q.left <= 0.0001) {
       s.trainQueue.shift();
       s.army[q.type] = (s.army[q.type] ?? 0) + 1;
-      bump(s, 'trained_' + q.type);
-      if ((s.stats['trained_freshman'] ?? 0) >= 15) unlock(s, 'freshman15');
+      bump(s, `trained_${q.type}`);
       bus.emit('trained', q.type);
     }
   }

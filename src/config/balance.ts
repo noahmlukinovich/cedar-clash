@@ -30,3 +30,11 @@ export const EVENT_CHECK_INTERVAL = 90; // seconds of game time between random e
 export const EVENT_CHANCE = 0.45;
 
 export const DEBUG_SPEEDS = [1, 10, 60];
+
+/** Daily Challenge: Chapel Credits for the first clear each day = base + perDmc * DMC level. */
+export const DAILY_REWARD_BASE = 10;
+export const DAILY_REWARD_PER_DMC = 2;
+/** Housing worth of lent troops in the Daily Challenge, by DMC level. */
+export const DAILY_ARMY_HOUSING = [0, 26, 60, 95, 140, 185, 230];
+/** How built-up the daily rival is (see generateBase's `strength`). */
+export const DAILY_BASE_STRENGTH = 0.2;

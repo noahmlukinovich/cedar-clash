@@ -1,36 +1,76 @@
-import { BUILDINGS, blocksPath, maxCount, maxLevelForDmc } from '../config/buildings';
+import { BUILDINGS, maxCount, maxLevelForDmc } from '../config/buildings';
 import { DMC_STORAGE, FINISH_NOW_PER_MIN, GRID } from '../config/balance';
-import type { BuildingType, ResourceId } from '../config/types';
+import type { BuildingType, EventType, ResourceId } from '../config/types';
 import { bus, toast } from '../core/bus';
+import { bump } from './achievements';
 import type { BuildingInst, GameState } from './state';
 
+/**
+ * Totals that need a pass over every building (DMC level, storage caps, builder
+ * counts). They are read many times per frame by the HUD and by every resource
+ * change, so one pass is cached until the campus changes or the clock moves on.
+ */
+interface Derived {
+  clock: number;
+  count: number;
+  dmc: number;
+  caps: Record<ResourceId, number>;
+  builders: { total: number; busy: number };
+}
+const derivedCache = new WeakMap<GameState, Derived>();
+
+/** Drop the cached totals. Call after changing a building's level or upgrade state. */
+export function invalidateDerived(s: GameState): void {
+  derivedCache.delete(s);
+}
+
+function derived(s: GameState): Derived {
+  const hit = derivedCache.get(s);
+  if (hit && hit.clock === s.clock && hit.count === s.buildings.length) return hit;
+  let dmc = 1;
+  let total = 0;
+  let busy = 0;
+  let tuition = 0;
+  let coffee = 0;
+  for (const b of s.buildings) {
+    if (b.upgrade && b.upgrade.total > 0) busy++;
+    if (b.type === 'dmc') dmc = Math.max(1, b.level);
+    if (b.level < 1) continue;
+    if (b.type === 'shed') total++;
+    else if (b.type === 'registrar') tuition += BUILDINGS.registrar.levels[b.level - 1].capacity ?? 0;
+    else if (b.type === 'rinnova') coffee += BUILDINGS.rinnova.levels[b.level - 1].capacity ?? 0;
+  }
+  const d: Derived = {
+    clock: s.clock,
+    count: s.buildings.length,
+    dmc,
+    caps: { tuition: DMC_STORAGE.tuition[dmc] + tuition, coffee: DMC_STORAGE.coffee[dmc] + coffee, chapel: DMC_STORAGE.chapel[dmc] },
+    builders: { total, busy },
+  };
+  derivedCache.set(s, d);
+  return d;
+}
+
 export function dmcLevel(s: GameState): number {
-  const d = s.buildings.find((b) => b.type === 'dmc');
-  return d ? Math.max(1, d.level) : 1;
+  return derived(s).dmc;
 }
 
 export function countOf(s: GameState, type: BuildingType): number {
-  return s.buildings.filter((b) => b.type === type).length;
+  let n = 0;
+  for (const b of s.buildings) if (b.type === type) n++;
+  return n;
 }
 
-export function hasEvent(s: GameState, type: string): boolean {
+export function hasEvent(s: GameState, type: EventType): boolean {
   return s.events.some((e) => e.type === type && e.end > s.clock);
 }
 
 export function caps(s: GameState): Record<ResourceId, number> {
-  const dl = dmcLevel(s);
-  const c = { tuition: DMC_STORAGE.tuition[dl], coffee: DMC_STORAGE.coffee[dl], chapel: DMC_STORAGE.chapel[dl] };
-  for (const b of s.buildings) {
-    if (b.level < 1) continue;
-    const L = BUILDINGS[b.type].levels[b.level - 1];
-    if (b.type === 'registrar') c.tuition += L.capacity ?? 0;
-    if (b.type === 'rinnova') c.coffee += L.capacity ?? 0;
-  }
-  return c;
+  return { ...derived(s).caps };
 }
 
 export function addRes(s: GameState, res: ResourceId, amt: number): number {
-  const cap = caps(s)[res];
+  const cap = derived(s).caps[res];
   const before = s.resources[res];
   s.resources[res] = Math.max(0, Math.min(cap, before + amt));
   return s.resources[res] - before;
@@ -47,9 +87,7 @@ export function spend(s: GameState, res: ResourceId, amt: number): boolean {
 }
 
 export function builders(s: GameState): { total: number; busy: number } {
-  const total = s.buildings.filter((b) => b.type === 'shed' && b.level >= 1).length;
-  const busy = s.buildings.filter((b) => b.upgrade && b.upgrade.total > 0).length;
-  return { total, busy };
+  return { ...derived(s).builders };
 }
 
 /** Tile occupancy map: building id per tile, -1 for event construction fencing. */
@@ -121,8 +159,9 @@ export function buildNew(s: GameState, type: BuildingType, x: number, y: number)
     b.upgrade = { to: 1, end: s.clock + L.time, total: L.time };
   }
   s.buildings.push(b);
+  invalidateDerived(s);
   bump(s, 'built');
-  if (type === 'lake') unlock(s, 'lakebridge');
+  if (type === 'lake') bump(s, 'lakesBuilt');
   return b;
 }
 
@@ -152,6 +191,7 @@ export function startUpgrade(s: GameState, b: BuildingInst): string | null {
   if (err) return err;
   const n = nextLevelInfo(s, b)!;
   spend(s, n.res, n.cost);
+  invalidateDerived(s);
   if (n.time <= 0) {
     b.level++;
     bus.emit('buildingDone', b);
@@ -188,27 +228,14 @@ export function collectorCap(b: BuildingInst): number {
   return BUILDINGS[b.type].levels[b.level - 1].capacity ?? 0;
 }
 
-export function bump(s: GameState, stat: string, n = 1): void {
-  s.stats[stat] = (s.stats[stat] ?? 0) + n;
-}
-
-export function unlock(s: GameState, id: string): void {
-  if (s.achievements[id]) return;
-  s.achievements[id] = true;
-  bus.emit('achievement', id);
-}
-
 export function tickEconomy(s: GameState, dt: number): void {
   const finals = hasEvent(s, 'finals');
   for (const b of s.buildings) {
     if (b.upgrade && s.clock >= b.upgrade.end) {
       b.level = b.upgrade.to;
       b.upgrade = undefined;
+      invalidateDerived(s);
       bus.emit('buildingDone', b);
-      if (b.type === 'dmc') {
-        if (b.level >= 3) unlock(s, 'dmc3');
-        if (b.level >= 5) unlock(s, 'dmc5');
-      }
     }
     if ((b.type === 'admissions' || b.type === 'coffeecart') && b.level >= 1 && !b.upgrade) {
       const L = BUILDINGS[b.type].levels[b.level - 1];

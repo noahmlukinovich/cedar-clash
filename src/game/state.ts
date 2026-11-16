@@ -1,4 +1,5 @@
-import type { BuildingType, HeroType, ResourceId, SpellType, TroopType } from '../config/types';
+import type { AchievementId } from '../config/humor';
+import type { BuildingType, EventType, HeroType, ResourceId, SpellType, StatKey, TroopType } from '../config/types';
 import { BUILDINGS } from '../config/buildings';
 import { START_RESOURCES } from '../config/balance';
 
@@ -23,6 +24,7 @@ export interface QueueItem<T> {
   left: number; // seconds remaining
   total: number;
   chucks?: number; // seconds stuck "in line at Chuck's"
+  paid?: number; // what was actually charged, so a cancel refunds exactly that
 }
 
 export interface HeroState {
@@ -32,10 +34,18 @@ export interface HeroState {
 }
 
 export interface ActiveEvent {
-  type: 'ringbyspring' | 'finals' | 'construction' | 'elephantrun';
+  type: EventType;
   end: number;
   x?: number;
   y?: number;
+}
+
+/** Progress on the Daily Challenge. `day` is the local date it refers to. */
+export interface DailyState {
+  day: string | null;
+  done: boolean;
+  attempts: number;
+  bestStars: number;
 }
 
 export interface GameState {
@@ -54,9 +64,10 @@ export interface GameState {
   heroes: Record<HeroType, HeroState>;
   trophies: number;
   bestTrophies: number;
-  stats: Record<string, number>;
-  achievements: Record<string, boolean>;
+  stats: Partial<Record<StatKey, number>>;
+  achievements: Partial<Record<AchievementId, boolean>>;
   chapel: { lastDay: string | null; streak: number; skipNoticeShown?: string };
+  daily: DailyState;
   events: ActiveEvent[];
   nextEventCheck: number;
   settings: { muted: boolean; speedIdx: number; debug: boolean };
@@ -66,7 +77,7 @@ export interface GameState {
   playerName: string;
 }
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 export function newGame(): GameState {
   const s: GameState = {
@@ -87,6 +98,7 @@ export function newGame(): GameState {
     stats: {},
     achievements: {},
     chapel: { lastDay: null, streak: 0 },
+    daily: { day: null, done: false, attempts: 0, bestStars: 0 },
     events: [],
     nextEventCheck: 60,
     settings: { muted: false, speedIdx: 0, debug: false },
