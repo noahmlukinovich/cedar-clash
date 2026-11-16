@@ -54,7 +54,7 @@ export interface SyncResponse extends StateMsg {
 }
 
 export interface RaidStartRequest {
-  kind: 'campaign' | 'random' | 'elephant';
+  kind: 'campaign' | 'random' | 'elephant' | 'daily';
 }
 
 export interface RaidStartResponse {

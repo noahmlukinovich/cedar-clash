@@ -10,6 +10,17 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 14,
+    date: 'Nov 16, 2026',
+    title: 'Daily Challenge and smarter rivals',
+    items: [
+      'New Daily Challenge (Attack or Chapel menu): one fixed campus a day, a lent army, and one objective. Clear it for Chapel Credits. Your own troops are never used, and retries are free.',
+      'Computer rivals now come in six layouts, from a single brick ring to a vault with the DMC left outside as bait. The raid screen names the layout and how tough it is.',
+      'Rivals are matched to your trophies: climb the ladder and campuses get bigger, better built and richer; slide down and they ease off. The raid screen shows the trophies at stake.',
+      'Three new achievements, and offline saves are now checked on load and backed up, with Import in Settings.',
+    ],
+  },
+  {
     v: 13,
     date: 'Nov 16, 2026',
     title: 'Name plates',

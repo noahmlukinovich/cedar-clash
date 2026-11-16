@@ -10,7 +10,7 @@ An affectionate, joke-heavy parody of Cedarville University in the style of the 
 npm install
 npm run dev        # http://localhost:5173 (offline mode unless the game server is running)
 npm run dev:server # game server for online mode, on 127.0.0.1:8787 (Vite proxies /api to it)
-npm test           # raid replay determinism + server end-to-end tests
+npm test           # raid replay determinism, game rules, base generator, saves, server end-to-end
 npm run build      # type-check, build the game into dist/ and the server into server-dist/
 ```
 
@@ -28,7 +28,7 @@ Desktop browser with mouse and keyboard; designed for 1280×800 and up. Requires
 
 ## Online multiplayer
 
-When the page is served with the game server behind it, players log in (invite-only) and their campus lives on the server. **Find a Rival** matches you against real players near your trophy count, or against a computer-generated campus if nobody is available.
+When the page is served with the game server behind it, players log in (invite-only) and their campus lives on the server. **Find a Rival** matches you against real players near your trophy count, or against a computer-generated campus matched to your trophies if nobody is available.
 
 - **Raids are verified by the server.** The raid simulation is deterministic: a fixed 30 Hz timestep and a seeded RNG, with no `Math.random`, `cos` or `sin` in gameplay code. The browser sends only *what you deployed, where, and on which tick*. The server replays that against the same setup and decides the stars, loot and trophies. If the browser's raid and the server's replay ever disagree, the server's result counts and the results screen says so.
 - **The server runs the economy.** Every village action (build, upgrade, collect, train…) goes through `applyAction` (`src/game/actions.ts`). The browser applies it immediately, and the server applies the same code to its copy, which is the one that counts. Action batches carry sequence numbers, so a retried request never applies twice.
@@ -50,8 +50,9 @@ When the page is served with the game server behind it, players log in (invite-o
 1. **Collect** Tuition (Admissions Office) and Coffee (Coffee Cart) by clicking the bubbles over them, or use the green "collect all" button.
 2. **Build and upgrade** from the **Shop**. Each job ties up a Facilities Crew builder; build more sheds for more builders. Click the **Facilities Crew** counter for a list of every upgrade you can do right now (its badge shows how many). The **DMC** level caps everything else.
 3. **Train** troops in the **Army** menu. Residence halls set your army capacity, and you can train a second, reserve army ahead of time: its troops wait in the queue once trained and move into the halls as soon as a raid frees up room. Click a troop to recruit one, or hold to keep recruiting; click a tile in the queue to cancel one for a full refund.
-4. **Attack!** Start with the hand-built tutorial base, *Rival State U*, then use **Find a Rival** for procedurally generated campuses. You earn stars, loot, and trophies.
-5. Unlock the **Library** (research), **The Hive**, the **Brew Lab** (spells), and the heroes **The Bible Prof** and **The President** as the DMC levels up.
+4. **Attack!** Start with the hand-built tutorial base, *Rival State U*, then use **Find a Rival** for campuses matched to your trophies. You earn stars, loot, and trophies.
+5. Play the **Daily Challenge** (Attack or Chapel menu) for Chapel Credits: a fixed campus, a lent army, and one objective per day.
+6. Unlock the **Library** (research), **The Hive**, the **Brew Lab** (spells), and the heroes **The Bible Prof** and **The President** as the DMC levels up.
 
 ### Controls
 
@@ -70,13 +71,16 @@ The **⚙ Settings** panel has debug tools: speed toggle, free resources, finish
 
 - **Isometric canvas renderer** with procedurally drawn buildings, troops, trees, and particles, with a distinct look for every building level (wood → brick → stone trim → cupola and gold → banners and finials) and gear that grows with each troop's research level: thick outlines, squash-and-stretch, confetti, screen shake, and Web Audio synthesized sound effects. There are no image or audio files.
 - **Economy**: three resources (Tuition / Coffee / Chapel Credits), collectors, storage caps, builder-limited upgrade timers, DMC gating, and instant-finish with Chapel Credits.
+- **Matchmaking**: your trophies imply the DMC level the ladder expects (one level per 350 trophies). Trophies ahead of your campus bring bigger, better-built computer rivals that pay more trophies and loot; trophies behind bring softer ones. The raid screen shows the rival's layout, a difficulty label and the trophies at stake (`src/raid/matchmaking.ts`).
+- **Rival layouts**: six generated campus shapes (`src/raid/basegen.ts`): Gated Community (one ring), Departmental Silos (walled cells), Commuter Sprawl (defenses fenced individually), Lakefront Property (lakes guard one flank), Back-Corner Campus (DMC tucked in a corner) and Endowment Vault (DMC outside as bait, loot inside).
+- **Daily Challenge**: one seeded raid per UTC day, identical for every player at the same DMC level. The army is lent, there is no loot or trophy change, and retries are free. Meeting the day's objective (2 stars, 70% destruction, the DMC inside 75 seconds, every defense down, a quarter of the army standing, or 60% of the loot) pays Chapel Credits once a day (`src/game/daily.ts`). Online, the server builds the setup and judges the replay like any other raid.
 - **Raids**: A* pathfinding on the grid, where walls are breakable high-cost tiles. Targeting AI per troop type, projectiles, building loot, 0–3 stars (50% / DMC destroyed / 100%), a 3-minute timer, and trophies with a league ladder.
 - **Defenses**: RA Tower (rapid write-ups), Campus Safety Cart (parking tickets), Cedar Sprayer (40% slow, charged 2s freeze), Bible Prof Tower (prayer splash that targets the densest clump and blesses walls at Lv3+), Yellow Jacket Nest (hidden swarm trap), The Hive (student-section fans), brick walls, and Cedar Lake (blocks pathing).
 - **Troops**: Freshman (gets lost), Engineering Major (10x wall damage), Nursing Student (healer), Theology Major (buff aura), Athlete (targets defenses). Business Major (targets storages, bonus loot), Music Major (ranged, every fourth hit doubles), Cross Country Runner (goes over walls and the lake, momentum), RA (tank that draws tower fire and sets off traps early), GO Team (a Global Outreach van that unloads five short-lived team members). **Heroes**: The Bible Prof (a crossbow that fires the Hebrew alphabet, every fifth letter for double damage; *Pop Quiz* stun) and The President (*Convocation* rally).
 - **Spells**: All-Nighter (rage), Snow Day (freeze defenses), Chapel Announcement (ignore traps).
 - **Events**: Ring by Spring (pair-up buff, ring on the HUD, always on in real-world spring), Ohio wind (mid-raid push), Finals Week, campus construction fencing, Elephant Run (a limited-time freshmen conga-line raid mode), Campus Safety ticketing idle troops, "waiting in line at Chuck's…" training delays, and daily Chapel attendance (with a stern popup if you skip).
-- **Achievements** such as *Dean's List*, *Academic Probation*, and *Walked Across the Lake Bridge*.
-- **Saves**: `localStorage` with a versioned schema and step-by-step migrations (`src/game/save.ts`), offline progress, autosave, and export/reset.
+- **Achievements** such as *Dean's List*, *Academic Probation*, and *Walked Across the Lake Bridge*. Each unlock rule is one row in `src/game/achievements.ts`; game code only records what happened with `bump(state, 'stat')`.
+- **Saves**: `localStorage` with a versioned schema and step-by-step migrations (`src/game/save.ts`), offline progress, autosave, and export/import/reset. Every field is validated on load (on the server too). Each session keeps a backup of the save it loaded; an unreadable save is set aside rather than overwritten, and the backup is restored.
 - **Updates**: each build gets an id, which is baked into the bundle and published as `version.json`. Open tabs check it every 3 minutes and on refocus, and show a "new version — reload" bar. A tab running an older build than the one that last saved stops autosaving and asks the player to reload, so it can never overwrite newer progress.
 
 ## Project layout
@@ -88,16 +92,22 @@ src/
   game/       # state, save/migration, economy, army/research/heroes, events & chapel
   render/     # procedural drawing primitives, building + unit sprites, world/ground
   village/    # village scene: placement, moving, selection, collection; read-only scene for visiting another campus
-  raid/       # base generator, A* pathfinding, raid simulation, deterministic raid engine,
-              # raid outcome rules, raid scene + HUD
+  raid/       # base generator, matchmaking, A* pathfinding, deterministic raid engine,
+              # raid outcome rules, and the raid scene (raidScene: input/update, raidHud,
+              # raidDraw, raidEffects, raidResults)
+    sim/      # raid simulation: sim (core loop), units, defenses, spatial grid, types
   net/        # online client: login screen, API calls, state sync, shared protocol types
-  ui/         # DOM HUD, modals, icons, thumbnails
+  ui/         # village HUD + modal shell (ui.ts), DOM helpers (dom.ts), icons, thumbnails
+    modals/   # one module per menu: shop, army, upgrades, attack, chapel, progress, settings, layouts, what's new
 server/       # game server (Node + built-in SQLite): accounts, sync, matchmaking, raid replay
 deploy/       # droplet setup: cloud-init, setup.sh, systemd unit, Caddyfile, push/invite scripts
-test/         # vitest: replay determinism, server end-to-end
+test/         # vitest: replay determinism, sim rules, base generator, matchmaking, daily challenge,
+              # achievements, saves, server end-to-end
 ```
 
-Code shared by the browser and the server (`config/`, `core/rng`, `core/bus`, `game/`, `raid/engine`, `raid/sim`, `raid/outcome`) must not touch the DOM.
+Code shared by the browser and the server (`config/`, `core/rng`, `core/bus`, `game/`, `raid/basegen`, `raid/matchmaking`, `raid/engine`, `raid/sim`, `raid/outcome`) must not touch the DOM.
+
+The raid simulation looks up "which units are near here" through a per-tile grid (`raid/sim/spatial.ts`) instead of comparing every unit with every other one. Queries return units in spawn order, so raids play out exactly as a full scan would, and troops that share a start tile and target share one path search.
 
 ### Balancing
 

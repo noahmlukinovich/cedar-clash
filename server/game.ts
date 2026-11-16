@@ -13,7 +13,8 @@ import { type GameState, newGame } from '../src/game/state';
 import { type DefenseEntry, NAME_RE, NAME_RULES, type Note, type RenameResponse, type StateMsg, type VisitResponse, validCampusName } from '../src/net/protocol';
 import type { BaseLayout, BasePiece } from '../src/raid/basegen';
 import { MAX_INPUTS, type RaidInput, type RaidResult, type RaidSetup, SCOUT_TIME, replayRaid } from '../src/raid/engine';
-import { type RaidOutcome, applyRaidOutcome, localSetup, trophyDelta } from '../src/raid/outcome';
+import { type RaidOutcome, applyRaidOutcome, dailySetup, localSetup, trophyDelta } from '../src/raid/outcome';
+import { dayKey } from '../src/game/daily';
 import { HEROES, TROOPS } from '../src/config/troops';
 import { SPELLS } from '../src/config/spells';
 import { RAID_TIME } from '../src/config/balance';
@@ -219,7 +220,7 @@ export function baseFromState(s: GameState, name: string, attackerTrophies: numb
 }
 
 export function startRaid(db: DB, userId: number, now: number, kind: unknown): { raidId: string; setup: RaidSetup } {
-  if (kind !== 'campaign' && kind !== 'random' && kind !== 'elephant') throw new GameError('Bad request');
+  if (kind !== 'campaign' && kind !== 'random' && kind !== 'elephant' && kind !== 'daily') throw new GameError('Bad request');
   takeNotes();
   return db.tx(() => {
     // Only one raid at a time: settle any raid this player left unfinished.
@@ -231,6 +232,9 @@ export function startRaid(db: DB, userId: number, now: number, kind: unknown): {
     if (kind === 'campaign') {
       if (s.campaignDone) throw new GameError('You already beat Rival State U');
       setup = localSetup(s, 'campaign', cryptoRand);
+    } else if (kind === 'daily') {
+      // Today's (UTC) challenge for the player's DMC level. Retries are free and unlimited.
+      setup = dailySetup(s, dayKey(now));
     } else if (kind === 'elephant') {
       if (!hasEvent(s, 'elephantrun')) throw new GameError('The Elephant Run is over');
       setup = localSetup(s, 'elephant', cryptoRand);

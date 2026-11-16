@@ -3,9 +3,12 @@
 import { THREE_STAR_CHAPEL } from '../config/balance';
 import type { HeroType, SpellType, TroopType } from '../config/types';
 import { fillArmy, heroAvailable } from '../game/army';
-import { addRes, bump, dmcLevel, hasEvent, unlock } from '../game/economy';
+import { bump, checkAchievements } from '../game/achievements';
+import { addRes, dmcLevel, hasEvent } from '../game/economy';
 import type { GameState } from '../game/state';
-import { generateBase, rivalStateU } from './basegen';
+import { type DailyChallenge, type ObjectiveId, dailyBase, dailyFor, dayKey, recordDaily } from '../game/daily';
+import { type Archetype, generateBase, rivalStateU } from './basegen';
+import { baseForMatchup, findRival } from './matchmaking';
 import type { RaidKind, RaidResult, RaidSetup } from './engine';
 
 export interface RaidOutcome {
@@ -19,13 +22,22 @@ export interface RaidOutcome {
   trophyDelta: number;
   chapel: number;
   cancelled: boolean;
+  /** Daily Challenge raids only. */
+  daily?: { objectiveId: ObjectiveId; passed: boolean; reward: number };
 }
 
 /** Builds the setup for a raid against a computer-generated campus. */
-export function localSetup(s: GameState, kind: Exclude<RaidKind, 'player'>, rand: () => number = Math.random): RaidSetup {
+export function localSetup(s: GameState, kind: 'campaign' | 'random' | 'elephant', rand: () => number = Math.random): RaidSetup {
   const dl = dmcLevel(s);
-  const base = kind === 'campaign' ? rivalStateU() : generateBase(Math.max(1, Math.min(6, dl + (rand() < 0.25 ? 1 : 0) - (rand() < 0.2 ? 1 : 0))), (rand() * 1e9) | 0);
-  if (kind === 'elephant') {
+  let base;
+  if (kind === 'campaign') base = rivalStateU();
+  else if (kind === 'random') {
+    // Matched to trophies: see src/raid/matchmaking.ts.
+    const m = findRival(s.trophies, dl, rand, s.lastRival as Archetype | undefined);
+    s.lastRival = m.archetype;
+    base = baseForMatchup(m);
+  } else {
+    base = generateBase({ dmc: dl, seed: 1 + Math.floor(rand() * 0x7ffffffe), strength: 0.4 });
     base.name = `Elephant Run vs ${base.name}`;
     base.loot.tuition = Math.round(base.loot.tuition * 1.5);
     base.loot.coffee = Math.round(base.loot.coffee * 1.5);
@@ -44,6 +56,33 @@ export function localSetup(s: GameState, kind: Exclude<RaidKind, 'player'>, rand
   };
 }
 
+/** The challenge a daily setup was built for. */
+export function challengeOf(setup: RaidSetup): DailyChallenge | null {
+  return setup.daily ? dailyFor(setup.daily.day, setup.daily.dmc) : null;
+}
+
+/**
+ * Builds today's Daily Challenge raid. The campus, the dice and the lent army are fixed by the
+ * day and the player's DMC level, so every attempt (and every player at that level) gets the same raid.
+ */
+export function dailySetup(s: GameState, day = dayKey()): RaidSetup {
+  const c = dailyFor(day, dmcLevel(s));
+  const troopLevels = Object.fromEntries(Object.keys(s.troopLevels).map((t) => [t, c.troopLevel])) as Record<TroopType, number>;
+  return {
+    kind: 'daily',
+    base: dailyBase(c),
+    seed: c.seed,
+    wind: false,
+    ringBySpring: false,
+    troopLevels,
+    heroLevels: { prof: s.heroes.prof.level, president: s.heroes.president.level },
+    heroes: {},
+    army: { ...c.army },
+    spells: { ...c.spells },
+    daily: { day: c.day, dmc: c.dmc },
+  };
+}
+
 export function trophyDelta(setup: RaidSetup, stars: number): number {
   const win = stars > 0;
   let d = win ? Math.round((setup.base.trophiesWin * (1 + stars)) / 4) : -setup.base.trophiesLose;
@@ -52,15 +91,21 @@ export function trophyDelta(setup: RaidSetup, stars: number): number {
 }
 
 export function applyRaidOutcome(s: GameState, setup: RaidSetup, r: RaidResult): RaidOutcome {
+  const none: RaidOutcome = { win: false, stars: 0, destruction: 0, tuition: 0, coffee: 0, gotT: 0, gotC: 0, trophyDelta: 0, chapel: 0, cancelled: true };
   // Ending a raid before deploying anything is free.
-  if (!r.deployedAny) {
-    return { win: false, stars: 0, destruction: 0, tuition: 0, coffee: 0, gotT: 0, gotC: 0, trophyDelta: 0, chapel: 0, cancelled: true };
+  if (!r.deployedAny) return none;
+  const challenge = challengeOf(setup);
+  if (setup.kind === 'daily' && challenge) {
+    // A practice raid with a lent army: only the objective counts. No loot, trophies or troops spent.
+    const d = recordDaily(s, challenge, r.metrics);
+    s.lastRaidClock = s.clock;
+    return { ...none, cancelled: false, win: d.passed, stars: r.stars, destruction: r.destruction, chapel: d.reward, daily: { objectiveId: challenge.objectiveId, ...d } };
   }
   for (const [t, n] of Object.entries(r.usedTroops) as [TroopType, number][]) s.army[t] = Math.max(0, (s.army[t] ?? 0) - n);
   for (const [t, n] of Object.entries(r.usedSpells) as [SpellType, number][]) s.spells[t] = Math.max(0, (s.spells[t] ?? 0) - n);
   for (const [h, hp] of Object.entries(r.heroHp) as [HeroType, number][]) s.heroes[h].hpFrac = hp;
-  if ((r.usedSpells.allnighter ?? 0) > 0) unlock(s, 'allnighter');
-  if (r.abilities.includes('prof')) unlock(s, 'popquiz');
+  for (const [sp, n] of Object.entries(r.usedSpells) as [SpellType, number][]) bump(s, `cast_${sp}`, n);
+  if (r.abilities.includes('prof')) bump(s, 'popQuizzes');
 
   const stars = r.stars;
   const win = stars > 0;
@@ -75,7 +120,7 @@ export function applyRaidOutcome(s: GameState, setup: RaidSetup, r: RaidResult):
   if (stars === 3) {
     chapel = THREE_STAR_CHAPEL;
     addRes(s, 'chapel', chapel);
-    unlock(s, 'deanslist');
+    bump(s, 'threeStars');
   }
   s.lastRaidClock = s.clock;
   bump(s, 'raids');
@@ -83,16 +128,14 @@ export function applyRaidOutcome(s: GameState, setup: RaidSetup, r: RaidResult):
   bump(s, 'wallsByEngineers', r.wallsByEngineers);
   if (win) bump(s, 'wins');
   else bump(s, 'losses');
-  if ((s.stats.losses ?? 0) >= 3) unlock(s, 'probation');
-  if ((s.stats.destroyed ?? 0) >= 100) unlock(s, 'destroyer');
-  if ((s.stats.wallsByEngineers ?? 0) >= 25) unlock(s, 'wallbreaker');
-  if (win && setup.ringBySpring) unlock(s, 'ringbyspring');
-  if (win && r.windSurvived) unlock(s, 'windblown');
+  if (win && setup.ringBySpring) bump(s, 'ringWins');
+  if (win && r.windSurvived) bump(s, 'windWins');
   if (setup.kind === 'elephant') {
-    unlock(s, 'elephant');
+    bump(s, 'elephantRuns');
     s.events = s.events.filter((e) => e.type !== 'elephantrun');
   }
   if (setup.kind === 'campaign' && win) s.campaignDone = true;
+  checkAchievements(s); // trophy milestones
   fillArmy(s); // the reserve army moves into the space the raid just freed
   return { win, stars, destruction: r.destruction, tuition, coffee, gotT, gotC, trophyDelta: td, chapel, cancelled: false };
 }

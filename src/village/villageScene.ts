@@ -3,6 +3,7 @@ import { GRID } from '../config/balance';
 import type { BuildingType } from '../config/types';
 import { sfx } from '../core/audio';
 import { bus, toast } from '../core/bus';
+import { fmtTime } from '../ui/dom';
 import { Camera } from '../core/camera';
 import { toGrid, toWorld } from '../core/iso';
 import { Particles, drawIcon } from '../core/particles';
@@ -603,12 +604,3 @@ export class VillageScene implements Scene {
   }
 }
 
-export function fmtTime(sec: number): string {
-  sec = Math.ceil(sec);
-  if (sec < 60) return `${sec}s`;
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  if (m < 60) return s ? `${m}m ${s}s` : `${m}m`;
-  const h = Math.floor(m / 60);
-  return `${h}h ${m % 60}m`;
-}
