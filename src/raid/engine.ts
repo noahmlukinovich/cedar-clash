@@ -25,7 +25,7 @@ export interface RaidSetup {
   army: Partial<Record<TroopType, number>>;
   spells: Partial<Record<SpellType, number>>;
   /** Online raids against a real player. */
-  defender?: { name: string; trophies: number };
+  defender?: { name: string; trophies: number; revenge?: boolean };
 }
 
 export type RaidInput =

@@ -10,6 +10,16 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 15,
+    date: 'Nov 16, 2026',
+    title: 'Revenge',
+    items: [
+      'Someone raided you? Hit ⚔️ Revenge on the "you were raided" popup or in the Raid Log to attack their campus right back.',
+      'Revenge is free (no scouting cost) and works once per raid on you. Calling it off before deploying anything doesn\'t use it up.',
+      "You can't take revenge through a shield, or while someone else is already raiding them.",
+    ],
+  },
+  {
     v: 14,
     date: 'Nov 16, 2026',
     title: 'Raid replays',

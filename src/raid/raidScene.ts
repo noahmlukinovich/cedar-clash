@@ -158,7 +158,7 @@ export class RaidScene implements Scene {
     const h = this.hud;
     h.innerHTML = '';
     const top = el('div', 'raid-top stroke');
-    const who = this.replay ? `🎬 Replay of ${esc(this.replay.attacker)}'s raid` : this.setup.defender ? `🏆 ${this.setup.defender.trophies} · a real campus!` : esc(this.base.tagline);
+    const who = this.replay ? `🎬 Replay of ${esc(this.replay.attacker)}'s raid` : this.setup.defender ? `🏆 ${this.setup.defender.trophies} · ${this.setup.defender.revenge ? '⚔️ Revenge!' : 'a real campus!'}` : esc(this.base.tagline);
     top.innerHTML = `<div class="enemy">${esc(this.base.name)}</div><div class="tag">DMC ${this.base.dmc} · ${who}</div><div class="loot"><span>Available:</span><span class="lt">${icon('tuition', 22)} <b></b></span><span class="lc">${icon('coffee', 22)} <b></b></span></div><div class="loot"><span>Looted:</span><span class="gt">${icon('tuition', 22)} <b>0</b></span><span class="gc">${icon('coffee', 22)} <b>0</b></span></div>`;
     h.appendChild(top);
     const timer = el('div', 'raid-timer stroke', `<div class="lbl">Scouting…</div><div class="t">3:00</div>`);

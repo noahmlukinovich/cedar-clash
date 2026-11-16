@@ -12,9 +12,9 @@ import { EditorScene } from './village/editorScene';
 import { type GameState, newGame } from './game/state';
 import { type StartChoice, chooseStart } from './net/login';
 import { OnlineSession, adoptState } from './net/online';
-import type { DefenseEntry, Note, StateMsg } from './net/protocol';
+import type { DefenseEntry, Note, RaidStartRequest, StateMsg } from './net/protocol';
 import type { ReplayData } from './raid/raidScene';
-import type { RaidKind, RaidSetup } from './raid/engine';
+import type { RaidSetup } from './raid/engine';
 import { applyRaidOutcome, localSetup, type RaidOutcome } from './raid/outcome';
 import { RaidScene } from './raid/raidScene';
 import { UI, esc, fmt } from './ui/ui';
@@ -190,12 +190,15 @@ export class Game {
       const rows = ds
         .map(
           (d) =>
-            `<button class="btn small blue" data-visit="${esc(d.attacker)}">Visit</button> ${d.raidId ? `<button class="btn small gold" data-replay="${esc(d.raidId)}">🎬 Watch</button> ` : ''}<b>${esc(d.attacker)}</b> raided you: ${'★'.repeat(d.stars)}${'☆'.repeat(3 - d.stars)} ${Math.floor(d.destruction * 100)}%, took ${fmt(d.tuition)} Tuition and ${fmt(d.coffee)} Coffee (${d.trophies >= 0 ? '+' : ''}${d.trophies} trophies).`,
+            `<button class="btn small blue" data-visit="${esc(d.attacker)}">Visit</button> ${d.raidId ? `<button class="btn small gold" data-replay="${esc(d.raidId)}">🎬 Watch</button> ` : ''}${d.revenge ? `<button class="btn small red" data-revenge="${esc(d.raidId)}">⚔️ Revenge</button> ` : ''}<b>${esc(d.attacker)}</b> raided you: ${'★'.repeat(d.stars)}${'☆'.repeat(3 - d.stars)} ${Math.floor(d.destruction * 100)}%, took ${fmt(d.tuition)} Tuition and ${fmt(d.coffee)} Coffee (${d.trophies >= 0 ? '+' : ''}${d.trophies} trophies).`,
         )
         .join('<br>');
       this.ui.popup(ds.length === 1 ? 'Your campus was raided!' : `Your campus was raided ${ds.length} times!`, rows, 'Back to work');
       this.ui.modalBack?.querySelectorAll<HTMLElement>('[data-visit]').forEach((b) => {
         b.onclick = () => void this.startVisit(b.dataset.visit ?? '');
+      });
+      this.ui.modalBack?.querySelectorAll<HTMLElement>('[data-revenge]').forEach((b) => {
+        b.onclick = () => void this.startRaid({ kind: 'revenge', raidId: b.dataset.revenge ?? '' });
       });
       this.ui.modalBack?.querySelectorAll<HTMLElement>('[data-replay]').forEach((b) => {
         b.onclick = () => void this.watchReplay(b.dataset.replay ?? '');
@@ -259,16 +262,16 @@ export class Game {
     window.addEventListener('pointerdown', () => unlockAudio(), { once: true });
   }
 
-  async startRaid(opts: { kind: Exclude<RaidKind, 'player'> }): Promise<void> {
-    if (this.raid) return;
+  async startRaid(opts: { kind: RaidStartRequest['kind']; raidId?: string }): Promise<void> {
+    if (this.raid || this.visiting) return;
     let setup: RaidSetup;
     let settle: (engine: import('./raid/engine').RaidEngine) => Promise<RaidOutcome>;
     const online = this.online;
     if (online) {
       let r;
       try {
-        this.ui.toast(opts.kind === 'random' ? 'Looking for a rival campus…' : 'Heading out…');
-        r = await online.startRaid(opts.kind);
+        this.ui.toast(opts.kind === 'random' ? 'Looking for a rival campus…' : opts.kind === 'revenge' ? 'Revenge is a dish best served… now.' : 'Heading out…');
+        r = await online.startRaid(opts.kind, opts.raidId);
       } catch (e) {
         this.ui.toast((e as Error).message, 'bad');
         sfx('error');
@@ -288,10 +291,13 @@ export class Game {
         return res.outcome;
       };
     } else {
+      if (opts.kind === 'revenge') return; // nobody raids you offline
       if (opts.kind === 'random' && !spend(this.state, 'tuition', SCOUT_COST_PER_DMC * dmcLevel(this.state))) return;
       setup = localSetup(this.state, opts.kind);
       settle = async (engine) => applyRaidOutcome(this.state, setup, engine.result());
     }
+    if (this.scene !== this.village) return; // something else started while we waited
+    this.ui.closeModal();
     this.scene.exit();
     this.ui.showVillage(false);
     this.raid = new RaidScene(this, setup, settle);

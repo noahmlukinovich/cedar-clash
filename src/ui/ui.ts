@@ -1616,6 +1616,15 @@ export class UI {
         void this.game.watchReplay(r.id);
       };
       row.lastElementChild!.appendChild(go);
+      if (r.revenge) {
+        const rv = el('button', 'btn small red', '⚔️ Revenge');
+        rv.title = `Raid ${r.opponent} back (free, once)`;
+        rv.onclick = () => {
+          sfx('click');
+          void this.game.startRaid({ kind: 'revenge', raidId: r.id });
+        };
+        row.lastElementChild!.appendChild(rv);
+      }
       list.appendChild(row);
     }
     if (!rows.length) list.appendChild(el('div', 'flavor', 'No raids yet. Go pick a fight, or wait for someone to pick one with you.'));

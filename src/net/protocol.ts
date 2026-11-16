@@ -19,8 +19,10 @@ export type Note =
 
 export interface DefenseEntry {
   id: number;
-  /** The raid's id, for watching its replay. */
+  /** The raid's id, for watching its replay or taking revenge. */
   raidId: string;
+  /** True while you can still raid this attacker back. */
+  revenge: boolean;
   attacker: string;
   stars: number;
   destruction: number;
@@ -56,7 +58,9 @@ export interface SyncResponse extends StateMsg {
 }
 
 export interface RaidStartRequest {
-  kind: 'campaign' | 'random' | 'elephant';
+  kind: 'campaign' | 'random' | 'elephant' | 'revenge';
+  /** For 'revenge': the raid on you to answer. */
+  raidId?: string;
 }
 
 export interface RaidStartResponse {
@@ -113,6 +117,8 @@ export interface ReplayRow {
   /** Your trophy change. */
   trophies: number;
   at: number;
+  /** Defenses only: true while you can still raid this attacker back. */
+  revenge?: boolean;
 }
 
 /** Everything needed to play a finished raid back (GET /api/replay?id=...). */

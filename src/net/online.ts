@@ -160,9 +160,9 @@ export class OnlineSession {
     }
   }
 
-  async startRaid(kind: RaidStartRequest['kind']): Promise<RaidStartResponse> {
+  async startRaid(kind: RaidStartRequest['kind'], raidId?: string): Promise<RaidStartResponse> {
     await this.flush();
-    return api<RaidStartResponse>('/api/raid/start', { kind } satisfies RaidStartRequest);
+    return api<RaidStartResponse>('/api/raid/start', { kind, ...(raidId ? { raidId } : {}) } satisfies RaidStartRequest);
   }
 
   private lastPushed = 0;
