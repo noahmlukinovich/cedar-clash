@@ -35,6 +35,8 @@ export interface RB {
   prayT: number;
   prayTarget: { x: number; y: number } | null;
   beamT: number; // stinger: seconds locked on the current target
+  multi: boolean; // stinger in multi mode
+  targets: RU[]; // stinger multi mode: every raider being beamed (target is targets[0])
   frozenUntil: number;
   stunUntil: number;
   hidden: boolean;
@@ -245,6 +247,8 @@ export class RaidSim {
         prayT: 0,
         prayTarget: null,
         beamT: 0,
+        multi: p.type === 'stinger' && p.mode === 'multi',
+        targets: [],
         frozenUntil: 0,
         stunUntil: 0,
         hidden: p.type === 'nest',
@@ -522,6 +526,7 @@ export class RaidSim {
         b.prayT = 0;
         if (b.type === 'stinger') {
           b.target = null;
+          b.targets = [];
           b.beamT = 0;
           b.charge = 0;
         }
@@ -712,6 +717,7 @@ export class RaidSim {
 
   /** Stinger Statue: continuous beam on the nearest raider; damage ramps while the lock holds. */
   private updateStinger(b: RB, dt: number): void {
+    if (b.multi) return this.updateStingerMulti(b, dt);
     const d = b.def!;
     const t = b.target;
     if (!t || t.dead || distToRect(t.x, t.y, b.x, b.y, b.size, b.size) > d.range) {
@@ -731,6 +737,35 @@ export class RaidSim {
     b.aim = Math.atan2(b.target.y - b.cy, b.target.x - b.cx);
     b.firing = 1;
     this.damageUnit(b.target, (d.ramp?.[stage] ?? d.dps) * dt, 'beam', true);
+  }
+
+  /** Stinger Statue, multi mode: flat beams on up to `multiTargets` raiders, nearest first. No ramp. */
+  private updateStingerMulti(b: RB, dt: number): void {
+    const d = b.def!;
+    const max = d.multiTargets ?? 3;
+    const inRange = (u: RU): boolean => !u.dead && distToRect(u.x, u.y, b.x, b.y, b.size, b.size) <= d.range;
+    // keep locks that still hold, then fill free beams with the nearest unlocked raiders
+    b.targets = b.targets.filter(inRange);
+    if (b.targets.length < max) {
+      const cand: { u: RU; d: number }[] = [];
+      for (const u of this.units) {
+        if (u.side !== 'atk' || !inRange(u) || b.targets.includes(u)) continue;
+        cand.push({ u, d: distToRect(u.x, u.y, b.x, b.y, b.size, b.size) });
+      }
+      cand.sort((p, q) => p.d - q.d || p.u.uid - q.u.uid);
+      for (const c of cand.slice(0, max - b.targets.length)) b.targets.push(c.u);
+    }
+    b.target = b.targets[0] ?? null;
+    b.beamT = 0;
+    if (!b.target) {
+      b.charge = 0;
+      return;
+    }
+    b.charge = 0.5;
+    b.aim = Math.atan2(b.target.y - b.cy, b.target.x - b.cx);
+    b.firing = 1;
+    const dmg = (d.multiDps ?? d.dps) * dt;
+    for (const u of b.targets) this.damageUnit(u, dmg, 'beam', true);
   }
 
   private updateTrap(b: RB): void {

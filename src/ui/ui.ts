@@ -378,7 +378,7 @@ export class UI {
       return;
     }
     const s = this.state;
-    const sig = `${b.id}:${b.level}:${!!b.upgrade}:${b.upgrade ? finishNowCost(s, b) : 0}:${Math.floor(s.resources.tuition / 50)}:${Math.floor(s.resources.coffee / 50)}:${s.resources.chapel}:${builders(s).busy}:${Math.floor(b.stored ?? 0) > 0}`;
+    const sig = `${b.id}:${b.level}:${!!b.upgrade}:${b.upgrade ? finishNowCost(s, b) : 0}:${Math.floor(s.resources.tuition / 50)}:${Math.floor(s.resources.coffee / 50)}:${s.resources.chapel}:${builders(s).busy}:${Math.floor(b.stored ?? 0) > 0}:${b.mode ?? ''}`;
     if (!force && sig === this.lastSelSig) return;
     const animate = this.lastSelId !== b.id;
     this.lastSelId = b.id;
@@ -443,6 +443,20 @@ export class UI {
     if (b.type === 'library' && b.level >= 1) btn('Research', `<span style="font-size:28px">📚</span>`, 'blue', () => this.openLibrary());
     if (b.type === 'faculty' && b.level >= 1) btn('Prof', `<span style="font-size:28px">🎓</span>`, 'gold', () => this.openHero('prof'));
     if (b.type === 'presidents' && b.level >= 1) btn('President', `<span style="font-size:28px">🏛️</span>`, 'gold', () => this.openHero('president'));
+    if (b.type === 'stinger') {
+      const multi = b.mode === 'multi';
+      btn(multi ? 'Multi' : 'Single', `<span style="font-size:28px">${multi ? '🔱' : '🎯'}</span>`, multi ? 'purple' : 'blue', () => {
+        const next = multi ? 'single' : 'multi';
+        const e2 = this.game.act({ k: 'beamMode', id: b.id, mode: next }).err;
+        if (e2) {
+          this.toast(e2, 'bad');
+          sfx('error');
+          return;
+        }
+        this.toast(next === 'multi' ? 'Multi mode: beams several raiders at once, no ramp-up.' : 'Single mode: one beam that ramps up the longer it holds.');
+        this.renderSelection(true);
+      });
+    }
     if (b.type === 'dmc') btn('Chapel', icon('chapel', 34), 'purple', () => this.openChapel());
     if (def.removable) btn('Remove', `<span style="font-size:28px">🗑️</span>`, 'red', () => vs.removeSelected());
     p.appendChild(row);
@@ -577,8 +591,14 @@ export class UI {
     if (cur.defense) {
       const d = cur.defense;
       const nd = nxt?.defense;
-      if (d.ramp) add('Beam dmg/sec (ramps)', d.ramp.join(' / '), nd?.ramp?.join(' / '));
-      else add('Damage/sec', d.dps, nd?.dps);
+      if (d.ramp && b.mode === 'multi') {
+        add('Mode', 'Multi (switch it from the building menu)');
+        add('Beams', d.multiTargets, nd?.multiTargets);
+        add('Beam dmg/sec (each)', d.multiDps, nd?.multiDps);
+      } else if (d.ramp) {
+        if (b.type === 'stinger') add('Mode', 'Single (switch it from the building menu)');
+        add('Beam dmg/sec (ramps)', d.ramp.join(' / '), nd?.ramp?.join(' / '));
+      } else add('Damage/sec', d.dps, nd?.dps);
       add('Range', `${d.range} tiles`, nd ? `${nd.range} tiles` : undefined);
       if (d.splash) add('Splash radius', d.splash, nd?.splash);
       if (d.slow) add('Slow', `${Math.round(d.slow * 100)}%`);

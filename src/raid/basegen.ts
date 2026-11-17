@@ -1,7 +1,7 @@
 import { BUILDINGS, maxCount, maxLevelForDmc } from '../config/buildings';
 import { GRID, LOOT_FRACTION } from '../config/balance';
 import { RIVAL_NAMES, RIVAL_TAGLINES } from '../config/humor';
-import type { BuildingType } from '../config/types';
+import type { BeamMode, BuildingType } from '../config/types';
 import { Rng } from '../core/rng';
 
 export interface BasePiece {
@@ -9,6 +9,8 @@ export interface BasePiece {
   level: number;
   x: number;
   y: number;
+  /** Stinger Statue targeting; absent means single. */
+  mode?: BeamMode;
 }
 
 export interface BaseLayout {
@@ -163,6 +165,9 @@ export function generateBase(dmc: number, seed: number): BaseLayout {
   // Decorative lakes on the outskirts
   const lakes = rng.int(0, 2);
   for (let i = 0; i < lakes; i++) place('lake', cx, cy, R0 + 4, 16, 60);
+
+  // rival stinger statues come in both flavours
+  for (const pc of pieces) if (pc.type === 'stinger' && rng.next() < 0.4) pc.mode = 'multi';
 
   const mult = rng.range(0.7, 1.35);
   const loot = {

@@ -5,7 +5,7 @@
 import { BUILDINGS } from '../config/buildings';
 import { HEROES, TROOPS } from '../config/troops';
 import { SPELLS } from '../config/spells';
-import type { BuildingType, HeroType, SpellType, TroopType } from '../config/types';
+import type { BeamMode, BuildingType, HeroType, SpellType, TroopType } from '../config/types';
 import { brew, cancelTrain, heroUpgrade, startResearch, train } from './army';
 import { buildNew, canPlace, collect, dmcLevel, finishNow, startUpgrade } from './economy';
 import { attendChapel } from './events';
@@ -31,6 +31,8 @@ export type Action =
   | { k: 'research'; type: TroopType }
   | { k: 'heroUpgrade'; type: HeroType }
   | { k: 'chapel' }
+  /** Stinger Statue: switch between one ramping beam and several flat ones. Free, any time. */
+  | { k: 'beamMode'; id: number; mode: BeamMode }
   /** Store a full arrangement in a slot; saving the active slot also moves the campus. */
   | { k: 'layoutSave'; slot: number; pos: Layout['pos'] }
   | { k: 'layoutUse'; slot: number }
@@ -129,6 +131,13 @@ function run(s: GameState, a: Action): ActionResult {
     case 'chapel': {
       const got = attendChapel(s);
       return got > 0 ? { got } : { err: "You've already attended today" };
+    }
+    case 'beamMode': {
+      const b = find(s, a.id);
+      if (!b || b.type !== 'stinger' || (a.mode !== 'single' && a.mode !== 'multi')) return { err: 'Bad action' };
+      if (a.mode === 'multi') b.mode = 'multi';
+      else delete b.mode;
+      return {};
     }
     case 'layoutSave': {
       if (!slot(a.slot) || !a.pos || typeof a.pos !== 'object') return { err: 'Bad action' };

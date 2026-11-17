@@ -203,7 +203,7 @@ export function visit(db: DB, now: number, name: unknown): VisitResponse {
 
 /** A real player's campus as a raid target. */
 export function baseFromState(s: GameState, name: string, attackerTrophies: number): BaseLayout {
-  const pieces: BasePiece[] = s.buildings.filter((b) => b.level >= 1).map((b) => ({ type: b.type, level: b.level, x: b.x, y: b.y }));
+  const pieces: BasePiece[] = s.buildings.filter((b) => b.level >= 1).map((b) => ({ type: b.type, level: b.level, x: b.x, y: b.y, ...(b.mode === 'multi' ? { mode: b.mode } : {}) }));
   const stored = (t: string): number => s.buildings.filter((b) => b.type === t).reduce((a, b) => a + (b.stored ?? 0), 0);
   const diff = s.trophies - attackerTrophies;
   return {

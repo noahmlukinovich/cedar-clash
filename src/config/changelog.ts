@@ -10,6 +10,17 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 16,
+    date: 'Nov 17, 2026',
+    title: 'Stinger Statue: Multi mode',
+    items: [
+      'Select a Stinger Statue and tap 🎯 Single / 🔱 Multi to switch its targeting. Switching is free and instant.',
+      'Single mode is the classic: one beam that hits harder the longer it holds.',
+      'Multi mode beams 3 raiders at once (4 at Lv2, 5 at Lv3) for steady damage that never ramps. Great against swarms, weaker against tanks and heroes.',
+      'Rival campuses field both kinds. Watch for the sparks circling the stinger tip.',
+    ],
+  },
+  {
     v: 15,
     date: 'Nov 16, 2026',
     title: 'Revenge',

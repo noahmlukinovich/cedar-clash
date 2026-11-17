@@ -387,7 +387,7 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
     name: 'Stinger Statue',
     category: 'defense',
     size: 2,
-    desc: 'Locks a blue smiting beam onto the nearest raider. The longer it stays on one target, the harder it hits. Melts tanks and heroes; swarms keep resetting it.',
+    desc: 'Locks a blue smiting beam onto the nearest raider. The longer it stays on one target, the harder it hits. Melts tanks and heroes; swarms keep resetting it. Switch it to Multi mode to beam several raiders at once for steady, unramped damage.',
     flavor: 'Definitely NOT a graven image. Nobody bows to it. People just polish it weekly and take photos with it. Totally different.',
     counts: [0, 0, 0, 0, 1, 1, 2],
     levels: mk(
@@ -408,6 +408,8 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
             [13, 50, 150],
           ][i],
           rampTimes: [1.5, 4],
+          multiDps: [9, 11, 14][i],
+          multiTargets: [3, 4, 5][i],
           projectileSpeed: 0,
         },
       }),

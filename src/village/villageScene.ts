@@ -510,6 +510,7 @@ export class VillageScene implements Scene {
             upgrading: b.upgrade ? 1 - (b.upgrade.end - s.clock) / b.upgrade.total : undefined,
             selected: b.id === this.selectedId,
             aim: Math.sin(t * 0.5 + b.id) * 3,
+            multi: b.mode === 'multi',
           }),
       });
     }
