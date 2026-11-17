@@ -1,5 +1,8 @@
 # Contributing to Cedarville Clash
 
+Using an AI coding agent? Point it at `AGENTS.md`, which has the rules and
+code notes written for agents.
+
 ## Setup
 
 Requires Node 22.13 or newer.
@@ -16,7 +19,7 @@ login, visiting other campuses or online raids (see the README).
 
 ## How changes reach `main`
 
-`main` is live: every merge redeploys GitHub Pages and the game server within
+`main` is live: every merge redeploys the game server within about 5
 minutes. So nobody pushes to `main` directly.
 
 1. Make a branch: `git checkout -b ui/shop-tweaks` (or let a Claude session make one).

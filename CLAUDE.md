@@ -1,7 +1,9 @@
 # Cedarville Clash: notes for Claude
 
 Browser base-builder parody game (TypeScript + Vite, canvas rendering) with an
-optional Node game server in `server/`. See `README.md` and `CONTRIBUTING.md`.
+optional Node game server in `server/`. **Read `AGENTS.md` first**: it has the
+full rules, the UI/core zones and notes on how the UI code works. See also
+`README.md` and `CONTRIBUTING.md`.
 
 ## Commands
 
