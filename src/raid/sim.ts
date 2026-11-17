@@ -177,6 +177,12 @@ const WANDER_DIRS: [number, number][] = [
 export const HEBREW_LETTERS = 22;
 
 /** What a Business Major goes for first. */
+// Wall pricing for pathing (see RaidSim.wallCostFor): ground troops within
+// WALL_HELP_RADIUS tiles are counted as helping break a wall (at most WALL_HELPERS_MAX
+// in all), and no wall is worth a detour longer than WALL_COST_MAX tiles.
+const WALL_HELP_RADIUS = 3;
+const WALL_HELPERS_MAX = 8;
+const WALL_COST_MAX = 60;
 const RESOURCE_TYPES: BuildingType[] = ['registrar', 'rinnova', 'admissions', 'coffeecart'];
 
 export class RaidSim {
@@ -832,7 +838,12 @@ export class RaidSim {
           u.needsPath = true;
         }
       }
-      if (!b.isWall) for (const u of this.units) if (u.side === 'atk') u.needsPath = true;
+      for (const u of this.units) {
+        if (u.side !== 'atk') continue;
+        // a building gone changes everyone's plans; a wall gone opens a gap, so troops
+        // bashing some other wall check whether walking to it is quicker
+        if (!b.isWall || u.wall) u.needsPath = true;
+      }
     }
   }
 
@@ -956,6 +967,11 @@ export class RaidSim {
         return;
       }
     }
+    if (u.needsPath && u.wall && this.pathBudget > 0) {
+      // bashing a wall, but something changed (another wall fell): is there a better way now?
+      this.pathBudget--;
+      this.computePath(u);
+    }
     const tgt = u.wall ?? u.tb;
     const inRange = distToRect(u.x, u.y, tgt.x, tgt.y, tgt.size, tgt.size) <= u.range + 0.15;
     if (inRange) {
@@ -978,7 +994,14 @@ export class RaidSim {
     const t = u.tb;
     if (!t) return;
     const jumps = !!u.def?.jumps;
-    const p = findPath(jumps ? this.costJump : this.cost, Math.floor(u.x), Math.floor(u.y), { x: t.x, y: t.y, w: t.size, h: t.size }, Math.max(0.5, u.range - 0.2));
+    const p = findPath(
+      jumps ? this.costJump : this.cost,
+      Math.floor(u.x),
+      Math.floor(u.y),
+      { x: t.x, y: t.y, w: t.size, h: t.size },
+      Math.max(0.5, u.range - 0.2),
+      jumps ? undefined : this.wallCostFor(u),
+    );
     u.path = p ?? [];
     u.pathI = 0;
     if (jumps) return; // walls are not in the way
@@ -991,6 +1014,31 @@ export class RaidSim {
         break;
       }
     }
+  }
+
+  /**
+   * Prices a wall tile for `u` in tiles of walking: roughly how far `u` could walk in the
+   * time it takes to knock that wall down (counting its current HP, so a half-broken wall
+   * is cheaper and troops pile into a breach that is already being opened), shared with the
+   * ground troops around it: a lone troop walks to a gap, a crowd smashes through. Without this
+   * a wall cost a flat few tiles, so troops bashed a 300 HP wall for half a minute rather than
+   * walk ten tiles to a gap.
+   */
+  private wallCostFor(u: RU): (i: number) => number {
+    let dps = u.dps * this.mulDmg(u);
+    if (u.type === 'engineer') dps *= TROOPS.engineer.wallMul ?? 1;
+    const tilesPerSec = u.speed * this.mulSpeed(u);
+    let helpers = 1;
+    for (const o of this.units) {
+      if (o === u || o.dead || o.side !== 'atk' || o.def?.jumps || o.type === 'nurse') continue;
+      if (dist(o.x, o.y, u.x, u.y) <= WALL_HELP_RADIUS && ++helpers >= WALL_HELPERS_MAX) break;
+    }
+    return (i) => {
+      const b = this.tileB[i];
+      if (!b || dps <= 0) return WALL_COST_MAX;
+      const tiles = 1 + ((b.hp / dps) * tilesPerSec) / helpers;
+      return Math.max(WALL_COST, Math.min(WALL_COST_MAX, tiles));
+    };
   }
 
   private followPath(u: RU, dt: number, sp: number): void {
