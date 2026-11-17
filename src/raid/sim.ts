@@ -1020,7 +1020,9 @@ export class RaidSim {
    * Prices a wall tile for `u` in tiles of walking: roughly how far `u` could walk in the
    * time it takes to knock that wall down (counting its current HP, so a half-broken wall
    * is cheaper and troops pile into a breach that is already being opened), shared with the
-   * ground troops around it: a lone troop walks to a gap, a crowd smashes through. Without this
+   * ground troops around it: a lone troop walks to a gap, a crowd smashes through. A wall
+   * other troops are already hitting also counts their damage, so troops pile onto one
+   * piece and open a single breach quickly instead of each chipping its own. Without this
    * a wall cost a flat few tiles, so troops bashed a 300 HP wall for half a minute rather than
    * walk ten tiles to a gap.
    */
@@ -1033,10 +1035,19 @@ export class RaidSim {
       if (o === u || o.dead || o.side !== 'atk' || o.def?.jumps || o.type === 'nurse') continue;
       if (dist(o.x, o.y, u.x, u.y) <= WALL_HELP_RADIUS && ++helpers >= WALL_HELPERS_MAX) break;
     }
+    // damage already committed to each wall by the troops bashing it
+    const committed = new Map<RB, number>();
+    for (const o of this.units) {
+      if (o === u || o.dead || o.side !== 'atk' || !o.wall || o.wall.dead) continue;
+      let od = o.dps * this.mulDmg(o);
+      if (o.type === 'engineer') od *= TROOPS.engineer.wallMul ?? 1;
+      committed.set(o.wall, (committed.get(o.wall) ?? 0) + od);
+    }
     return (i) => {
       const b = this.tileB[i];
       if (!b || dps <= 0) return WALL_COST_MAX;
-      const tiles = 1 + ((b.hp / dps) * tilesPerSec) / helpers;
+      const total = dps * helpers + (committed.get(b) ?? 0);
+      const tiles = 1 + (b.hp / total) * tilesPerSec;
       return Math.max(WALL_COST, Math.min(WALL_COST_MAX, tiles));
     };
   }

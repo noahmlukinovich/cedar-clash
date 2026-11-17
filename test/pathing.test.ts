@@ -68,4 +68,13 @@ describe('wall gaps', () => {
     // nobody kept chipping the original wall to death
     expect(bashed.every((w) => !w.dead)).toBe(true);
   });
+
+  it('troops spread along a wall focus on the same piece of it', () => {
+    const s = sim([pc('admissions', 18, 10), ...wallRow(0, 39, [], 3)]);
+    const us = [15.5, 17.5, 19.5, 21.5].map((x) => s.spawnTroop('athlete', x, 22.5));
+    run(s, 4, () => false);
+    const bashing = new Set(us.map((u) => u.wall));
+    expect(bashing.size).toBe(1);
+    expect([...bashing][0]).not.toBeNull();
+  });
 });
