@@ -66,6 +66,7 @@ export interface RU {
   pathI: number;
   needsPath: boolean;
   wall: RB | null; // wall blocking the path
+  wallCheckAt: number; // when a troop bashing `wall` next looks for a quicker wall
   frozenUntil: number;
   slowUntil: number;
   slowMul: number;
@@ -179,10 +180,15 @@ export const HEBREW_LETTERS = 22;
 /** What a Business Major goes for first. */
 // Wall pricing for pathing (see RaidSim.wallCostFor): ground troops within
 // WALL_HELP_RADIUS tiles are counted as helping break a wall (at most WALL_HELPERS_MAX
-// in all), and no wall is worth a detour longer than WALL_COST_MAX tiles.
+// in all), and past WALL_COST_MAX tiles a wall's cost grows only slowly (a detour that long
+// is rarely worth it, but a weaker wall should still look better than a stronger one).
 const WALL_HELP_RADIUS = 3;
 const WALL_HELPERS_MAX = 8;
 const WALL_COST_MAX = 60;
+// Troops bashing a wall look for a quicker one this often (seconds), and only switch when
+// it's clearly better: their own wall's cost is multiplied by WALL_STAY.
+const WALL_RECHECK = 1;
+const WALL_STAY = 0.75;
 const RESOURCE_TYPES: BuildingType[] = ['registrar', 'rinnova', 'admissions', 'coffeecart'];
 
 export class RaidSim {
@@ -394,6 +400,7 @@ export class RaidSim {
       pathI: 0,
       needsPath: true,
       wall: null,
+      wallCheckAt: 0,
       frozenUntil: 0,
       slowUntil: 0,
       slowMul: 1,
@@ -967,8 +974,12 @@ export class RaidSim {
         return;
       }
     }
+    if (u.wall && this.time >= u.wallCheckAt) {
+      u.wallCheckAt = this.time + WALL_RECHECK;
+      u.needsPath = true; // walls nearby may have been weakened by others since we chose this one
+    }
     if (u.needsPath && u.wall && this.pathBudget > 0) {
-      // bashing a wall, but something changed (another wall fell): is there a better way now?
+      // bashing a wall, but something changed (another wall fell or weakened): is there a better way now?
       this.pathBudget--;
       this.computePath(u);
     }
@@ -990,6 +1001,7 @@ export class RaidSim {
 
   private computePath(u: RU): void {
     u.needsPath = false;
+    const prevWall = u.wall;
     u.wall = null;
     const t = u.tb;
     if (!t) return;
@@ -1000,7 +1012,7 @@ export class RaidSim {
       Math.floor(u.y),
       { x: t.x, y: t.y, w: t.size, h: t.size },
       Math.max(0.5, u.range - 0.2),
-      jumps ? undefined : this.wallCostFor(u),
+      jumps ? undefined : this.wallCostFor(u, prevWall),
     );
     u.path = p ?? [];
     u.pathI = 0;
@@ -1010,6 +1022,7 @@ export class RaidSim {
       const b = this.tileB[u.path[i]];
       if (b && b.isWall && !b.dead) {
         u.wall = b;
+        u.wallCheckAt = this.time + WALL_RECHECK;
         u.path = u.path.slice(0, i);
         break;
       }
@@ -1026,7 +1039,7 @@ export class RaidSim {
    * a wall cost a flat few tiles, so troops bashed a 300 HP wall for half a minute rather than
    * walk ten tiles to a gap.
    */
-  private wallCostFor(u: RU): (i: number) => number {
+  private wallCostFor(u: RU, current: RB | null): (i: number) => number {
     let dps = u.dps * this.mulDmg(u);
     if (u.type === 'engineer') dps *= TROOPS.engineer.wallMul ?? 1;
     const tilesPerSec = u.speed * this.mulSpeed(u);
@@ -1047,8 +1060,10 @@ export class RaidSim {
       const b = this.tileB[i];
       if (!b || dps <= 0) return WALL_COST_MAX;
       const total = dps * helpers + (committed.get(b) ?? 0);
-      const tiles = 1 + (b.hp / total) * tilesPerSec;
-      return Math.max(WALL_COST, Math.min(WALL_COST_MAX, tiles));
+      let tiles = 1 + (b.hp / total) * tilesPerSec;
+      if (tiles > WALL_COST_MAX) tiles = WALL_COST_MAX + (tiles - WALL_COST_MAX) * 0.05;
+      if (b === current) tiles *= WALL_STAY; // stick with the wall we're on unless another is clearly quicker
+      return Math.max(WALL_COST, tiles);
     };
   }
 

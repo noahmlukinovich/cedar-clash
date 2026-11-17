@@ -77,4 +77,36 @@ describe('wall gaps', () => {
     expect(bashing.size).toBe(1);
     expect([...bashing][0]).not.toBeNull();
   });
+
+  it('picks a weak piece of wall a few tiles over instead of a strong one in front', () => {
+    const pieces = wallRow(0, 39, [22], 6);
+    pieces.push(pc('wall', 22, 20, 1));
+    const s = sim([pc('admissions', 18, 10), ...pieces]);
+    const us = [0, 1].map(() => s.spawnTroop('freshman', 18.5, 22.5));
+    run(s, 3, () => false);
+    for (const u of us) expect(u.wall?.x).toBe(22);
+  });
+
+  it('switches to a nearby wall that has become much weaker', () => {
+    const s = sim([pc('admissions', 18, 10), ...wallRow(0, 39, [], 3)]);
+    const us = [0, 1].map(() => s.spawnTroop('freshman', 18.5, 22.5));
+    run(s, 3, () => false);
+    const first = us[0].wall!;
+    expect(first).not.toBeNull();
+    const weak = s.buildings.find((b) => b.isWall && b.x === first.x + 3)!;
+    s.damageBuilding(weak, weak.hp - 30);
+    run(s, 4, () => false);
+    expect(weak.dead).toBe(true); // they went and finished it off
+    expect(first.dead).toBe(false);
+  });
+
+  it('does not flip-flop between two equally good walls', () => {
+    const s = sim([pc('admissions', 18, 10), ...wallRow(0, 39, [], 3)]);
+    const u = s.spawnTroop('freshman', 18.5, 22.5);
+    run(s, 2, () => false);
+    const first = u.wall;
+    const seen = new Set();
+    run(s, 6, () => (seen.add(u.wall), false));
+    expect(seen).toEqual(new Set([first]));
+  });
 });
