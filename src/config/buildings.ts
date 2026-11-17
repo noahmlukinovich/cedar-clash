@@ -166,11 +166,11 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
     name: 'Residence Hall',
     category: 'army',
     size: 4,
-    desc: 'Houses your trained troops. More halls and higher levels mean a bigger army.',
+    desc: 'Houses your trained troops. More halls and higher levels mean a bigger army. Lv3 trains RAs; Lv4 trains The Rock.',
     flavor: 'Open dorm hours are posted. Open dorm hours are enforced. Open dorm hours are discussed at length.',
     counts: [0, 1, 2, 2, 3, 3, 4],
     instanceNames: ['Lawlor Hall', 'Printy Hall', 'Brock Hall', 'Willetts Hall', 'McChesney Hall'],
-    trains: ['ra'],
+    trains: ['ra', 'rock'],
     levels: mk(
       5,
       'coffee',

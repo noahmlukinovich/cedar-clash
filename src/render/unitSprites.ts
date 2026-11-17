@@ -13,6 +13,8 @@ export interface UnitDrawOpts {
   stunned?: boolean;
   /** Research / hero level: higher levels wear better gear. Defaults to 1. */
   level?: number;
+  /** Picks a look that differs between units of the same type (The Rock's paint job). */
+  variant?: number;
 }
 
 function circle(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, fill: string, lw = 2): void {
@@ -55,7 +57,163 @@ const OUTFIT: Record<UnitType, { body: string; legs: string; hair: string }> = {
   ra: { body: '#1c3d7a', legs: '#b9a37a', hair: '#4a3020' },
   goteam: { body: '#f4efe4', legs: '#333', hair: '#333' },
   gomember: { body: '#e4572e', legs: '#4a6a8a', hair: '#5a3a1e' },
+  rock: { body: '#8a8478', legs: '#5a554c', hair: '#5a554c' },
+  pebble: { body: '#8a8478', legs: '#5a554c', hair: '#5a554c' },
 };
+
+function dot(ctx: CanvasRenderingContext2D, x: number, y: number, r: number): void {
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = OUT;
+  ctx.fill();
+}
+
+/** Paint jobs for The Rock: base coat, accent, and what's written on it. */
+const ROCK_PAINT: { base: string; accent: string; text: string }[] = [
+  { base: '#1c3d7a', accent: '#f5c32c', text: 'GO JACKETS' },
+  { base: '#f4efe4', accent: '#c8323c', text: 'MARRY ME?' },
+  { base: '#2f6f4f', accent: '#f4efe4', text: "CLASS OF '27" },
+  { base: '#b23a6f', accent: '#ffd23f', text: 'HAPPY 21ST' },
+  { base: '#f2a20c', accent: '#1c3d7a', text: 'JOHN 3:16' },
+  { base: '#7b3fa0', accent: '#f4efe4', text: 'PRAY 4 FINALS' },
+];
+
+/**
+ * The Rock: a lumpy painted boulder on stubby legs. Higher levels carry more coats of paint
+ * (drips, then a second coat, then a gold rim). Pebbles are small chips of it with a fleck of paint.
+ */
+function drawRock(ctx: CanvasRenderingContext2D, x: number, y: number, o: UnitDrawOpts, pebble: boolean): void {
+  const lv = Math.max(1, Math.min(5, Math.floor(o.level ?? 1)));
+  const s = o.scale * (pebble ? 0.55 : 1);
+  const paint = ROCK_PAINT[Math.abs(Math.floor(o.variant ?? 0)) % ROCK_PAINT.length];
+  const step = o.moving ? Math.sin(o.t * 6) : 0;
+  const lean = o.attacking > 0 ? o.attacking * 3 : 0;
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(x, y, 17 * s, 6 * s, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(s * o.facing, s);
+  // stubby legs, stomping
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = OUT;
+  ctx.fillStyle = '#5a554c';
+  for (const [lx, ph] of [[-7, 1], [5, -1]] as const) {
+    const lift = Math.max(0, step * ph) * 3;
+    ctx.fillRect(lx, -7 - lift, 5, 7);
+    ctx.strokeRect(lx, -7 - lift, 5, 7);
+  }
+  ctx.translate(lean, -Math.abs(step) * 1.2);
+  // the boulder
+  const body = (): void => {
+    ctx.beginPath();
+    ctx.moveTo(-17, -8);
+    ctx.quadraticCurveTo(-20, -22, -12, -30);
+    ctx.quadraticCurveTo(-4, -37, 6, -34);
+    ctx.quadraticCurveTo(17, -31, 18, -19);
+    ctx.quadraticCurveTo(19, -8, 12, -5);
+    ctx.quadraticCurveTo(0, -2, -10, -4);
+    ctx.closePath();
+  };
+  body();
+  ctx.fillStyle = pebble ? '#8a8478' : paint.base;
+  ctx.fill();
+  ctx.save();
+  body();
+  ctx.clip();
+  if (pebble) {
+    // a fleck of the old paint job
+    ctx.fillStyle = paint.base;
+    ctx.beginPath();
+    ctx.ellipse(4, -24, 9, 6, 0.4, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    // older coats showing through where it's chipped
+    ctx.fillStyle = paint.accent;
+    ctx.beginPath();
+    ctx.ellipse(-12, -11, 6, 4, 0.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#8a8478';
+    ctx.beginPath();
+    ctx.ellipse(13, -9, 4, 3, -0.4, 0, Math.PI * 2);
+    ctx.fill();
+    if (lv >= 3) {
+      // second coat swooped over the top
+      ctx.fillStyle = paint.accent;
+      ctx.beginPath();
+      ctx.moveTo(-20, -24);
+      ctx.quadraticCurveTo(0, -34, 20, -26);
+      ctx.lineTo(20, -36);
+      ctx.lineTo(-20, -36);
+      ctx.closePath();
+      ctx.fill();
+    }
+    if (lv >= 2) {
+      // drips
+      // paint drips running down from the top, clear of the face
+      ctx.fillStyle = paint.accent;
+      for (const [dx, len] of [[-13, 10], [-7, 7], [14, 8]] as const) {
+        ctx.beginPath();
+        ctx.moveTo(dx - 1.3, -36);
+        ctx.lineTo(dx - 1.3, -36 + len);
+        ctx.arc(dx, -36 + len, 1.3, Math.PI, 0, true);
+        ctx.lineTo(dx + 1.3, -36);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+  }
+  // shading on the underside
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.beginPath();
+  ctx.ellipse(2, -2, 22, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  body();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = lv >= 5 && !pebble ? C.gold : OUT;
+  ctx.stroke();
+  if (!pebble) {
+    // what this week's painters wrote (mirrored back when facing left, so it always reads)
+    ctx.save();
+    ctx.scale(o.facing, 1);
+    ctx.fillStyle = paint.accent;
+    ctx.strokeStyle = OUT;
+    ctx.lineWidth = 0.8;
+    ctx.font = 'bold 6px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(paint.text, 0, -18, 30);
+    ctx.restore();
+    // eyes: two painted-on googly eyes
+    for (const ex of [3, 10]) {
+      circle(ctx, ex, -26, 2.6, '#fff', 1.2);
+      dot(ctx, ex + 0.8, -25.6, 1.1);
+    }
+  } else {
+    circle(ctx, 8, -24, 1.8, '#fff', 1);
+    dot(ctx, 8.5, -23.8, 0.8);
+  }
+  ctx.restore();
+  if (o.flash && o.flash > 0) {
+    ctx.globalAlpha = o.flash * 0.6;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.ellipse(x, y - 16 * s, 19 * s, 15 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  if (o.frozen) {
+    ctx.fillStyle = 'rgba(170,225,255,0.55)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.rect(x - 21 * s, y - 38 * s, 42 * s, 38 * s);
+    ctx.fill();
+    ctx.stroke();
+  }
+}
 
 /** The GO Team's van: a white fifteen-passenger with a blue stripe and a globe on the side. */
 function drawVan(ctx: CanvasRenderingContext2D, x: number, y: number, o: UnitDrawOpts): void {
@@ -188,6 +346,7 @@ function drawVan(ctx: CanvasRenderingContext2D, x: number, y: number, o: UnitDra
 
 export function drawUnit(ctx: CanvasRenderingContext2D, x: number, y: number, type: UnitType, o: UnitDrawOpts, enemy = false): void {
   if (type === 'goteam') return drawVan(ctx, x, y, o);
+  if (type === 'rock' || type === 'pebble') return drawRock(ctx, x, y, o, type === 'pebble');
   const lv = Math.max(1, Math.min(5, Math.floor(o.level ?? 1)));
   const s = o.scale;
   const of = OUTFIT[type];

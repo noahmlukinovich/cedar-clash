@@ -103,10 +103,10 @@ export interface BuildingDef {
   removable?: boolean;
 }
 
-export type TroopType = 'freshman' | 'engineer' | 'nurse' | 'theology' | 'athlete' | 'business' | 'music' | 'runner' | 'ra' | 'goteam';
+export type TroopType = 'freshman' | 'engineer' | 'nurse' | 'theology' | 'athlete' | 'business' | 'music' | 'runner' | 'ra' | 'goteam' | 'rock';
 export type HeroType = 'prof' | 'president';
-/** 'gomember' is what a GO Team van unloads; it cannot be trained on its own. */
-export type UnitType = TroopType | HeroType | 'fan' | 'gomember';
+/** 'gomember' is what a GO Team van unloads and 'pebble' is what The Rock breaks into; neither can be trained on its own. */
+export type UnitType = TroopType | HeroType | 'fan' | 'gomember' | 'pebble';
 
 export interface TroopLevel {
   hp: number;
@@ -146,6 +146,10 @@ export interface TroopDef {
   taunt?: { trapRange: number; trapDmg: number };
   /** Does not fight: on reaching a target (or dying) it becomes `count` short-lived team members. */
   unload?: { count: number; life: number };
+  /** When destroyed: crashes onto buildings within `radius` tiles for `dmg` damage, then breaks into `count` Pebbles. */
+  crumble?: { count: number; radius: number; dmg: number[] };
+  /** Too heavy to shove: splash knockback does not move it. */
+  heavy?: boolean;
   /** Short label for the raid deploy bar (defaults to the first word of the name). */
   short?: string;
   levels: TroopLevel[];

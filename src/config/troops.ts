@@ -204,6 +204,47 @@ export const TROOPS: Record<TroopType, TroopDef> = {
     size: 1.15,
     levels: tl([350, 420, 500, 590, 700], [0, 0, 0, 0, 0], [600, 850, 1150, 1500, 1900], [0, 8000, 20000, 40000, 70000], [0, 90, 160, 240, 320], [0, 3, 4, 5, 5]),
   },
+  rock: {
+    type: 'rock',
+    name: 'The Rock',
+    short: 'Rock',
+    desc: 'Huge, slow, and goes for defenses first. Too heavy for a Casserole Catapult to shove. When it finally cracks, it crashes onto everything within 1.5 tiles and two Pebbles roll out to keep going.',
+    flavor: 'Repainted every night, moved never. Somewhere under the 400 coats is the original rock. Nobody has seen it since 1987.',
+    housing: 25,
+    res: 'coffee',
+    trainTime: 40,
+    barracks: 'reshall',
+    barracksLevel: 4,
+    speed: 1.1,
+    range: 0.9,
+    attackRate: 2,
+    prefers: 'defense',
+    crumble: { count: 2, radius: 1.5, dmg: [150, 190, 240, 300, 370] },
+    heavy: true,
+    color: '#8a8478',
+    size: 1.6,
+    levels: tl([3000, 3600, 4300, 5100, 6000], [15, 19, 24, 29, 35], [2000, 2600, 3300, 4100, 5000], [0, 12000, 28000, 52000, 85000], [0, 120, 200, 280, 360], [0, 3, 4, 5, 5]),
+  },
+};
+
+/** What The Rock breaks into. Level follows the Rock's research level; about a fifth of its health each. */
+export const PEBBLE_DEF: TroopDef = {
+  type: 'pebble',
+  name: 'Pebble',
+  desc: 'A chunk of The Rock. Small, stubborn, still goes for defenses.',
+  flavor: 'Still has a bit of somebody\'s proposal painted on it.',
+  housing: 0,
+  res: 'coffee',
+  trainTime: 0,
+  barracks: 'reshall',
+  barracksLevel: 4,
+  speed: 1.6,
+  range: 0.8,
+  attackRate: 1.5,
+  prefers: 'defense',
+  color: '#8a8478',
+  size: 0.9,
+  levels: tl([600, 720, 860, 1020, 1200], [8, 10, 12, 15, 18], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]),
 };
 
 /** What a GO Team van unloads. Level follows the van's research level. */
@@ -285,4 +326,4 @@ export const HEROES: Record<HeroType, HeroDef> = {
   },
 };
 
-export const TROOP_ORDER: TroopType[] = ['freshman', 'athlete', 'engineer', 'theology', 'nurse', 'business', 'music', 'runner', 'ra', 'goteam'];
+export const TROOP_ORDER: TroopType[] = ['freshman', 'athlete', 'engineer', 'theology', 'nurse', 'business', 'music', 'runner', 'ra', 'goteam', 'rock'];
