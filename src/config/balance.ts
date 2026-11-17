@@ -30,3 +30,21 @@ export const EVENT_CHECK_INTERVAL = 90; // seconds of game time between random e
 export const EVENT_CHANCE = 0.45;
 
 export const DEBUG_SPEEDS = [1, 10, 60];
+
+/** Build / research / hero-upgrade timer curve. Every timed level gets BASE× longer, and
+ *  each level a further GROWTH× on top of the one before, so the next upgrade is always a big step up. */
+export const UPGRADE_TIME_BASE = 3;
+export const UPGRADE_TIME_GROWTH = 1.8;
+
+/** Rounds a duration (seconds) to a tidy value: 5s steps under 2 min, whole minutes under
+ *  an hour, 5-minute steps beyond that. */
+function tidyTime(s: number): number {
+  if (s < 120) return Math.max(5, Math.round(s / 5) * 5);
+  if (s < 3600) return Math.round(s / 60) * 60;
+  return Math.round(s / 300) * 300;
+}
+
+/** Applies the timer curve to a per-level time table (index 0 = Lv1). Zero stays instant. */
+export function scaleTime(times: number[]): number[] {
+  return times.map((t, i) => (t > 0 ? tidyTime(t * UPGRADE_TIME_BASE * UPGRADE_TIME_GROWTH ** (i - 1)) : 0));
+}

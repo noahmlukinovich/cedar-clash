@@ -10,6 +10,16 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 20,
+    date: 'Nov 17, 2026',
+    title: 'Bigger projects, longer timelines',
+    items: [
+      'Building upgrades, troop research and hero upgrades now take longer, and each level takes a lot longer than the one before.',
+      'Early levels still finish in a few minutes. The top upgrades now run for hours, so start them before you log off: timers keep running while you are away.',
+      'Upgrades already in progress finish on their original timer.',
+    ],
+  },
+  {
     v: 19,
     date: 'Nov 17, 2026',
     title: 'New troop: The Rock',
