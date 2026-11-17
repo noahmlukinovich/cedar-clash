@@ -495,10 +495,11 @@ export class RaidScene implements Scene {
     // stinger statue beams: hum + sparks at the point of impact
     for (const b of this.sim.buildings) {
       if (b.dead || b.type !== 'stinger' || !b.target || b.target.dead || !b.def) continue;
-      const stage = beamStage(b.def, b.beamT);
+      const stage = b.multi ? 0 : beamStage(b.def, b.beamT);
       sfx('zap');
-      if (Math.random() < dt * (6 + stage * 8)) {
-        const to = toWorld(b.target.x, b.target.y);
+      for (const u of b.multi ? b.targets : [b.target]) {
+        if (u.dead || Math.random() >= dt * (6 + stage * 8)) continue;
+        const to = toWorld(u.x, u.y);
         this.particles.burst(to.x, to.y, 12, 1 + stage, { kind: 'spark', color: '#bfe4ff', size: 3 + stage, speed: 70 + stage * 40, max: 0.35, gravity: 250, vz: 90 });
       }
     }
@@ -913,6 +914,7 @@ export class RaidScene implements Scene {
             aim: b.aim,
             firing: b.firing,
             charge: b.charge,
+            multi: b.multi,
             praying: b.prayT > 0 ? 1 : 0,
             squash: b.hitT > 0 ? 0.25 : 0,
             frozen: b.frozenUntil > sim.time,
@@ -1070,57 +1072,61 @@ export class RaidScene implements Scene {
     // stinger statue beams
     for (const b of sim.buildings) {
       if (b.dead || b.type !== 'stinger' || !b.target || b.target.dead || !b.def) continue;
-      const stage = beamStage(b.def, b.beamT);
+      const stage = b.multi ? 0 : beamStage(b.def, b.beamT);
       const from = toWorld(b.cx, b.cy);
-      const to = toWorld(b.target.x, b.target.y);
-      const x1 = from.x;
-      const y1 = from.y - STINGER_TIP_Z;
-      const x2 = to.x;
-      const y2 = to.y - 12;
-      const w = [3, 6, 10][Math.min(stage, 2)] * (0.85 + Math.random() * 0.3);
-      ctx.save();
-      ctx.lineCap = 'round';
-      const line = (): void => {
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-      };
-      ctx.strokeStyle = 'rgba(70,160,255,0.3)';
-      ctx.lineWidth = w * 2.4;
-      line();
-      ctx.strokeStyle = '#4aa8ff';
-      ctx.lineWidth = w;
-      line();
-      ctx.strokeStyle = '#eef8ff';
-      ctx.lineWidth = Math.max(1.2, w * 0.4);
-      line();
-      // crackling strands once the beam is ramped up
-      const len = Math.hypot(x2 - x1, y2 - y1) || 1;
-      const nx = -(y2 - y1) / len;
-      const ny = (x2 - x1) / len;
-      ctx.strokeStyle = 'rgba(200,232,255,0.9)';
-      ctx.lineWidth = 1.4;
-      for (let s = 0; s < stage; s++) {
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        for (let i = 1; i < 7; i++) {
-          const k = i / 7;
-          const off = (Math.random() - 0.5) * (8 + stage * 5);
-          ctx.lineTo(x1 + (x2 - x1) * k + nx * off, y1 + (y2 - y1) * k + ny * off);
+      // multi mode fans thinner beams out to every locked raider
+      for (const u of b.multi ? b.targets : [b.target]) {
+        if (u.dead) continue;
+        const to = toWorld(u.x, u.y);
+        const x1 = from.x;
+        const y1 = from.y - STINGER_TIP_Z;
+        const x2 = to.x;
+        const y2 = to.y - 12;
+        const w = (b.multi ? 2.2 : [3, 6, 10][Math.min(stage, 2)]) * (0.85 + Math.random() * 0.3);
+        ctx.save();
+        ctx.lineCap = 'round';
+        const line = (): void => {
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+        };
+        ctx.strokeStyle = 'rgba(70,160,255,0.3)';
+        ctx.lineWidth = w * 2.4;
+        line();
+        ctx.strokeStyle = '#4aa8ff';
+        ctx.lineWidth = w;
+        line();
+        ctx.strokeStyle = '#eef8ff';
+        ctx.lineWidth = Math.max(1.2, w * 0.4);
+        line();
+        // crackling strands once the beam is ramped up
+        const len = Math.hypot(x2 - x1, y2 - y1) || 1;
+        const nx = -(y2 - y1) / len;
+        const ny = (x2 - x1) / len;
+        ctx.strokeStyle = 'rgba(200,232,255,0.9)';
+        ctx.lineWidth = 1.4;
+        for (let s = 0; s < stage; s++) {
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          for (let i = 1; i < 7; i++) {
+            const k = i / 7;
+            const off = (Math.random() - 0.5) * (8 + stage * 5);
+            ctx.lineTo(x1 + (x2 - x1) * k + nx * off, y1 + (y2 - y1) * k + ny * off);
+          }
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
         }
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
+        // impact glow
+        const g = ctx.createRadialGradient(x2, y2, 1, x2, y2, w * 2.2 + 6);
+        g.addColorStop(0, 'rgba(235,248,255,0.95)');
+        g.addColorStop(1, 'rgba(70,160,255,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(x2, y2, w * 2.2 + 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
       }
-      // impact glow
-      const g = ctx.createRadialGradient(x2, y2, 1, x2, y2, w * 2.2 + 6);
-      g.addColorStop(0, 'rgba(235,248,255,0.95)');
-      g.addColorStop(1, 'rgba(70,160,255,0)');
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(x2, y2, w * 2.2 + 6, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
     }
     // building hp bars
     for (const b of sim.buildings) {

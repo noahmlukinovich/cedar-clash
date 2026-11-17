@@ -1,4 +1,4 @@
-import type { BuildingType, HeroType, ResourceId, SpellType, TroopType } from '../config/types';
+import type { BeamMode, BuildingType, HeroType, ResourceId, SpellType, TroopType } from '../config/types';
 import { BUILDINGS } from '../config/buildings';
 import { START_RESOURCES } from '../config/balance';
 
@@ -16,6 +16,8 @@ export interface BuildingInst {
   upgrade?: Timer & { to: number };
   stored?: number; // collectors: accumulated resources
   name?: string;
+  /** Stinger Statue targeting; absent means single. */
+  mode?: BeamMode;
 }
 
 export interface QueueItem<T> {
