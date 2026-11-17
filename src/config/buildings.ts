@@ -1,3 +1,4 @@
+import { scaleTime } from './balance';
 import type { BuildingDef, BuildingLevel, BuildingType, ResourceId } from './types';
 
 // Helper to generate level tables. Arrays are indexed by level-1.
@@ -11,6 +12,7 @@ function mk(
   extra?: (i: number) => Partial<BuildingLevel>,
 ): BuildingLevel[] {
   const out: BuildingLevel[] = [];
+  time = scaleTime(time);
   for (let i = 0; i < n; i++) {
     out.push({ cost: cost[i], res, time: time[i], dmc: dmc[i], hp: hp[i], ...(extra ? extra(i) : {}) });
   }

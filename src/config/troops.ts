@@ -1,12 +1,14 @@
+import { scaleTime } from './balance';
 import type { HeroDef, HeroType, TroopDef, TroopLevel, TroopType } from './types';
 
 function tl(hp: number[], dps: number[], cost: number[], rcost: number[], rtime: number[], lib: number[]): TroopLevel[] {
+  const times = scaleTime(rtime);
   return hp.map((h, i) => ({
     hp: h,
     dps: dps[i],
     cost: cost[i],
     researchCost: rcost[i],
-    researchTime: rtime[i],
+    researchTime: times[i],
     libraryLevel: lib[i],
   }));
 }
@@ -286,6 +288,12 @@ export const FAN_DEF: TroopDef = {
   levels: tl([80, 100, 125, 150], [10, 13, 16, 20], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]),
 };
 
+/** Applies the shared timer curve to a hero's upgrade times. */
+function heroLevels(levels: HeroDef['levels']): HeroDef['levels'] {
+  const times = scaleTime(levels.map((l) => l.upgradeTime));
+  return levels.map((l, i) => ({ ...l, upgradeTime: times[i] }));
+}
+
 export const HEROES: Record<HeroType, HeroDef> = {
   prof: {
     type: 'prof',
@@ -299,13 +307,13 @@ export const HEROES: Record<HeroType, HeroDef> = {
     range: 3.5,
     attackRate: 0.9,
     regenTime: 60,
-    levels: [
+    levels: heroLevels([
       { hp: 900, dps: 45, upgradeCost: 0, upgradeTime: 0, dmc: 3 },
       { hp: 1050, dps: 52, upgradeCost: 30, upgradeTime: 60, dmc: 3 },
       { hp: 1220, dps: 60, upgradeCost: 60, upgradeTime: 120, dmc: 4 },
       { hp: 1400, dps: 70, upgradeCost: 100, upgradeTime: 180, dmc: 5 },
       { hp: 1600, dps: 82, upgradeCost: 160, upgradeTime: 240, dmc: 6 },
-    ],
+    ]),
   },
   president: {
     type: 'president',
@@ -318,11 +326,11 @@ export const HEROES: Record<HeroType, HeroDef> = {
     range: 1,
     attackRate: 1.2,
     regenTime: 90,
-    levels: [
+    levels: heroLevels([
       { hp: 2200, dps: 70, upgradeCost: 0, upgradeTime: 0, dmc: 5 },
       { hp: 2500, dps: 80, upgradeCost: 120, upgradeTime: 180, dmc: 5 },
       { hp: 2850, dps: 92, upgradeCost: 220, upgradeTime: 300, dmc: 6 },
-    ],
+    ]),
   },
 };
 
