@@ -226,6 +226,7 @@ export interface BuildingDrawArgs {
   upgrading?: number; // progress 0..1 if upgrading
   aim?: number; // aim angle for towers
   charge?: number; // sprayer charge
+  multi?: boolean; // stinger statue in multi mode
   praying?: number; // bible prof pray glow 0..1
   firing?: number; // muzzle flash 0..1
   selected?: boolean;
@@ -417,6 +418,16 @@ function drawDynamic(ctx: Ctx, a: BuildingDrawArgs, size: number): void {
         ctx.beginPath();
         ctx.arc(x, y, r, 0, Math.PI * 2);
         ctx.fill();
+      }
+      if (a.multi && !a.frozen && !a.stunned) {
+        // multi mode: three little sparks circling the tip
+        ctx.fillStyle = '#bfe4ff';
+        for (let i = 0; i < 3; i++) {
+          const an = a.t * 2.4 + (i * Math.PI * 2) / 3;
+          ctx.beginPath();
+          ctx.arc(x + Math.cos(an) * 11, y + Math.sin(an) * 5, 2.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
       const tw = (a.t * 0.7 + (a.x * 7 + a.y * 13) * 0.1) % 3;
       if (tw < 0.35) {

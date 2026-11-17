@@ -51,7 +51,12 @@ export interface DefenseStats {
   blessHeal?: number; // walls healed per second (fraction of max)
   ramp?: number[]; // beam dps per lock-on stage (stinger)
   rampTimes?: number[]; // seconds of continuous lock to reach stage 2, 3, ...
+  multiDps?: number; // stinger multi mode: flat beam dps on each target (no ramp)
+  multiTargets?: number; // stinger multi mode: how many raiders it beams at once
 }
+
+/** Stinger Statue targeting: one ramping beam, or several flat beams. */
+export type BeamMode = 'single' | 'multi';
 
 export interface BuildingLevel {
   cost: number;
