@@ -5,7 +5,7 @@
 import { BUILDINGS } from '../config/buildings';
 import { HEROES, TROOPS } from '../config/troops';
 import { SPELLS } from '../config/spells';
-import type { BeamMode, BuildingType, HeroType, SpellType, TroopType } from '../config/types';
+import type { BeamMode, BuildingType, HeroType, ResourceId, SpellType, TroopType } from '../config/types';
 import { brew, cancelTrain, heroUpgrade, startResearch, train } from './army';
 import { buildNew, canPlace, collect, dmcLevel, finishNow, startUpgrade } from './economy';
 import { attendChapel } from './events';
@@ -16,7 +16,8 @@ export type Action =
   | { k: 'build'; type: BuildingType; x: number; y: number }
   | { k: 'move'; id: number; x: number; y: number }
   | { k: 'remove'; id: number }
-  | { k: 'upgrade'; id: number }
+  /** `res` picks the payment for buildings that take more than one (walls: Tuition or Coffee). */
+  | { k: 'upgrade'; id: number; res?: ResourceId }
   | { k: 'finish'; id: number }
   | { k: 'collect'; id: number }
   | { k: 'train'; type: TroopType }
@@ -85,8 +86,8 @@ function run(s: GameState, a: Action): ActionResult {
     }
     case 'upgrade': {
       const b = find(s, a.id);
-      if (!b) return { err: 'Bad action' };
-      const e = startUpgrade(s, b);
+      if (!b || (a.res !== undefined && a.res !== 'tuition' && a.res !== 'coffee')) return { err: 'Bad action' };
+      const e = startUpgrade(s, b, a.res);
       return e ? { err: e } : {};
     }
     case 'finish': {

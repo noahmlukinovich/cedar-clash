@@ -10,7 +10,7 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
-    v: 16,
+    v: 17,
     date: 'Nov 17, 2026',
     title: 'Stinger Statue: Multi mode',
     items: [
@@ -18,6 +18,15 @@ export const CHANGELOG: ChangeEntry[] = [
       'Single mode is the classic: one beam that hits harder the longer it holds.',
       'Multi mode beams 3 raiders at once (4 at Lv2, 5 at Lv3) for steady damage that never ramps. Great against swarms, weaker against tanks and heroes.',
       'Rival campuses field both kinds. Watch for the sparks circling the stinger tip.',
+    ],
+  },
+  {
+    v: 16,
+    date: 'Nov 17, 2026',
+    title: 'Coffee-brewed bricks',
+    items: [
+      'Walls can now be upgraded with Coffee as well as Tuition, at the same price. Select a wall and pick which Upgrade button to use.',
+      'The Upgrades list shows both prices on the Walls row, so leftover Coffee can go straight into your defenses.',
     ],
   },
   {

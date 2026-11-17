@@ -441,7 +441,7 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
     name: 'Brick Wall',
     category: 'wall',
     size: 1,
-    desc: 'Keeps raiders out (for a bit). Upgrade for more HP.',
+    desc: 'Keeps raiders out (for a bit). Upgrade for more HP, with Tuition or Coffee.',
     flavor: 'Red brick, just like everything else here. Facilities has a brick budget and they WILL use it.',
     counts: [0, 25, 50, 75, 100, 125, 150],
     levels: mk(
