@@ -10,6 +10,16 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 24,
+    date: 'Nov 17, 2026',
+    title: "Dean's Office",
+    items: [
+      "New DMC 8 defense: the Dean's Office. One per campus.",
+      'It sends a pink summons at the nearest raider, then the paperwork jumps on to the next raider within 3 tiles, and the next: 3, 4 or 5 jumps depending on level.',
+      'Each jump hits for 75% of the one before, and nobody gets summoned twice by the same slip. Swarms beware.',
+    ],
+  },
+  {
     v: 23,
     date: 'Nov 17, 2026',
     title: 'Fire Alarm trap',

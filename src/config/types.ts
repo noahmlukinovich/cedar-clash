@@ -36,6 +36,7 @@ export type BuildingType =
   | 'bibleprof'
   | 'stinger'
   | 'catapult'
+  | 'deans'
   | 'nest'
   | 'firealarm'
   | 'wall'
@@ -59,6 +60,9 @@ export interface DefenseStats {
   lobTime?: number; // seconds a lobbed shot is in the air (it lands where it was aimed)
   falloff?: number; // splash damage at the rim, as a fraction of the centre hit
   knockback?: number; // tiles a splash hit shoves raiders away from the impact
+  chain?: number; // Dean's Office: extra raiders a summons jumps to after the first hit
+  chainRange?: number; // tiles: how far each jump can reach
+  chainFalloff?: number; // each jump deals this fraction of the previous hit
 }
 
 /** Stinger Statue targeting: one ramping beam, or several flat beams. */

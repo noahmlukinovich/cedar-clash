@@ -451,6 +451,35 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
     ),
     movable: true,
   },
+  deans: {
+    type: 'deans',
+    name: "Dean's Office",
+    category: 'defense',
+    size: 3,
+    desc: "Sends a summons to one raider, and the paperwork keeps going: it jumps to the next raider nearby, and the next, a little weaker each time. Built for swarms. Requires DMC 8.",
+    flavor: 'Your presence is requested. Bring a pen. Bring a reason. Bring the other four people who were also there.',
+    counts: [0, 0, 0, 0, 0, 0, 0, 0, 1],
+    levels: mk(
+      3,
+      'tuition',
+      [180000, 240000, 300000],
+      [600, 700, 800],
+      [8, 8, 8],
+      [1800, 2100, 2400],
+      (i) => ({
+        defense: {
+          range: 8,
+          rate: 1.8,
+          dps: [40, 48, 57][i],
+          chain: [3, 4, 5][i],
+          chainRange: 3,
+          chainFalloff: 0.75,
+          projectileSpeed: 11,
+        },
+      }),
+    ),
+    movable: true,
+  },
   nest: {
     type: 'nest',
     name: 'Yellow Jacket Nest',
@@ -537,7 +566,7 @@ export const SHOP_TABS: { id: string; label: string; types: BuildingType[] }[] =
   {
     id: 'defense',
     label: 'Defenses',
-    types: ['ratower', 'safetycart', 'sprayer', 'bibleprof', 'stinger', 'catapult', 'nest', 'firealarm', 'wall'],
+    types: ['ratower', 'safetycart', 'sprayer', 'bibleprof', 'stinger', 'catapult', 'deans', 'nest', 'firealarm', 'wall'],
   },
   { id: 'deco', label: 'Decor', types: ['lake'] },
 ];

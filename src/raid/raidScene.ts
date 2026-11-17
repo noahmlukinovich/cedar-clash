@@ -648,6 +648,7 @@ export class RaidScene implements Scene {
             if (b.type === 'ratower') P2.text(p.x, p.y - 40, 30, 'Quiet hours over!', '#fff', 16);
             if (b.type === 'stinger') P2.text(p.x, p.y - 40, 30, 'Stinger un-stung!', '#9fd4ff', 16);
             if (b.type === 'catapult') P2.text(p.x, p.y - 40, 30, 'Kitchen closed!', '#ffb36b', 16);
+            if (b.type === 'deans') P2.text(p.x, p.y - 40, 30, 'Office hours cancelled!', '#ff8fb8', 16);
           }
           break;
         }
@@ -761,6 +762,22 @@ export class RaidScene implements Scene {
         case 'chorus': {
           const p = toWorld(ev.x, ev.y);
           P2.add({ kind: 'text', x: p.x + (Math.random() - 0.5) * 20, y: p.y, z: 40, vz: 35, max: 0.9, text: '♪♫', color: '#ff9fd0', size: 18 });
+          break;
+        }
+        case 'chain': {
+          // pink paper trail from raider to raider
+          for (let i = 0; i < ev.pts.length; i++) {
+            const p = toWorld(ev.pts[i].x, ev.pts[i].y);
+            P2.burst(p.x, p.y - 14, 10, 5, { kind: 'confetti', color: i ? '#ffd1e0' : '#ff8fb8', size: 6, speed: 60, max: 0.5, gravity: 120 });
+            if (i === 0) continue;
+            const q = toWorld(ev.pts[i - 1].x, ev.pts[i - 1].y);
+            this.beams.push({ x1: q.x, y1: q.y - 14, x2: p.x, y2: p.y - 14, t: 0.3, color: 'rgba(255,143,184,0.85)' });
+          }
+          if (ev.pts.length >= 4) {
+            const p = toWorld(ev.pts[0].x, ev.pts[0].y);
+            P2.text(p.x, p.y - 50, 40, ev.pts.length >= 6 ? 'ALL OF YOU. MY OFFICE.' : pick(['See me in my office.', 'You too.', 'And your friends.']), '#ff8fb8', ev.pts.length >= 6 ? 20 : 16);
+          }
+          sfx('zap');
           break;
         }
         case 'alarm': {
@@ -1096,6 +1113,27 @@ export class RaidScene implements Scene {
         ctx.fillStyle = '#7fae3a';
         ctx.fillRect(-4, -7, 2, 2);
         ctx.fillRect(2, -6, 2, 2);
+      } else if (pr.kind === 'summons') {
+        // a folded pink summons slip with a red seal
+        ctx.rotate(pr.t * 9);
+        ctx.fillStyle = '#ffd1e0';
+        ctx.beginPath();
+        ctx.moveTo(-7, -4);
+        ctx.lineTo(7, -4);
+        ctx.lineTo(7, 4);
+        ctx.lineTo(-7, 4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(-7, -4);
+        ctx.lineTo(0, 1);
+        ctx.lineTo(7, -4);
+        ctx.stroke();
+        ctx.fillStyle = C.red;
+        ctx.beginPath();
+        ctx.arc(0, 1, 2, 0, Math.PI * 2);
+        ctx.fill();
       } else if (pr.kind === 'writeup') {
         ctx.fillStyle = '#fff';
         ctx.fillRect(-4, -5, 8, 10);

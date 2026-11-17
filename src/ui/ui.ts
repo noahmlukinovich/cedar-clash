@@ -610,6 +610,11 @@ export class UI {
       if (d.lobTime) add('Fires every', `${d.rate}s`, nd ? `${nd.rate}s` : undefined);
       if (d.splash) add('Splash radius', d.splash, nd?.splash);
       if (d.knockback) add('Knockback', `${d.knockback} tiles`, nd?.knockback ? `${nd.knockback} tiles` : undefined);
+      if (d.chain) {
+        add('Damage per summons', Math.round(d.dps * d.rate), nd ? Math.round(nd.dps * nd.rate) : undefined);
+        add('Jumps to', `${d.chain} more raiders`, nd?.chain ? `${nd.chain} more` : undefined);
+        add('Each jump', `${Math.round((d.chainFalloff ?? 0.75) * 100)}% of the last, up to ${d.chainRange} tiles away`);
+      }
       if (d.slow) add('Slow', `${Math.round(d.slow * 100)}%`);
       if (d.freezeCharge) add('Freeze every', `${d.freezeCharge}s`, nd?.freezeCharge ? `${nd.freezeCharge}s` : undefined);
       if (d.blessHeal !== undefined) add('Wall blessing', d.blessHeal ? `${(d.blessHeal * 100).toFixed(1)}%/s` : 'Lv3+', nd?.blessHeal ? `${(nd.blessHeal * 100).toFixed(1)}%/s` : undefined);

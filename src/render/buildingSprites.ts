@@ -522,6 +522,8 @@ export function drawBuilding(ctx: Ctx, type: BuildingType, level: number, varian
       return stinger(ctx, L);
     case 'catapult':
       return catapult(ctx, L);
+    case 'deans':
+      return deans(ctx, L);
     case 'nest':
       return nest(ctx, L);
     case 'firealarm':
@@ -1738,6 +1740,53 @@ function faculty(ctx: Ctx, L: number): void {
   ctx.fillText('QUIZ!', x, y - 18);
   const [sx, sy] = P(-0.72, 0.4, 9);
   plaque(ctx, sx, sy, 'FACULTY', 7);
+}
+
+/**
+ * Dean's Office: a stately brick hall with a white portico and an inbox the size of a door.
+ * It only exists at DMC 8, so it starts high on the level ladder (Lv1 dresses like a Lv6).
+ */
+function deans(ctx: Ctx, L: number): void {
+  const T = L + 5;
+  site(ctx, T, 3);
+  const h = 40 + L * 4;
+  walls(ctx, T, -1.15, -1.15, 1.05, 0.7, 4, h, C.brick);
+  panes(ctx, 'R', -1.0, 0.55, 1.05, 12, h - 8, 3, 2, 2);
+  panes(ctx, 'L', -1.05, -0.62, 0.7, 12, h - 8, 1, 2, 1);
+  panes(ctx, 'L', 0.62, 0.98, 0.7, 12, h - 8, 1, 2, 3);
+  trim(ctx, T, -1.15, -1.15, 1.05, 0.7, h);
+  gable(ctx, -1.22, -1.22, 1.12, 0.78, h, 24, C.roofBlue);
+  // portico: steps, four fat white columns and a cream pediment with the office seal
+  box(ctx, -0.58, 0.7, 0.58, 1.3, 4, 9, C.stone);
+  for (let i = 0; i < 4; i++) {
+    const u = -0.42 + i * 0.28;
+    box(ctx, u - 0.08, 1.06, u + 0.08, 1.2, 9, h - 6, '#f8f6f0');
+  }
+  box(ctx, -0.6, 0.7, 0.6, 1.26, h - 6, h, CREAM);
+  poly(ctx, [P(-0.6, 1.26, h), P(0.6, 1.26, h), P(0, 1.26, h + 16)], CREAM, true, 1.8);
+  const [sx, sy] = P(0, 1.26, h + 6);
+  ctx.beginPath();
+  ctx.arc(sx, sy, 4.2, 0, Math.PI * 2);
+  ctx.fillStyle = L >= 2 ? C.gold : C.red;
+  ctx.fill();
+  ctx.lineWidth = 1.4;
+  ctx.strokeStyle = OUT;
+  ctx.stroke();
+  const [px, py] = P(0, 1.26, h - 3);
+  plaque(ctx, px, py, "DEAN'S OFFICE", 6);
+  // a teetering stack of summons slips on the lawn, taller every level
+  const top = 4 + 6 + L * 5;
+  box(ctx, 0.72, 0.98, 1.0, 1.22, 4, top, '#ffffff', { top: '#ffd1e0' });
+  ctx.strokeStyle = 'rgba(30,27,43,0.3)';
+  ctx.lineWidth = 0.8;
+  for (let z = 7; z < top - 1; z += 2.5) {
+    line(ctx, P(0.72, 1.22, z), P(1.0, 1.22, z));
+    line(ctx, P(1.0, 1.22, z), P(1.0, 0.98, z));
+  }
+  if (L >= 3) {
+    const [fx, fy] = P(-1.05, -1.05, h + 2);
+    flag(ctx, fx, fy, 30, C.gold);
+  }
 }
 
 function presidents(ctx: Ctx, L: number): void {

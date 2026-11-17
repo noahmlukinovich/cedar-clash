@@ -117,11 +117,13 @@ export interface Projectile {
   dmg: number;
   t: number;
   dur: number;
-  kind: 'writeup' | 'ticket' | 'pen' | 'fan' | 'casserole';
+  kind: 'writeup' | 'ticket' | 'pen' | 'fan' | 'casserole' | 'summons';
   /** Peak height of the arc in px (cosmetic). Default 18. */
   arc?: number;
   /** Lobbed splash shot: lands on (tx, ty) whoever is there, instead of hitting `target`. */
   splash?: { r: number; falloff: number; kb: number; dx: number; dy: number };
+  /** Dean's Office summons: after the first hit, jumps to `n` more raiders within `r` tiles, each hit × `falloff`. */
+  chain?: { n: number; r: number; falloff: number };
 }
 
 export interface Zone {
@@ -152,6 +154,8 @@ export type SimEvent =
   | { e: 'splat'; x: number; y: number; r: number; n: number }
   | { e: 'ramp'; b: RB; stage: number }
   | { e: 'swarm'; x: number; y: number; r: number }
+  /** A Dean's Office summons hit `pts[0]` and jumped on through the rest, in order. */
+  | { e: 'chain'; pts: { x: number; y: number }[] }
   /** A Fire Alarm went off at (x, y): `n` raiders filed out and are standing around. */
   | { e: 'alarm'; x: number; y: number; r: number; n: number }
   | { e: 'heal'; u: RU }
@@ -590,6 +594,7 @@ export class RaidSim {
       p.z = p.sz * (1 - k) + Math.sin(k * Math.PI) * (p.arc ?? 18);
       if (k >= 1) {
         if (p.splash) this.landSplash(p);
+        else if (p.chain && p.target && !p.target.dead) this.chainHit(p.target, p);
         else if (p.target && !p.target.dead) this.damageUnit(p.target, p.dmg, p.kind);
         this.projectiles.splice(i, 1);
       }
@@ -663,9 +668,9 @@ export class RaidSim {
       if (b.cd <= 0) {
         b.cd = d.rate;
         b.firing = 1;
-        const kind = b.type === 'ratower' ? 'writeup' : 'ticket';
+        const kind = b.type === 'ratower' ? 'writeup' : b.type === 'deans' ? 'summons' : 'ticket';
         const dd = dist(b.cx, b.cy, b.target.x, b.target.y);
-        const sz = b.type === 'ratower' ? 75 + b.level * 5 : 40;
+        const sz = b.type === 'ratower' ? 75 + b.level * 5 : b.type === 'deans' ? 62 : 40;
         this.projectiles.push({
           x: b.cx,
           y: b.cy,
@@ -680,6 +685,7 @@ export class RaidSim {
           t: 0,
           dur: Math.max(0.12, dd / (d.projectileSpeed ?? 12)),
           kind,
+          ...(d.chain ? { chain: { n: d.chain, r: d.chainRange ?? 3, falloff: d.chainFalloff ?? 0.75 } } : {}),
         });
         this.events.push({ e: 'shoot', b, kind });
       }
@@ -891,6 +897,40 @@ export class RaidSim {
       n++;
     }
     this.events.push({ e: 'splat', x: p.tx, y: p.ty, r: s.r, n });
+  }
+
+  /**
+   * Dean's Office summons: hit the target, then jump to the nearest raider not yet summoned within
+   * `r` tiles of the last one, `n` times, each hit `falloff` times the one before. Ties go to the
+   * older unit (lower uid), so a replay picks the same raiders.
+   */
+  private chainHit(first: RU, p: Projectile): void {
+    const c = p.chain!;
+    const hit = new Set<number>([first.uid]);
+    const pts = [{ x: first.x, y: first.y }];
+    let cur = first;
+    let dmg = p.dmg;
+    this.damageUnit(first, dmg, 'summons');
+    for (let k = 0; k < c.n; k++) {
+      let next: RU | null = null;
+      let nd = Infinity;
+      for (const u of this.units) {
+        if (u.dead || u.side !== 'atk' || hit.has(u.uid)) continue;
+        const d = dist(u.x, u.y, cur.x, cur.y);
+        if (d > c.r) continue;
+        if (d < nd || (d === nd && next && u.uid < next.uid)) {
+          nd = d;
+          next = u;
+        }
+      }
+      if (!next) break;
+      dmg *= c.falloff;
+      hit.add(next.uid);
+      pts.push({ x: next.x, y: next.y });
+      this.damageUnit(next, dmg, 'summons');
+      cur = next;
+    }
+    this.events.push({ e: 'chain', pts });
   }
 
   /** Slide a knocked-back raider. Buildings and walls stop the slide (troops that jump walls only stop at buildings). */
