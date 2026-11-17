@@ -138,10 +138,25 @@ export function nextLevelInfo(s: GameState, b: BuildingInst): { cost: number; re
   return { cost: L.cost, res: L.res, time: L.time, dmc: L.dmc };
 }
 
-export function upgradeCheck(s: GameState, b: BuildingInst): string | null {
+/**
+ * Resources an upgrade of this building can be paid with. Walls (once built) take Tuition or
+ * Coffee at the same price; everything else only takes its listed resource.
+ */
+export function upgradeResOptions(b: BuildingInst): ResourceId[] {
+  const n = BUILDINGS[b.type].levels[b.level];
+  if (!n) return [];
+  if (b.type === 'wall' && b.level >= 1) return ['tuition', 'coffee'];
+  return [n.res];
+}
+
+export function upgradeCheck(s: GameState, b: BuildingInst, res?: ResourceId): string | null {
   if (b.upgrade) return 'Already upgrading';
   const n = nextLevelInfo(s, b);
   if (!n) return 'Max level!';
+  if (res !== undefined) {
+    if (!upgradeResOptions(b).includes(res)) return `Can't upgrade this with ${resName(res)}`;
+    n.res = res;
+  }
   if (b.type !== 'dmc' && b.level + 1 > maxLevelForDmc(b.type, dmcLevel(s))) return `Requires DMC level ${n.dmc}`;
   if (b.type === 'dmc' && b.level + 1 > n.dmc + 1) return 'Max level';
   if (!canAfford(s, n.res, n.cost)) return `Not enough ${resName(n.res)}`;
@@ -152,11 +167,11 @@ export function upgradeCheck(s: GameState, b: BuildingInst): string | null {
   return null;
 }
 
-export function startUpgrade(s: GameState, b: BuildingInst): string | null {
-  const err = upgradeCheck(s, b);
+export function startUpgrade(s: GameState, b: BuildingInst, res?: ResourceId): string | null {
+  const err = upgradeCheck(s, b, res);
   if (err) return err;
   const n = nextLevelInfo(s, b)!;
-  spend(s, n.res, n.cost);
+  spend(s, res ?? n.res, n.cost);
   if (n.time <= 0) {
     b.level++;
     bus.emit('buildingDone', b);

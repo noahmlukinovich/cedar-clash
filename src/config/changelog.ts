@@ -10,6 +10,15 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 16,
+    date: 'Nov 17, 2026',
+    title: 'Coffee-brewed bricks',
+    items: [
+      'Walls can now be upgraded with Coffee as well as Tuition, at the same price. Select a wall and pick which Upgrade button to use.',
+      'The Upgrades list shows both prices on the Walls row, so leftover Coffee can go straight into your defenses.',
+    ],
+  },
+  {
     v: 15,
     date: 'Nov 16, 2026',
     title: 'Revenge',

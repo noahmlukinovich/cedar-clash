@@ -41,6 +41,7 @@ import {
   nextLevelInfo,
   resName,
   upgradeCheck,
+  upgradeResOptions,
 } from '../game/economy';
 import { defaultName, isComplete, snapshot } from '../game/layouts';
 import { canAttendChapel, chapelReward, startEvent } from '../game/events';
@@ -415,24 +416,28 @@ export class UI {
     } else {
       const n = nextLevelInfo(s, b);
       if (n) {
-        const err = upgradeCheck(s, b);
-        btn(
-          'Upgrade',
-          `<span style="font-size:28px">⬆️</span>`,
-          err ? 'gray' : 'gold',
-          () => {
-            const e2 = this.game.act({ k: 'upgrade', id: b.id }).err;
-            if (e2) {
-              this.toast(e2, 'bad');
-              sfx('error');
-            } else {
-              sfx('build');
-              vs.pop(b.id);
-              this.renderSelection(true);
-            }
-          },
-          `<span class="cost">${icon(n.res, 14)}${fmt(n.cost)}</span>`,
-        );
+        // Walls can be paid for with either Tuition or Coffee: one button each.
+        const opts = upgradeResOptions(b);
+        for (const res of opts) {
+          const err = upgradeCheck(s, b, res);
+          btn(
+            'Upgrade',
+            `<span style="font-size:28px">⬆️</span>`,
+            err ? 'gray' : 'gold',
+            () => {
+              const e2 = this.game.act(opts.length > 1 ? { k: 'upgrade', id: b.id, res } : { k: 'upgrade', id: b.id }).err;
+              if (e2) {
+                this.toast(e2, 'bad');
+                sfx('error');
+              } else {
+                sfx('build');
+                vs.pop(b.id);
+                this.renderSelection(true);
+              }
+            },
+            `<span class="cost">${icon(res, 14)}${fmt(n.cost)}</span>`,
+          );
+        }
       }
     }
     if ((b.type === 'admissions' || b.type === 'coffeecart') && b.level >= 1) {
@@ -954,19 +959,28 @@ export class UI {
       const buildingRow = (u: UpgradeRow, ready: boolean): HTMLElement => {
         const title = u.type === 'wall' ? `Walls ×${u.count}` : esc(u.name);
         const r = mkRow(ready ? '' : 'waiting', buildingThumb(u.type, u.level, 60, 50), title, `Lv ${u.level} → ${u.level + 1} · ${time(u.time)}`, () => goTo(u.id));
-        r.side.appendChild(el('div', '', costHtml(u.res, u.cost, canAfford(s, u.res, u.cost))));
+        const multi = u.resOptions.length > 1;
+        if (!multi) r.side.appendChild(el('div', '', costHtml(u.res, u.cost, canAfford(s, u.res, u.cost))));
         if (ready) {
-          const up = el('button', 'btn small gold', 'Upgrade');
-          up.onclick = () => {
-            const err = this.game.act({ k: 'upgrade', id: u.id }).err;
-            if (err) fail(err);
-            else {
-              sfx('build');
-              this.game.village.pop(u.id);
-            }
-            render(true);
-          };
-          r.side.appendChild(up);
+          // Walls get one button per payment option (Tuition or Coffee), each showing its cost.
+          for (const res of multi ? u.resOptions : [u.res]) {
+            const ok = canAfford(s, res, u.cost);
+            const up = el('button', `btn small ${ok ? 'gold' : 'gray'}`, multi ? costHtml(res, u.cost, ok) : 'Upgrade');
+            if (multi) up.title = `Upgrade with ${resName(res)}`;
+            up.onclick = () => {
+              const err = this.game.act(multi ? { k: 'upgrade', id: u.id, res } : { k: 'upgrade', id: u.id }).err;
+              if (err) fail(err);
+              else {
+                sfx('build');
+                this.game.village.pop(u.id);
+              }
+              render(true);
+            };
+            r.side.appendChild(up);
+          }
+        } else if (multi) {
+          for (const res of u.resOptions) r.side.appendChild(el('div', '', costHtml(res, u.cost, canAfford(s, res, u.cost))));
+          if (u.reason && u.resOptions.some((res) => canAfford(s, res, u.cost))) r.side.appendChild(el('div', 'up-why', u.reason));
         } else if (u.reason && canAfford(s, u.res, u.cost)) {
           r.side.appendChild(el('div', 'up-why', u.reason));
         }

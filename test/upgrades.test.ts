@@ -35,7 +35,7 @@ describe('listUpgrades', () => {
     expect(costs).toEqual([...costs].sort((a, b) => a - b));
     expect(l.count).toBe(l.ready.length);
     // every "ready" row really is accepted by the action the button sends
-    for (const r of l.ready) expect(applyAction(structuredClone(s), { k: 'upgrade', id: r.id }).err).toBeUndefined();
+    for (const r of l.ready) expect(applyAction(structuredClone(s), { k: 'upgrade', id: r.id, res: r.res }).err).toBeUndefined();
   });
 
   it('moves everything to waiting when nothing is affordable', () => {
@@ -93,11 +93,47 @@ describe('listUpgrades', () => {
     walls = listUpgrades(s).ready.filter((r) => r.type === 'wall');
     expect(walls[0]).toMatchObject({ level: 2, count: 4 });
 
-    // can't pay for the lowest wall: the single row waits
+    // out of Tuition: walls can still be paid for with Coffee
     s.resources.tuition = 0;
+    l = listUpgrades(s);
+    walls = l.ready.filter((r) => r.type === 'wall');
+    expect(walls).toHaveLength(1);
+    expect(walls[0]).toMatchObject({ res: 'coffee', resOptions: ['tuition', 'coffee'] });
+
+    // can't pay for the lowest wall with either: the single row waits
+    s.resources.coffee = 0;
     l = listUpgrades(s);
     expect(l.ready.filter((r) => r.type === 'wall')).toHaveLength(0);
     expect(l.waiting.filter((r) => r.type === 'wall')).toHaveLength(1);
+  });
+
+  it('upgrades walls with Coffee, and only walls', () => {
+    const s = newGame();
+    rich(s);
+    const dmc = s.buildings.find((b) => b.type === 'dmc')!;
+    dmc.level = 5;
+    const w = add(s, 'wall', 1);
+    const cost = BUILDINGS.wall.levels[1].cost;
+    const before = { ...s.resources };
+    expect(applyAction(s, { k: 'upgrade', id: w.id, res: 'coffee' }).err).toBeUndefined();
+    expect(w.level).toBe(2);
+    expect(s.resources.coffee).toBe(before.coffee - cost);
+    expect(s.resources.tuition).toBe(before.tuition);
+
+    // default payment is still Tuition
+    expect(applyAction(s, { k: 'upgrade', id: w.id }).err).toBeUndefined();
+    expect(s.resources.tuition).toBe(before.tuition - BUILDINGS.wall.levels[2].cost);
+
+    // not enough Coffee is refused even with plenty of Tuition
+    s.resources.coffee = 0;
+    expect(applyAction(s, { k: 'upgrade', id: w.id, res: 'coffee' }).err).toBe('Not enough Coffee');
+    expect(w.level).toBe(3);
+
+    // other buildings only take their own resource; bad values are rejected
+    expect(BUILDINGS.dmc.levels[dmc.level].res).toBe('tuition');
+    expect(applyAction(s, { k: 'upgrade', id: dmc.id, res: 'coffee' }).err).toMatch(/Can't upgrade this with Coffee/);
+    expect(applyAction(s, { k: 'upgrade', id: w.id, res: 'chapel' }).err).toBe('Bad action');
+    expect(applyAction(s, { k: 'upgrade', id: w.id, res: 'gold' as never }).err).toBe('Bad action');
   });
 
   it('leaves out maxed buildings, decor and anything that needs a higher DMC', () => {
