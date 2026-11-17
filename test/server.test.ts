@@ -10,7 +10,7 @@ let srv: ReturnType<typeof startServer>;
 let base = '';
 
 beforeAll(async () => {
-  srv = startServer({ dbPath: ':memory:', host: '127.0.0.1', port: 0, secureCookies: false });
+  srv = startServer({ dbPath: ':memory:', host: '127.0.0.1', port: 0, secureCookies: false, requireInvite: true });
   await srv.ready;
   base = `http://127.0.0.1:${srv.port}`;
   srv.db.st.insertInvite.run('TEST-CODE-0001', 10, Date.now(), 'tests');
@@ -433,5 +433,25 @@ describe('base layouts on the server', () => {
     expect([moved.x, moved.y]).toEqual([4, 4]);
     // the original arrangement is still there to go back to
     expect(s1.layouts[0]!.pos[shed.id]).toEqual({ x: shed.x, y: shed.y });
+  });
+});
+
+describe('sign-up without invite codes', () => {
+  it('lets anyone sign up when invites are off, and says so in health', async () => {
+    const open = startServer({ dbPath: ':memory:', host: '127.0.0.1', port: 0, secureCookies: false });
+    await open.ready;
+    try {
+      const url = `http://127.0.0.1:${open.port}`;
+      const health = (await (await fetch(url + '/api/health')).json()) as { inviteRequired: boolean };
+      expect(health.inviteRequired).toBe(false);
+      const r = await fetch(url + '/api/signup', {
+        method: 'POST',
+        headers: { 'X-CC': '1', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'Open Door', password: 'opendoor1' }),
+      });
+      expect(r.status).toBe(200);
+    } finally {
+      await open.close();
+    }
   });
 });
