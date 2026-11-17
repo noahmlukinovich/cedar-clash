@@ -1457,6 +1457,8 @@ export class UI {
           `Drag or <kbd>WASD</kbd>/arrows to pan · Wheel or <kbd>+</kbd>/<kbd>-</kbd> to zoom · Click a building to select · Drag a selected building to move it · <kbd>Esc</kbd> cancel · <kbd>Del</kbd> remove decor · <kbd>\`</kbd> toggle speed. In raids: pick a card, click/hold on green grass to deploy; <kbd>1</kbd>-<kbd>9</kbd> pick cards; <kbd>Space</kbd> uses the hero ability.`,
         ),
       );
+      m.body.appendChild(el('div', 'section-title', 'About'));
+      m.body.appendChild(el('p', '', 'Made by <b>Timothy Wax</b> and <b>Noah Lukinovich</b>. This game was made with AI.'));
       m.body.appendChild(el('p', 'flavor', 'Cedarville Clash is an unofficial, affectionate fan parody. Not affiliated with or endorsed by any university or game studio. All art is procedurally drawn.'));
     };
     render();
