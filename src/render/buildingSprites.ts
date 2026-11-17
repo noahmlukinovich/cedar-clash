@@ -114,6 +114,22 @@ function site(ctx: Ctx, L: number, size: number, color?: string): void {
     line(ctx, P(-s, s, 4), P(s, s, 4));
     line(ctx, P(s, s, 4), P(s, -s, 4));
   }
+  if (L >= 7) {
+    // navy inner stripe just inside the gold edging
+    const i = s - 0.08;
+    ctx.strokeStyle = C.navy;
+    ctx.lineWidth = 2;
+    line(ctx, P(-i, i, 4), P(i, i, 4));
+    line(ctx, P(i, i, 4), P(i, -i, 4));
+  }
+  if (L >= 8) {
+    // gold-capped bollards at the three front corners
+    for (const [u, v] of [
+      [-s + 0.08, s - 0.08],
+      [s - 0.08, s - 0.08],
+      [s - 0.08, -s + 0.08],
+    ]) box(ctx, u - 0.06, v - 0.06, u + 0.06, v + 0.06, 4, 11, C.navy, { top: C.gold });
+  }
   // Trees at the back corners go in with the lot, so the building is drawn in front of them.
   const half = size / 2;
   const k = size >= 4 ? 1 : 0.85;
@@ -798,19 +814,43 @@ function dmc(ctx: Ctx, L: number): void {
       poly(ctx, [P(u1, v1, th), P(u1, v0, th), P(u1, v1, th - drop)], shade(SLATE, -0.25), true, 1.8);
       box(ctx, u0 - 0.04, v0 - 0.04, u1 + 0.04, v1 + 0.04, th, th + 3, L >= 5 ? C.gold : CREAM);
       pyramid(ctx, u0 - 0.04, v0 - 0.04, u1 + 0.04, v1 + 0.04, th + 3, 15, SLATE);
+      if (L >= 7) {
+        // clock faces on both visible sides of the tower, under the slate cap
+        const zc = th - drop - 12;
+        const face = (pt: (a: number) => [number, number]): void => {
+          const pts: [number, number][] = [];
+          for (let k = 0; k < 16; k++) pts.push(pt((k / 16) * Math.PI * 2));
+          poly(ctx, pts, L >= 8 ? C.gold : CREAM, true, 1.6);
+          const [cx, cy] = pt(0);
+          const [ox, oy] = pt(Math.PI);
+          const mx = (cx + ox) / 2;
+          const my = (cy + oy) / 2;
+          ctx.strokeStyle = OUT;
+          ctx.lineWidth = 1.4;
+          line(ctx, [mx, my], [mx, my - 5]); // 12 o'clock
+          line(ctx, [mx, my], [mx + 3, my + 1.5]); // ten past, as always
+        };
+        const vc = (v0 + v1) / 2;
+        const uc = (u0 + u1) / 2;
+        face((a) => P(u1, vc + Math.cos(a) * 0.17, zc + Math.sin(a) * 8));
+        face((a) => P(uc + Math.cos(a) * 0.17, v1, zc + Math.sin(a) * 8));
+      }
     }
     const [x, y] = P((u0 + u1) / 2, (v0 + v1) / 2, th + (L <= 1 ? 14 : 18));
     const mast = L <= 1 ? 7 : 17;
     ctx.strokeStyle = OUT;
     ctx.lineWidth = 2.4;
     line(ctx, [x, y + 2], [x, y - mast - 6]);
-    ctx.beginPath();
-    ctx.arc(x, y - mast, L <= 1 ? 3.5 : 7.5, 0, Math.PI * 2);
-    ctx.fillStyle = L >= 6 ? C.gold : '#f7f8f5';
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    if (L >= 2) {
+    if (L >= 8) star5(ctx, x, y - mast, 9, C.gold);
+    else {
+      ctx.beginPath();
+      ctx.arc(x, y - mast, L <= 1 ? 3.5 : 7.5, 0, Math.PI * 2);
+      ctx.fillStyle = L >= 6 ? C.gold : '#f7f8f5';
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    if (L >= 2 && L < 8) {
       // highlight on the ball
       ctx.beginPath();
       ctx.arc(x - 2, y - mast - 2, 1.8, 0, Math.PI * 2);
@@ -904,6 +944,13 @@ function dmc(ctx: Ctx, L: number): void {
     for (const s of [-1, 1]) {
       const [lu, lv] = at(s * 1.0, 0.92);
       lamp(ctx, lu, lv, true);
+    }
+  }
+  if (L >= 7) {
+    // Commencement banners on poles at the ends of the forecourt
+    for (const s of [-1, 1]) {
+      const [x, y] = Q(s * 1.5, 0.95, 0);
+      flag(ctx, x, y, 34, L >= 8 ? C.gold : C.navy);
     }
   }
 }
@@ -2181,16 +2228,17 @@ function nest(ctx: Ctx, L: number): void {
   ctx.fill();
 }
 
-const WALL_COLORS = ['#a8713c', '#bf5a3f', '#a34a3a', '#9aa0a8', '#c9a13a', '#2e63b8'];
-const WALL_TOPS = ['#c99a62', '#d97a5f', '#c46a58', '#c4c9cf', '#f5c32c', '#f5c32c'];
+const WALL_COLORS = ['#a8713c', '#bf5a3f', '#a34a3a', '#9aa0a8', '#c9a13a', '#2e63b8', '#1c3d7a', '#ece6d8'];
+const WALL_TOPS = ['#c99a62', '#d97a5f', '#c46a58', '#c4c9cf', '#f5c32c', '#f5c32c', '#f5c32c', '#2e63b8'];
 
 /**
  * Walls change shape as well as colour:
  * 1 wooden fence posts, 2 brick, 3 brick with a stone cap, 4 stone block with a cap,
- * 5 gold-capped with a ball, 6 navy with gold battlements.
+ * 5 gold-capped with a ball, 6 navy with gold battlements, 7 deep navy with a gold band,
+ * 8 white marble with a gold band and a gold star.
  */
 function wall(ctx: Ctx, L: number, mask: number): void {
-  const lv = Math.min(L, 6);
+  const lv = Math.min(L, WALL_COLORS.length);
   const col = WALL_COLORS[lv - 1];
   const top = WALL_TOPS[lv - 1];
   const h = 16 + L * 2;
@@ -2241,6 +2289,17 @@ function wall(ctx: Ctx, L: number, mask: number): void {
       [-0.17, 0.17],
       [0.17, 0.17],
     ]) box(ctx, u - 0.09, v - 0.09, u + 0.09, v + 0.09, h + 3, h + 8, C.gold);
+  }
+  if (lv >= 7) {
+    // gold band around the middle
+    ctx.strokeStyle = C.gold;
+    ctx.lineWidth = 2;
+    line(ctx, P(-s, s, h * 0.5), P(s, s, h * 0.5));
+    line(ctx, P(s, s, h * 0.5), P(s, -s, h * 0.5));
+  }
+  if (lv >= 8) {
+    const [x, y] = P(0, 0, h + 16);
+    star5(ctx, x, y, 5.5, C.gold);
   }
 }
 

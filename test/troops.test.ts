@@ -38,7 +38,7 @@ describe('new troop definitions', () => {
     for (const t of ['business', 'music', 'runner', 'ra', 'goteam', 'rock'] as TroopType[]) {
       const d = TROOPS[t];
       expect(TROOP_ORDER).toContain(t);
-      expect(d.levels).toHaveLength(5);
+      expect(d.levels).toHaveLength(7); // research tops out at Library 7 (DMC 8)
       expect(BUILDINGS[d.barracks].trains).toContain(t);
       expect(BUILDINGS[d.barracks].levels.length).toBeGreaterThanOrEqual(d.barracksLevel);
       const s = newGame();

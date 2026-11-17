@@ -10,6 +10,19 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 22,
+    date: 'Nov 17, 2026',
+    title: 'DMC 7 and 8: Commencement',
+    items: [
+      'The DMC can now be upgraded to level 7 and level 8. Reaching DMC 8 earns the new "Commencement" achievement.',
+      'New top levels: Admissions, Coffee Cart, Registrar, Rinnova, RA Tower, Campus Safety Cart and Brick Walls go to Lv8; Residence Halls and the Library to Lv7; The Hive, Bible Prof Tower and the Casserole Catapult to Lv6; the Stinger Statue and Cedar Sprayer to Lv5; Yellow Jacket Nests to Lv4.',
+      'Build more: an extra RA Tower, Safety Cart, Residence Hall, Facilities Crew shed, storage, collector, splash defenses, nests, lakes and 50 more walls across the two new levels.',
+      'Every troop can be researched to level 7 (Library 6 and 7). The Bible Prof goes to level 7 and The President to level 5.',
+      'The DMC itself stores more, and rival campuses now show up at DMC 7 and 8 with bigger loot.',
+      'New looks: a clock tower and Commencement banners on the DMC, navy and white-marble walls, and navy trim and gold bollards around every top-level building.',
+    ],
+  },
+  {
     v: 21,
     date: 'Nov 17, 2026',
     title: 'Stinger Statue buff',

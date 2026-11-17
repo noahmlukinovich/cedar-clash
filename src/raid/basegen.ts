@@ -55,7 +55,7 @@ export function rivalStateU(): BaseLayout {
   };
 }
 
-const BASE_LOOT = [0, 1500, 3500, 7000, 14000, 26000, 45000];
+const BASE_LOOT = [0, 1500, 3500, 7000, 14000, 26000, 45000, 70000, 100000];
 
 export function generateBase(dmc: number, seed: number): BaseLayout {
   const rng = new Rng(seed);

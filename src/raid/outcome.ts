@@ -1,6 +1,6 @@
 // Applies a finished raid to the attacker's GameState. Shared by the offline client and
 // the server (which runs it on the verified replay result).
-import { THREE_STAR_CHAPEL } from '../config/balance';
+import { MAX_DMC, THREE_STAR_CHAPEL } from '../config/balance';
 import type { HeroType, SpellType, TroopType } from '../config/types';
 import { fillArmy, heroAvailable } from '../game/army';
 import { addRes, bump, dmcLevel, hasEvent, unlock } from '../game/economy';
@@ -24,7 +24,7 @@ export interface RaidOutcome {
 /** Builds the setup for a raid against a computer-generated campus. */
 export function localSetup(s: GameState, kind: Exclude<RaidKind, 'player'>, rand: () => number = Math.random): RaidSetup {
   const dl = dmcLevel(s);
-  const base = kind === 'campaign' ? rivalStateU() : generateBase(Math.max(1, Math.min(6, dl + (rand() < 0.25 ? 1 : 0) - (rand() < 0.2 ? 1 : 0))), (rand() * 1e9) | 0);
+  const base = kind === 'campaign' ? rivalStateU() : generateBase(Math.max(1, Math.min(MAX_DMC, dl + (rand() < 0.25 ? 1 : 0) - (rand() < 0.2 ? 1 : 0))), (rand() * 1e9) | 0);
   if (kind === 'elephant') {
     base.name = `Elephant Run vs ${base.name}`;
     base.loot.tuition = Math.round(base.loot.tuition * 1.5);

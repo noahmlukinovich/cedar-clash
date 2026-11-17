@@ -230,6 +230,7 @@ export function tickEconomy(s: GameState, dt: number): void {
       if (b.type === 'dmc') {
         if (b.level >= 3) unlock(s, 'dmc3');
         if (b.level >= 5) unlock(s, 'dmc5');
+        if (b.level >= 8) unlock(s, 'dmc8');
       }
     }
     if ((b.type === 'admissions' || b.type === 'coffeecart') && b.level >= 1 && !b.upgrade) {

@@ -1,14 +1,14 @@
 // Global balancing knobs.
 
 export const GRID = 40; // tiles per side
-export const MAX_DMC = 6;
+export const MAX_DMC = 8;
 
 export const START_RESOURCES = { tuition: 1500, coffee: 1500, chapel: 25 };
 /** DMC itself stores a bit of each resource, indexed by DMC level. */
 export const DMC_STORAGE = {
-  tuition: [0, 2000, 4000, 8000, 15000, 30000, 60000],
-  coffee: [0, 2000, 4000, 8000, 15000, 30000, 60000],
-  chapel: [0, 100, 200, 400, 800, 1500, 3000],
+  tuition: [0, 2000, 4000, 8000, 15000, 30000, 60000, 100000, 160000],
+  coffee: [0, 2000, 4000, 8000, 15000, 30000, 60000, 100000, 160000],
+  chapel: [0, 100, 200, 400, 800, 1500, 3000, 5000, 8000],
 };
 
 export const RAID_TIME = 180; // seconds
