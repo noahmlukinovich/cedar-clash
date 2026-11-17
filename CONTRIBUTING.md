@@ -1,0 +1,83 @@
+# Contributing to Cedarville Clash
+
+## Setup
+
+Requires Node 22.13 or newer.
+
+```bash
+npm install
+npm run dev     # http://localhost:5173, offline mode: no server needed
+npm test        # run before opening a PR
+npm run build   # type-check and build; CI runs this too
+```
+
+Offline mode covers almost all UI work. You only need `npm run dev:server` for
+login, visiting other campuses or online raids (see the README).
+
+## How changes reach `main`
+
+`main` is live: every merge redeploys GitHub Pages and the game server within
+minutes. So nobody pushes to `main` directly.
+
+1. Make a branch: `git checkout -b ui/shop-tweaks` (or let a Claude session make one).
+2. Commit, push, open a pull request.
+3. The **tests** check runs on the PR. It must pass.
+4. Merge:
+   - **UI-only PR** (only files in the UI zone below): you can merge it yourself once tests pass.
+   - **Anything else**: Noah has to approve it first. GitHub enforces this via
+     `.github/CODEOWNERS`.
+
+Keep PRs small and pull `main` often to dodge merge conflicts.
+
+## The UI zone
+
+Change these freely:
+
+| Path | What's in it |
+| --- | --- |
+| `src/ui/ui.ts` | All menus, panels, HUD and modals (see the screen map below) |
+| `src/ui/icons.ts`, `src/ui/thumbs.ts` | Icons and the little building/unit pictures in menus |
+| `src/style.css` | All styling. Sections are marked with `/* ---------- Name ---------- */` |
+| `src/render/buildingSprites.ts` | How each building is drawn |
+| `src/render/unitSprites.ts` | How troops, heroes and builders are drawn |
+| `src/render/draw.ts` | The color palette (`C`) and drawing helpers |
+| `src/render/world.ts` | Ground, grid, decorations, name plates |
+| `src/config/humor.ts` | Jokes, loading tips, achievements, league names |
+| `src/config/changelog.ts` | The "What's new" entries |
+| `index.html` | The page shell |
+
+Everything else (game rules, raids, economy, balance numbers, networking, the
+server, tests, CI, dependencies) is the **core zone** and needs Noah's review.
+
+UI code is allowed to *call* core code (read game state, call existing
+actions). It just can't *change* how core code works without review. If a UI
+idea needs something new from the core (a new stat, a new action, different
+numbers), open a GitHub issue with the `needs-core` label describing what you
+need, and build the UI once it lands.
+
+## Screen map: where to find things in `src/ui/ui.ts` and `src/style.css`
+
+Both files are split into sections with matching `---------- Name ----------` headers.
+
+| On screen | `ui.ts` section | `style.css` section |
+| --- | --- | --- |
+| Pop-up messages | Toasts & banners | Toasts |
+| Resource bars, buttons around the village | Village HUD | Top bars, Buttons |
+| Panel when you click a building | Selection panel | Selection panel |
+| Any pop-up window | Modals | Modals |
+| Build shop | Shop | Modals |
+| Building info | Info | Modals |
+| Training troops | Army | Modals |
+| Upgrade list | Upgrades list | Upgrades list |
+| Library, Heroes, Chapel | Library / Heroes / Chapel | Modals |
+| Achievements and leagues | Achievements / leagues | Modals |
+| Picking a raid target | Attack | Modals |
+| Settings and debug | Settings / debug | Modals |
+| Saved base layouts and the editor | Base layouts | Base layouts & editor |
+| Visiting another campus | Visiting another campus | Visiting another campus |
+| What's new | What's new | What's new |
+| Loading screen | Loading | Loading |
+| HUD during a raid, results screen | (in `src/raid/raidScene.ts`, core zone) | Raid HUD, Results |
+
+Restyling the raid HUD in `style.css` is fine. Changing its markup or behavior
+means touching `raidScene.ts`, which needs review.

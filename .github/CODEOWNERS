@@ -1,0 +1,18 @@
+# Who must review changes before they can merge into main.
+#
+# Everything is owned by Noah by default, so any PR that touches core game
+# code, the server, tests, CI or dependencies needs Noah's approval.
+*                           @noahmlukinovich
+
+# The UI zone: these paths are listed with no owner, which clears the
+# default owner above. A PR that touches only these paths needs no
+# code-owner review and can be merged once the tests pass.
+/src/ui/
+/src/render/
+/src/style.css
+/src/config/humor.ts
+/src/config/changelog.ts
+/index.html
+
+# Keep this file itself owned, so the rules can't be loosened without review.
+/.github/CODEOWNERS         @noahmlukinovich
