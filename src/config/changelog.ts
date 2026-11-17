@@ -10,6 +10,17 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 18,
+    date: 'Nov 17, 2026',
+    title: "New defense: Chuck's Casserole Catapult",
+    items: [
+      'Unlocks at DMC 4 (a second one at DMC 6). Find it in the Shop under Defense.',
+      "It lobs a tray of Mystery Bake up to 12 tiles at the biggest bunch of raiders. Everyone under the splash takes damage and gets knocked back, which stops them in their tracks.",
+      "A red shadow shows where each tray will land. Quick troops can get out of the way before it hits.",
+      "Blind spot: it can't fire at anything within 4 tiles. Cover it with other defenses, or send a tank to stand right next to it.",
+    ],
+  },
+  {
     v: 17,
     date: 'Nov 17, 2026',
     title: 'Stinger Statue: Multi mode',

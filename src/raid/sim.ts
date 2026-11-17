@@ -98,6 +98,10 @@ export interface RU {
   runT: number;
   /** GO Team members go home at this time (0 = never). */
   expireAt: number;
+  /** Knockback slide (tiles/sec) while `time < kbUntil`: the raider is flying and can't act. */
+  kbVx: number;
+  kbVy: number;
+  kbUntil: number;
 }
 
 export interface Projectile {
@@ -113,7 +117,11 @@ export interface Projectile {
   dmg: number;
   t: number;
   dur: number;
-  kind: 'writeup' | 'ticket' | 'pen' | 'fan';
+  kind: 'writeup' | 'ticket' | 'pen' | 'fan' | 'casserole';
+  /** Peak height of the arc in px (cosmetic). Default 18. */
+  arc?: number;
+  /** Lobbed splash shot: lands on (tx, ty) whoever is there, instead of hitting `target`. */
+  splash?: { r: number; falloff: number; kb: number; dx: number; dy: number };
 }
 
 export interface Zone {
@@ -140,6 +148,8 @@ export type SimEvent =
   | { e: 'shoot'; b: RB; kind: string }
   | { e: 'freeze'; b: RB }
   | { e: 'pray'; b: RB; x: number; y: number; r: number }
+  /** A casserole tray landed: splash of radius r at (x, y), `n` raiders knocked back. */
+  | { e: 'splat'; x: number; y: number; r: number; n: number }
   | { e: 'ramp'; b: RB; stage: number }
   | { e: 'swarm'; x: number; y: number; r: number }
   | { e: 'heal'; u: RU }
@@ -415,6 +425,9 @@ export class RaidSim {
       hits: 0,
       runT: 0,
       expireAt: 0,
+      kbVx: 0,
+      kbVy: 0,
+      kbUntil: 0,
     };
     this.units.push(u);
     return u;
@@ -535,6 +548,7 @@ export class RaidSim {
       if (b.type === 'sprayer') this.updateSprayer(b, dt);
       else if (b.type === 'bibleprof') this.updateBibleProf(b, dt);
       else if (b.type === 'stinger') this.updateStinger(b, dt);
+      else if (b.type === 'catapult') this.updateCatapult(b, dt);
       else this.updateShooter(b, dt);
     }
 
@@ -549,9 +563,10 @@ export class RaidSim {
       }
       p.x = p.sx + (p.tx - p.sx) * k;
       p.y = p.sy + (p.ty - p.sy) * k;
-      p.z = p.sz * (1 - k) + Math.sin(k * Math.PI) * 18;
+      p.z = p.sz * (1 - k) + Math.sin(k * Math.PI) * (p.arc ?? 18);
       if (k >= 1) {
-        if (p.target && !p.target.dead) this.damageUnit(p.target, p.dmg, p.kind);
+        if (p.splash) this.landSplash(p);
+        else if (p.target && !p.target.dead) this.damageUnit(p.target, p.dmg, p.kind);
         this.projectiles.splice(i, 1);
       }
     }
@@ -567,6 +582,10 @@ export class RaidSim {
         // GO Team members head home when their trip is over
         u.dead = true;
         this.events.push({ e: 'death', u });
+        continue;
+      }
+      if (u.kbUntil > this.time) {
+        this.slideKnockback(u, dt);
         continue;
       }
       if (u.frozenUntil > this.time || u.stunUntil > this.time) continue;
@@ -766,6 +785,111 @@ export class RaidSim {
     b.firing = 1;
     const dmg = (d.multiDps ?? d.dps) * dt;
     for (const u of b.targets) this.damageUnit(u, dmg, 'beam', true);
+  }
+
+  /**
+   * Casserole Catapult: lobs a tray at the spot where the most raiders are bunched up, anywhere
+   * between `minRange` and `range`. The tray lands `lobTime` later on that spot, not on a troop,
+   * so anyone quick enough walks out from under it.
+   */
+  private updateCatapult(b: RB, dt: number): void {
+    const d = b.def!;
+    b.cd -= dt;
+    if (b.cd > 0) return;
+    const r = d.splash ?? 1.5;
+    const minR = d.minRange ?? 0;
+    let best: RU | null = null;
+    let bestScore = 0;
+    for (const u of this.units) {
+      if (u.dead || u.side !== 'atk') continue;
+      const du = distToRect(u.x, u.y, b.x, b.y, b.size, b.size);
+      if (du > d.range || du < minR) continue;
+      let score = 0;
+      for (const o of this.units) if (!o.dead && o.side === 'atk' && dist(o.x, o.y, u.x, u.y) <= r) score += o.frozenUntil > this.time ? 1.5 : 1;
+      if (score > bestScore) {
+        bestScore = score;
+        best = u;
+      }
+    }
+    if (!best) return;
+    b.cd = d.rate;
+    b.firing = 1;
+    const tx = best.x;
+    const ty = best.y;
+    const ax = tx - b.cx;
+    const ay = ty - b.cy;
+    const al = Math.sqrt(ax * ax + ay * ay) || 1;
+    b.aim = Math.atan2(ay, ax);
+    const sz = 50 + b.level * 4;
+    this.projectiles.push({
+      x: b.cx,
+      y: b.cy,
+      z: sz,
+      sx: b.cx,
+      sy: b.cy,
+      sz,
+      tx,
+      ty,
+      target: null,
+      dmg: d.dps * d.rate,
+      t: 0,
+      dur: d.lobTime ?? 1.4,
+      kind: 'casserole',
+      arc: 150,
+      splash: { r, falloff: d.falloff ?? 0.4, kb: d.knockback ?? 0, dx: ax / al, dy: ay / al },
+    });
+    this.events.push({ e: 'shoot', b, kind: 'casserole' });
+  }
+
+  /** A lobbed tray lands: damage falls off towards the rim, and everyone hit is shoved outwards. */
+  private landSplash(p: Projectile): void {
+    const s = p.splash!;
+    const KB_TIME = 0.3;
+    let n = 0;
+    for (const u of this.units) {
+      if (u.dead || u.side !== 'atk') continue;
+      const dx = u.x - p.tx;
+      const dy = u.y - p.ty;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d > s.r) continue;
+      const k = d / s.r;
+      this.damageUnit(u, p.dmg * (1 - (1 - s.falloff) * k), 'casserole');
+      if (u.dead || s.kb <= 0) continue;
+      // dead centre: fly the way the tray was travelling
+      const nx = d > 0.05 ? dx / d : s.dx;
+      const ny = d > 0.05 ? dy / d : s.dy;
+      const kb = s.kb * (u.hero ? 0.5 : 1);
+      u.kbVx = (nx * kb) / KB_TIME;
+      u.kbVy = (ny * kb) / KB_TIME;
+      u.kbUntil = this.time + KB_TIME;
+      u.runT = 0; // Cross Country momentum: gone
+      u.needsPath = true;
+      n++;
+    }
+    this.events.push({ e: 'splat', x: p.tx, y: p.ty, r: s.r, n });
+  }
+
+  /** Slide a knocked-back raider. Buildings and walls stop the slide (troops that jump walls only stop at buildings). */
+  private slideKnockback(u: RU, dt: number): void {
+    const grid = u.def?.jumps ? this.costJump : this.cost;
+    const ok = (x: number, y: number): boolean => {
+      const ix = Math.floor(x);
+      const iy = Math.floor(y);
+      if (ix < 0 || iy < 0 || ix >= GRID || iy >= GRID) return false;
+      return grid[iy * GRID + ix] === FREE;
+    };
+    const nx = u.x + u.kbVx * dt;
+    const ny = u.y + u.kbVy * dt;
+    if (ok(nx, ny)) {
+      u.x = nx;
+      u.y = ny;
+    } else if (ok(nx, u.y)) {
+      u.x = nx;
+      u.kbVy = 0;
+    } else if (ok(u.x, ny)) {
+      u.y = ny;
+      u.kbVx = 0;
+    } else u.kbUntil = 0; // slammed into something
   }
 
   private updateTrap(b: RB): void {

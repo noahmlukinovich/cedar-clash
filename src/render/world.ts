@@ -3,7 +3,7 @@ import { GRID } from '../config/balance';
 import type { BuildingType } from '../config/types';
 import { hash2 } from '../core/rng';
 import { toWorld } from '../core/iso';
-import { STINGER_TIP_Z, getBuildingSprite, type Sprite } from './buildingSprites';
+import { CATAPULT_AXLE_Z, STINGER_TIP_Z, getBuildingSprite, type Sprite } from './buildingSprites';
 import { C, OUT, P, box, poly, roundRect, shade } from './draw';
 import { drawBuilder } from './unitSprites';
 
@@ -441,6 +441,52 @@ function drawDynamic(ctx: Ctx, a: BuildingDrawArgs, size: number): void {
         ctx.moveTo(gx - 7, gy - 3 - s);
         ctx.lineTo(gx - 7, gy - 3 + s);
         ctx.stroke();
+      }
+      break;
+    }
+    case 'catapult': {
+      // throwing arm: cocked back with a tray loaded, flung forward just after a shot
+      const [px, py] = P(0, 0, CATAPULT_AXLE_Z);
+      const f = a.frozen || a.stunned ? 0 : (a.firing ?? 0);
+      const ang = 2.55 - f * 3.9; // radians, screen space: rest points back-left, fired points up
+      const len = 46 + L * 2;
+      const ca = Math.cos(ang);
+      const sa = Math.sin(ang);
+      const ex = px + ca * len;
+      const ey = py + sa * len;
+      const bx = px - ca * 16;
+      const by = py - sa * 16;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = OUT;
+      ctx.lineWidth = 7;
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+      ctx.strokeStyle = L >= 2 ? '#7a5230' : '#b98652';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      ctx.lineCap = 'butt';
+      // counterweight: a giant stock pot
+      ctx.fillStyle = '#8a929c';
+      ctx.strokeStyle = OUT;
+      ctx.lineWidth = 1.5;
+      ctx.fillRect(bx - 7, by - 2, 14, 12);
+      ctx.strokeRect(bx - 7, by - 2, 14, 12);
+      // the cup, with today's Mystery Bake while loaded
+      ctx.beginPath();
+      ctx.ellipse(ex, ey, 9, 4.5, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#e0773a';
+      ctx.fill();
+      ctx.stroke();
+      if (f < 0.3) {
+        ctx.beginPath();
+        ctx.ellipse(ex, ey - 2.5, 7, 3.5, 0, Math.PI, 0);
+        ctx.fillStyle = '#b5762e';
+        ctx.fill();
+        ctx.fillStyle = '#7fae3a';
+        ctx.fillRect(ex - 3, ey - 4, 2, 2);
+        ctx.fillRect(ex + 2, ey - 3, 2, 2);
       }
       break;
     }

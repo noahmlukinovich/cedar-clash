@@ -504,6 +504,8 @@ export function drawBuilding(ctx: Ctx, type: BuildingType, level: number, varian
       return bibleProf(ctx, L);
     case 'stinger':
       return stinger(ctx, L);
+    case 'catapult':
+      return catapult(ctx, L);
     case 'nest':
       return nest(ctx, L);
     case 'wall':
@@ -1951,6 +1953,66 @@ function bibleProf(ctx: Ctx, L: number): void {
   if (L >= 5) {
     const [x, y] = P(0, 0, h + 8);
     cross(ctx, x, y, 16);
+  }
+}
+
+/** Height (px above the footprint centre) of the Casserole Catapult's axle: its throwing arm pivots here. */
+export const CATAPULT_AXLE_Z = 60;
+
+/** Chuck's Casserole Catapult: a wooden A-frame on a serving platform. The throwing arm is drawn live (world.ts). */
+function catapult(ctx: Ctx, L: number): void {
+  site(ctx, L, 3);
+  // serving platform
+  box(ctx, -1.05, -1.05, 1.05, 1.05, 4, 12, L <= 1 ? WOOD : C.brick);
+  if (L >= 3) box(ctx, -1.08, -1.08, 1.08, 1.08, 12, 14, CREAM);
+  const z0 = L >= 3 ? 14 : 12;
+  // stack of dining-hall trays on the left corner
+  const th = 6 + L * 4;
+  box(ctx, -0.95, 0.45, -0.5, 0.95, z0, z0 + th, '#e0773a');
+  ctx.strokeStyle = 'rgba(90,30,0,0.45)';
+  ctx.lineWidth = 1;
+  for (let z = z0 + 3; z < z0 + th - 1; z += 3) {
+    line(ctx, P(-0.95, 0.95, z), P(-0.5, 0.95, z));
+    line(ctx, P(-0.5, 0.95, z), P(-0.5, 0.45, z));
+  }
+  // a vat of Mystery Bake on the right corner
+  cylinder(ctx, 0.68, -0.68, 0.3, z0, 16, '#9aa3ad', '#6b4a2a');
+  const [vx, vy] = P(0.68, -0.68, z0 + 16);
+  ctx.fillStyle = '#7fae3a';
+  for (const [ox, oy] of [[-4, -1], [3, 1], [0, 2]] as [number, number][]) ctx.fillRect(vx + ox, vy + oy, 2, 2);
+  // A-frame uprights either side of the arm
+  ctx.lineCap = 'round';
+  for (const v of [-0.45, 0.45]) {
+    const top = P(0, v, CATAPULT_AXLE_Z);
+    for (const u of [-0.7, 0.7]) {
+      const foot = P(u, v, z0);
+      ctx.strokeStyle = OUT;
+      ctx.lineWidth = 8;
+      line(ctx, foot, top);
+      ctx.strokeStyle = L >= 2 ? C.woodDark : WOOD;
+      ctx.lineWidth = 5;
+      line(ctx, foot, top);
+    }
+    // cross brace
+    ctx.strokeStyle = OUT;
+    ctx.lineWidth = 2;
+    line(ctx, P(-0.5, v, z0 + 18), P(0.5, v, z0 + 18));
+  }
+  // axle
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 5;
+  line(ctx, P(0, -0.5, CATAPULT_AXLE_Z), P(0, 0.5, CATAPULT_AXLE_Z));
+  ctx.strokeStyle = L >= 4 ? C.gold : '#777';
+  ctx.lineWidth = 3;
+  line(ctx, P(0, -0.5, CATAPULT_AXLE_Z), P(0, 0.5, CATAPULT_AXLE_Z));
+  ctx.lineCap = 'butt';
+  if (L >= 2) {
+    const [sx, sy] = P(0.2, 1.08, 9);
+    plaque(ctx, sx, sy, "CHUCK'S", 6);
+  }
+  if (L >= 4) {
+    const [fx, fy] = P(-0.95, -0.95, z0 + 12);
+    flag(ctx, fx, fy, 30, C.gold);
   }
 }
 
