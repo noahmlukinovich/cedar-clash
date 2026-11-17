@@ -10,6 +10,18 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 19,
+    date: 'Nov 17, 2026',
+    title: 'New troop: The Rock',
+    items: [
+      'Train it at a Residence Hall Lv4. It takes 25 housing space, so plan your army around it.',
+      'The toughest troop on campus, and the slowest. It walks straight past everything else to get to defenses, soaking up fire while the rest of your army works.',
+      "Too heavy to shove: a Casserole Catapult still hurts it, but can't knock it back.",
+      'When it finally cracks, it crashes onto every building within 1.5 tiles, and two Pebbles roll out to finish the job.',
+      'Every Rock wears a different paint job. Nobody knows who repaints it at night.',
+    ],
+  },
+  {
     v: 18,
     date: 'Nov 17, 2026',
     title: "New defense: Chuck's Casserole Catapult",

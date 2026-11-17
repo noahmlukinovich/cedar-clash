@@ -2,7 +2,7 @@
 // Pure game logic; the scene turns `events` into particles & sounds.
 import { BUILDINGS, blocksPath } from '../config/buildings';
 import { GRID } from '../config/balance';
-import { FAN_DEF, GO_MEMBER_DEF, HEROES, TROOPS } from '../config/troops';
+import { FAN_DEF, GO_MEMBER_DEF, HEROES, PEBBLE_DEF, TROOPS } from '../config/troops';
 import { SPELLS } from '../config/spells';
 import type { BuildingType, DefenseStats, HeroType, SpellType, TroopDef, TroopType, UnitType } from '../config/types';
 import { dist, distToRect } from '../core/iso';
@@ -162,6 +162,8 @@ export type SimEvent =
   | { e: 'spell'; kind: SpellType; x: number; y: number; r: number }
   | { e: 'ability'; kind: 'quiz' | 'convo'; u: RU }
   | { e: 'unload'; x: number; y: number }
+  /** The Rock cracks: it crashes onto buildings within `r` tiles and breaks into Pebbles. */
+  | { e: 'crumble'; x: number; y: number; r: number }
   | { e: 'chorus'; x: number; y: number }
   | { e: 'roomcheck'; u: RU }
   /** The Bible Prof's crossbow: letter `n` of the Hebrew alphabet flies from (fx, fy) to (tx, ty). Visual only. */
@@ -361,6 +363,26 @@ export class RaidSim {
       m.expireAt = this.time + un.life;
     }
     this.events.push({ e: 'unload', x: u.x, y: u.y });
+  }
+
+  /** The Rock is destroyed: it crashes onto whatever is next to it, then breaks into Pebbles. Once only. */
+  private crumbleRock(u: RU): void {
+    const cr = u.def?.crumble;
+    if (!cr) return;
+    const dmg = cr.dmg[Math.min(cr.dmg.length, u.level) - 1];
+    for (const b of this.buildings) {
+      if (b.dead || b.isTrap || b.type === 'lake') continue;
+      if (distToRect(u.x, u.y, b.x, b.y, b.size, b.size) <= cr.radius) this.damageBuilding(b, dmg, u);
+    }
+    const d = PEBBLE_DEF;
+    const lvl = Math.min(d.levels.length, u.level);
+    const L = d.levels[lvl - 1];
+    for (let i = 0; i < cr.count; i++) {
+      const [dx, dy] = WANDER_DIRS[(i * 4 + 2) % WANDER_DIRS.length];
+      const p = this.addUnit({ type: 'pebble', side: 'atk', level: lvl, x: u.x + dx * 0.4, y: u.y + dy * 0.4, hp: L.hp, dps: L.dps, speed: d.speed * (this.opts.elephant ? 1.5 : 1), range: d.range, rate: d.attackRate });
+      p.def = d;
+    }
+    this.events.push({ e: 'crumble', x: u.x, y: u.y, r: cr.radius });
   }
 
   spawnHero(h: HeroType, x: number, y: number, hpFrac = 1): RU {
@@ -854,7 +876,7 @@ export class RaidSim {
       if (d > s.r) continue;
       const k = d / s.r;
       this.damageUnit(u, p.dmg * (1 - (1 - s.falloff) * k), 'casserole');
-      if (u.dead || s.kb <= 0) continue;
+      if (u.dead || s.kb <= 0 || u.def?.heavy) continue;
       // dead centre: fly the way the tray was travelling
       const nx = d > 0.05 ? dx / d : s.dx;
       const ny = d > 0.05 ? dy / d : s.dy;
@@ -938,6 +960,7 @@ export class RaidSim {
       u.dead = true;
       this.events.push({ e: 'death', u });
       if (u.def?.unload) this.unloadVan(u); // wrecked on the way: the team still gets out
+      if (u.def?.crumble) this.crumbleRock(u);
     }
   }
 

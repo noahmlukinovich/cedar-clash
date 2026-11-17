@@ -746,6 +746,14 @@ export class RaidScene implements Scene {
           sfx('deploy');
           break;
         }
+        case 'crumble': {
+          const p = toWorld(ev.x, ev.y);
+          P2.burst(p.x, p.y, 16, 10, { kind: 'puff', color: '#b8b0a2', size: 9, speed: 110, max: 0.7, grow: 14 });
+          P2.text(p.x, p.y - 50, 40, pick(['CRACK!', 'Somebody call Facilities.', 'Repainting tonight.']), '#e8e2d6', 16);
+          sfx('cannon');
+          this.cam.shake(7, 0.4);
+          break;
+        }
         case 'bolt':
           this.letters.push({ fx: ev.fx, fy: ev.fy, tx: ev.tx, ty: ev.ty, ch: HEBREW[ev.n % HEBREW.length], big: ev.big, t: 0 });
           sfx(ev.big ? 'cannon' : 'shoot');
@@ -994,7 +1002,7 @@ export class RaidScene implements Scene {
         depth: u.x + u.y,
         fn: () => {
           const p = toWorld(u.x, u.y);
-          const scale = (u.hero ? 1.35 : u.type === 'fan' ? 0.9 : u.type === 'gomember' ? 0.95 : TROOPS[u.type as TroopType]?.size ?? 1) * 0.9;
+          const scale = (u.hero ? 1.35 : u.type === 'fan' ? 0.9 : u.type === 'gomember' ? 0.95 : u.type === 'pebble' ? 1 : TROOPS[u.type as TroopType]?.size ?? 1) * 0.9;
           // glow rings for buffs
           if (u.rageUntil > sim.time || u.convoUntil > sim.time) {
             ctx.strokeStyle = u.convoUntil > sim.time ? 'rgba(245,195,44,0.9)' : 'rgba(255,79,163,0.9)';
@@ -1019,6 +1027,7 @@ export class RaidScene implements Scene {
             flash: u.flash,
             stunned: u.stunUntil > sim.time,
             level: u.level,
+            variant: u.uid,
           }, u.side === 'def');
           // level pips under the feet, so a troop's level reads in a crowd (heroes show a label instead)
           if (!u.hero && u.level >= 2) {

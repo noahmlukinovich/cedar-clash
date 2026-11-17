@@ -35,7 +35,7 @@ const B = (s: RaidSim, type: BuildingType) => s.buildings.find((b) => b.type ===
 
 describe('new troop definitions', () => {
   it('are trainable, researchable and unlocked by their buildings', () => {
-    for (const t of ['business', 'music', 'runner', 'ra', 'goteam'] as TroopType[]) {
+    for (const t of ['business', 'music', 'runner', 'ra', 'goteam', 'rock'] as TroopType[]) {
       const d = TROOPS[t];
       expect(TROOP_ORDER).toContain(t);
       expect(d.levels).toHaveLength(5);
