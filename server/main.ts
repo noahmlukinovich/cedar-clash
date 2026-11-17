@@ -16,6 +16,8 @@ export interface ServerConfig {
   port: number;
   /** Mark cookies Secure (true behind HTTPS; false only for local development over http). */
   secureCookies: boolean;
+  /** Sign-up needs an invite code. Off unless REQUIRE_INVITE=1. */
+  requireInvite?: boolean;
 }
 
 export function configFromEnv(): ServerConfig {
@@ -24,6 +26,7 @@ export function configFromEnv(): ServerConfig {
     host: process.env.HOST ?? '127.0.0.1',
     port: Number(process.env.PORT ?? 8787),
     secureCookies: process.env.COOKIE_SECURE !== '0',
+    requireInvite: process.env.REQUIRE_INVITE === '1',
   };
 }
 
@@ -111,18 +114,21 @@ export function createApp(db: DB, cfg: ServerConfig) {
     const { username, password, invite } = body;
     if (!validCampusName(username)) throw new HttpError(400, NAME_RULES);
     if (typeof password !== 'string' || password.length < 8 || password.length > 200) throw new HttpError(400, 'Passwords need at least 8 characters');
-    if (typeof invite !== 'string' || invite.length > 40) throw new HttpError(400, 'Invite code required');
+    const requireInvite = !!cfg.requireInvite;
+    if (requireInvite && (typeof invite !== 'string' || invite.length > 40)) throw new HttpError(400, 'Invite code required');
     if (!signups.hit(ip)) throw new HttpError(429, 'Too many sign-ups from here. Try again later.');
-    const code = invite.trim().toUpperCase();
-    const inv = db.st.invite.get(code) as { uses_left: number } | undefined;
-    if (!inv || inv.uses_left <= 0) throw new HttpError(400, "That invite code isn't valid");
+    const code = requireInvite ? String(invite).trim().toUpperCase() : '';
+    if (requireInvite) {
+      const inv = db.st.invite.get(code) as { uses_left: number } | undefined;
+      if (!inv || inv.uses_left <= 0) throw new HttpError(400, "That invite code isn't valid");
+    }
     if (db.st.userByName.get(username)) throw new HttpError(409, 'That campus name is taken');
     const hash = await hashPassword(password);
     const now = Date.now();
     const id = db.tx(() => {
       // re-check inside the transaction (the hash above was async)
       if (db.st.userByName.get(username)) throw new HttpError(409, 'That campus name is taken');
-      if (!Number(db.st.useInvite.run(code).changes)) throw new HttpError(400, "That invite code isn't valid");
+      if (requireInvite && !Number(db.st.useInvite.run(code).changes)) throw new HttpError(400, "That invite code isn't valid");
       const r = db.st.insertUser.run(username, hash, now, JSON.stringify(newPlayerState(username, now)), now);
       return Number(r.lastInsertRowid);
     });
@@ -153,7 +159,7 @@ export function createApp(db: DB, cfg: ServerConfig) {
     const path = url.pathname;
     const method = req.method ?? 'GET';
     if (!path.startsWith('/api/')) throw new HttpError(404, 'Not found');
-    if (path === '/api/health') return { ok: true, loggedIn: sessionUser(req) != null };
+    if (path === '/api/health') return { ok: true, loggedIn: sessionUser(req) != null, inviteRequired: !!cfg.requireInvite };
     if (!requests.hit(clientIp(req))) throw new HttpError(429, 'Slow down a little');
 
     let body: Record<string, unknown> = {};
