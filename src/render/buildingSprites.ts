@@ -467,7 +467,7 @@ function levelFlags(ctx: Ctx, level: number, u: number, v: number, z: number): v
 
 export function drawBuilding(ctx: Ctx, type: BuildingType, level: number, variant = 0): void {
   const size = BUILDINGS[type].size;
-  if (type !== 'wall' && type !== 'lake' && type !== 'nest') groundShadow(ctx, size);
+  if (type !== 'wall' && type !== 'lake' && type !== 'nest' && type !== 'firealarm') groundShadow(ctx, size);
   if (level === 0) {
     drawScaffold(ctx, size);
     return;
@@ -524,6 +524,8 @@ export function drawBuilding(ctx: Ctx, type: BuildingType, level: number, varian
       return catapult(ctx, L);
     case 'nest':
       return nest(ctx, L);
+    case 'firealarm':
+      return fireAlarm(ctx, L);
     case 'wall':
       return wall(ctx, L, variant);
     case 'lake':
@@ -2226,6 +2228,59 @@ function nest(ctx: Ctx, L: number): void {
   ctx.beginPath();
   ctx.arc(x, y - 6, 2.5, 0, Math.PI * 2);
   ctx.fill();
+}
+
+/**
+ * A red pull station on a short post. Lv2 adds a strobe on top; Lv3 a gold rim and a second strobe.
+ */
+function fireAlarm(ctx: Ctx, L: number): void {
+  const [x, y] = P(0, 0, 0);
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath();
+  ctx.ellipse(x, y, 11, 5.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // post
+  box(ctx, -0.06, -0.06, 0.06, 0.06, 0, 14, '#8a8f99');
+  // the red box, its face toward the viewer's right
+  const RED = '#d8322c';
+  box(ctx, -0.17, -0.12, 0.17, 0.12, 14, 34, RED, { top: shade(RED, 0.15) });
+  if (L >= 3) {
+    ctx.strokeStyle = C.gold;
+    ctx.lineWidth = 1.6;
+    const rim = [P(-0.17, 0.12, 14), P(0.17, 0.12, 14), P(0.17, 0.12, 34), P(-0.17, 0.12, 34)];
+    ctx.beginPath();
+    ctx.moveTo(rim[0][0], rim[0][1]);
+    for (const q of rim) ctx.lineTo(q[0], q[1]);
+    ctx.closePath();
+    ctx.stroke();
+  }
+  // white "FIRE" label strip and the pull handle on the front face
+  poly(ctx, [P(-0.13, 0.12, 27), P(0.13, 0.12, 27), P(0.13, 0.12, 32), P(-0.13, 0.12, 32)], '#fff', true, 1);
+  const [lx, ly] = P(0, 0.12, 29.5);
+  ctx.fillStyle = RED;
+  ctx.font = '900 4.6px "Trebuchet MS", system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('FIRE', lx, ly + 0.3);
+  ctx.textBaseline = 'alphabetic';
+  poly(ctx, [P(-0.08, 0.12, 18), P(0.08, 0.12, 18), P(0.08, 0.12, 24), P(-0.08, 0.12, 24)], '#f2f2f2', true, 1.2);
+  const [hx, hy] = P(0, 0.12, 21);
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 1.6;
+  line(ctx, [hx - 3, hy], [hx + 3, hy]);
+  // strobes
+  const strobe = (u: number): void => {
+    box(ctx, u - 0.05, -0.05, u + 0.05, 0.05, 34, 38, '#f6f3ea', { top: '#ffffff' });
+    const [sx, sy] = P(u, 0, 40);
+    ctx.fillStyle = 'rgba(255,90,80,0.55)';
+    ctx.beginPath();
+    ctx.arc(sx, sy, 3.2, 0, Math.PI * 2);
+    ctx.fill();
+  };
+  if (L >= 3) {
+    strobe(-0.09);
+    strobe(0.09);
+  } else if (L >= 2) strobe(0);
 }
 
 const WALL_COLORS = ['#a8713c', '#bf5a3f', '#a34a3a', '#9aa0a8', '#c9a13a', '#2e63b8', '#1c3d7a', '#ece6d8'];

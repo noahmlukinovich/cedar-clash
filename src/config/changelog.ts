@@ -10,6 +10,17 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 23,
+    date: 'Nov 17, 2026',
+    title: 'Fire Alarm trap',
+    items: [
+      'New hidden trap at DMC 7: the Fire Alarm. Two at DMC 7, three at DMC 8.',
+      'When a raider gets close, the alarm goes off. Every raider nearby files out a tile or so and stands around outside for 2 to 3 seconds, depending on level.',
+      'Heroes only stay out half as long, RAs know the drill and head back sooner, and The Rock is too heavy to file anywhere (it still stops).',
+      'A Chapel Announcement drowns it out, the same as other traps.',
+    ],
+  },
+  {
     v: 22,
     date: 'Nov 17, 2026',
     title: 'DMC 7 and 8: Commencement',

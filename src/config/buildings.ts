@@ -471,6 +471,26 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
     ),
     movable: true,
   },
+  firealarm: {
+    type: 'firealarm',
+    name: 'Fire Alarm',
+    category: 'trap',
+    size: 1,
+    desc: 'Hidden trap. When a raider wanders too close, the alarm goes off: everyone nearby files out a tile or so and stands around outside until the drill is over. Heroes only stay out half as long. The Rock is too heavy to file anywhere.',
+    flavor: 'Popcorn, 2:47am, third floor. It is always popcorn. It is always 2:47am.',
+    counts: [0, 0, 0, 0, 0, 0, 0, 2, 3],
+    blocksPath: false,
+    levels: mk(
+      3,
+      'tuition',
+      [15000, 30000, 55000],
+      [0, 90, 150],
+      [7, 7, 8],
+      [1, 1, 1],
+      (i) => ({ trapRadius: [2, 2.3, 2.6][i], trapStun: [2, 2.5, 3][i], trapPush: [1, 1.1, 1.25][i] }),
+    ),
+    movable: true,
+  },
   wall: {
     type: 'wall',
     name: 'Brick Wall',
@@ -517,7 +537,7 @@ export const SHOP_TABS: { id: string; label: string; types: BuildingType[] }[] =
   {
     id: 'defense',
     label: 'Defenses',
-    types: ['ratower', 'safetycart', 'sprayer', 'bibleprof', 'stinger', 'catapult', 'nest', 'wall'],
+    types: ['ratower', 'safetycart', 'sprayer', 'bibleprof', 'stinger', 'catapult', 'nest', 'firealarm', 'wall'],
   },
   { id: 'deco', label: 'Decor', types: ['lake'] },
 ];

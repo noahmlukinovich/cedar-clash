@@ -616,6 +616,11 @@ export class UI {
     }
     if (cur.fans) add('Reinforcement fans', cur.fans, nxt?.fans);
     if (cur.trapDps) add('Swarm dmg/sec', cur.trapDps, nxt?.trapDps);
+    if (cur.trapStun) {
+      add('Stands raiders outside for', `${cur.trapStun}s`, nxt?.trapStun ? `${nxt.trapStun}s` : undefined);
+      add('Files them out', `${cur.trapPush} tiles`, nxt?.trapPush ? `${nxt.trapPush} tiles` : undefined);
+      add('Alarm radius', `${cur.trapRadius} tiles`, nxt?.trapRadius ? `${nxt.trapRadius} tiles` : undefined);
+    }
     if (def.trains) add('Trains', def.trains.map((x) => TROOPS[x].name).join(', '));
     const maxL = maxLevelForDmc(b.type, dmcLevel(s));
     add('Max level (current DMC)', `${maxL} / ${def.levels.length}`);

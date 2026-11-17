@@ -152,6 +152,8 @@ export type SimEvent =
   | { e: 'splat'; x: number; y: number; r: number; n: number }
   | { e: 'ramp'; b: RB; stage: number }
   | { e: 'swarm'; x: number; y: number; r: number }
+  /** A Fire Alarm went off at (x, y): `n` raiders filed out and are standing around. */
+  | { e: 'alarm'; x: number; y: number; r: number; n: number }
   | { e: 'heal'; u: RU }
   | { e: 'loot'; res: 'tuition' | 'coffee'; amt: number; x: number; y: number }
   | { e: 'star'; n: number; why: string }
@@ -247,9 +249,9 @@ export class RaidSim {
         maxHp: L.hp,
         dead: false,
         isWall: p.type === 'wall',
-        isTrap: p.type === 'nest',
+        isTrap: def.category === 'trap',
         isDefense: !!L.defense,
-        counts: p.type !== 'wall' && p.type !== 'nest' && p.type !== 'lake',
+        counts: p.type !== 'wall' && def.category !== 'trap' && p.type !== 'lake',
         def: L.defense,
         cd: 0.5,
         target: null,
@@ -263,7 +265,7 @@ export class RaidSim {
         targets: [],
         frozenUntil: 0,
         stunUntil: 0,
-        hidden: p.type === 'nest',
+        hidden: def.category === 'trap',
         loot: { tuition: 0, coffee: 0 },
         lootTaken: { tuition: 0, coffee: 0 },
         fansLeft: L.fans ?? 0,
@@ -921,14 +923,51 @@ export class RaidSim {
       const roomCheck = u.def?.taunt;
       if (dist(u.x, u.y, b.cx, b.cy) < (roomCheck ? roomCheck.trapRange : 1.2)) {
         if (roomCheck) this.events.push({ e: 'roomcheck', u });
-        const L = BUILDINGS.nest.levels[b.level - 1];
         b.hidden = false;
         b.dead = true;
+        if (b.type === 'firealarm') {
+          this.fireAlarm(b);
+          return;
+        }
+        const L = BUILDINGS.nest.levels[b.level - 1];
         this.zones.push({ kind: 'swarm', x: b.cx, y: b.cy, r: L.trapRadius ?? 2, until: this.time + (L.trapDuration ?? 5), start: this.time, dps: L.trapDps ?? 20 });
         this.events.push({ e: 'swarm', x: b.cx, y: b.cy, r: L.trapRadius ?? 2 });
         return;
       }
     }
+  }
+
+  /**
+   * Fire drill: every raider in range files out away from the alarm, then stands around outside.
+   * Heroes stay out half as long, RAs know the drill (their trap multiplier shortens it too), and
+   * heavy troops are stopped but not moved. Raiders inside a Chapel Announcement don't hear it.
+   */
+  private fireAlarm(b: RB): void {
+    const L = BUILDINGS.firealarm.levels[Math.min(b.level, BUILDINGS.firealarm.levels.length) - 1];
+    const r = L.trapRadius ?? 2;
+    const KB_TIME = 0.35;
+    let n = 0;
+    for (const u of this.units) {
+      if (u.dead || u.side !== 'atk' || u.ignoreTrapsUntil > this.time) continue;
+      const dx = u.x - b.cx;
+      const dy = u.y - b.cy;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d > r) continue;
+      const stun = (L.trapStun ?? 2) * (u.hero ? 0.5 : 1) * (u.def?.taunt?.trapDmg ?? 1);
+      u.stunUntil = Math.max(u.stunUntil, this.time + KB_TIME + stun);
+      u.runT = 0;
+      u.needsPath = true;
+      n++;
+      if (u.def?.heavy) continue;
+      // straight out from the alarm; anyone standing right on it heads for the nearest exit (down-right)
+      const nx = d > 0.05 ? dx / d : Math.SQRT1_2;
+      const ny = d > 0.05 ? dy / d : Math.SQRT1_2;
+      const push = L.trapPush ?? 1;
+      u.kbVx = (nx * push) / KB_TIME;
+      u.kbVy = (ny * push) / KB_TIME;
+      u.kbUntil = this.time + KB_TIME;
+    }
+    this.events.push({ e: 'alarm', x: b.cx, y: b.cy, r, n });
   }
 
   private updateHive(b: RB, dt: number): void {

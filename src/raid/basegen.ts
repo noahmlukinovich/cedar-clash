@@ -162,6 +162,7 @@ export function generateBase(dmc: number, seed: number): BaseLayout {
   }
   // Traps sprinkled around defenses / gaps
   for (let i = 0; i < count('nest'); i++) place('nest', cx, cy, 2, R0 + 3, 100);
+  for (let i = 0; i < count('firealarm'); i++) place('firealarm', cx, cy, 2, R0 + 3, 100);
   // Decorative lakes on the outskirts
   const lakes = rng.int(0, 2);
   for (let i = 0; i < lakes; i++) place('lake', cx, cy, R0 + 4, 16, 60);

@@ -37,6 +37,7 @@ export type BuildingType =
   | 'stinger'
   | 'catapult'
   | 'nest'
+  | 'firealarm'
   | 'wall'
   | 'lake';
 
@@ -82,6 +83,9 @@ export interface BuildingLevel {
   trapDps?: number;
   trapRadius?: number;
   trapDuration?: number;
+  /** Fire Alarm: seconds raiders stand outside, and how far they file out (tiles). */
+  trapStun?: number;
+  trapPush?: number;
 }
 
 export interface BuildingDef {

@@ -763,6 +763,19 @@ export class RaidScene implements Scene {
           P2.add({ kind: 'text', x: p.x + (Math.random() - 0.5) * 20, y: p.y, z: 40, vz: 35, max: 0.9, text: '♪♫', color: '#ff9fd0', size: 18 });
           break;
         }
+        case 'alarm': {
+          const p = toWorld(ev.x, ev.y);
+          // red-and-white strobe rings, then the whole floor files out
+          for (let i = 0; i < 3; i++) {
+            P2.add({ kind: 'ring', x: p.x, y: p.y, z: 0, max: 0.35 + i * 0.2, size: 6, grow: ev.r * 45 * (1.4 + i * 0.4), color: i % 2 ? 'rgba(255,255,255,0.9)' : 'rgba(235,50,40,0.9)' });
+          }
+          P2.burst(p.x, p.y, 20, 12, { kind: 'glow', color: 'rgba(255,90,80,0.9)', size: 5, speed: ev.r * 40, max: 0.5, vz: 80 });
+          P2.text(p.x, p.y - 50, 40, ev.n >= 5 ? 'EVACUATE!' : pick(['FIRE DRILL!', 'Who made popcorn?', 'Everyone outside!']), '#ff6b5e', ev.n >= 5 ? 24 : 18);
+          this.cam.shake(Math.min(5, 1.5 + ev.n * 0.5), 0.25);
+          sfx('whistle');
+          setTimeout(() => sfx('stun'), 250);
+          break;
+        }
         case 'roomcheck': {
           const p = toWorld(ev.u.x, ev.u.y);
           P2.text(p.x, p.y - 50, 40, 'Room check!', '#cfe9ff', 16);
