@@ -4,7 +4,7 @@ import { BUILDINGS } from '../config/buildings';
 import { HEROES, TROOPS, TROOP_ORDER } from '../config/troops';
 import type { BuildingType, HeroType, ResourceId, TroopType } from '../config/types';
 import { heroUnlocked, heroUpgradeCheck, researchCheck, troopUnlocked } from './army';
-import { dmcLevel, finishNowCost, nextLevelInfo, upgradeCheck } from './economy';
+import { dmcLevel, finishNowCost, nextLevelInfo, upgradeCheck, upgradeResOptions } from './economy';
 import type { BuildingInst, GameState } from './state';
 
 export interface UpgradeRow {
@@ -16,7 +16,10 @@ export interface UpgradeRow {
   /** How many buildings the row stands for (walls at this level); 1 otherwise. */
   count: number;
   cost: number;
+  /** Resource to pay with: the first payment option that is affordable right now. */
   res: ResourceId;
+  /** Every resource the upgrade can be paid with (walls: Tuition and Coffee). */
+  resOptions: ResourceId[];
   time: number;
   /** Why it can't start yet (waiting rows only). */
   reason?: string;
@@ -69,9 +72,19 @@ export function listUpgrades(s: GameState): UpgradeList {
   const consider = (b: BuildingInst, count: number): void => {
     const n = nextLevelInfo(s, b);
     if (!n) return; // maxed, decor, anything without another level
-    const err = upgradeCheck(s, b);
+    const resOptions = upgradeResOptions(b);
+    let res = resOptions[0];
+    let err = upgradeCheck(s, b, res);
+    for (const r of resOptions.slice(1)) {
+      if (!err) break;
+      const e = upgradeCheck(s, b, r);
+      if (!e) {
+        res = r;
+        err = null;
+      }
+    }
     if (err && !isWaiting(err)) return; // needs a higher DMC
-    const row: UpgradeRow = { id: b.id, type: b.type, name: b.name ?? BUILDINGS[b.type].name, level: b.level, count, cost: n.cost, res: n.res, time: n.time };
+    const row: UpgradeRow = { id: b.id, type: b.type, name: b.name ?? BUILDINGS[b.type].name, level: b.level, count, cost: n.cost, res, resOptions, time: n.time };
     if (err) {
       row.reason = err;
       waiting.push(row);
