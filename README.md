@@ -22,7 +22,7 @@ npm run build:server && DB_PATH=./data/dev.db npm run admin -- invite 5
 
 Desktop browser with mouse and keyboard; designed for 1280×800 and up. Requires Node 22.13 or newer.
 
-**Single-player build:** https://noahmlukinovich.github.io/cedar-clash/ (deployed by `.github/workflows/deploy.yml` on every push to `main`; Pages must be set to *Source: GitHub Actions* in the repo settings). GitHub Pages has no game server, so the game runs in offline mode there.
+**Single-player build:** `npm run build` produces a static `dist/` that runs in offline mode on any static host. (The old GitHub Pages workflow was removed; the game is served by the multiplayer server below.)
 
 **Multiplayer server:** see [`deploy/README.md`](deploy/README.md) for setting up a droplet. The droplet deploys new commits on `main` by itself within about 5 minutes, once they pass the tests.
 
