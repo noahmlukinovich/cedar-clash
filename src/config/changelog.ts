@@ -10,6 +10,16 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 21,
+    date: 'Nov 17, 2026',
+    title: 'Stinger Statue buff',
+    items: [
+      'The Stinger Statue hits a lot harder: single-mode beam damage is up about 75% at every lock-on stage, and multi-mode beams are up about 70%.',
+      'It locks on faster: the beam steps up after 1s and hits full power at 3s (was 1.5s and 4s).',
+      'Range is up from 7 to 8 tiles, and it is about 35% tougher.',
+    ],
+  },
+  {
     v: 20,
     date: 'Nov 17, 2026',
     title: 'Bigger projects, longer timelines',
