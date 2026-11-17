@@ -416,6 +416,37 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
     ),
     movable: true,
   },
+  catapult: {
+    type: 'catapult',
+    name: "Chuck's Casserole Catapult",
+    category: 'defense',
+    size: 3,
+    desc: "Lobs today's Mystery Bake clear across campus. The tray lands where it was aimed, splashes everyone nearby and knocks them flying. Can't hit anything right next to it, and quick raiders can dodge the shadow.",
+    flavor: "Tuesday's special was also Monday's special. Nobody has ever identified the ingredients.",
+    counts: [0, 0, 0, 0, 1, 1, 2],
+    levels: mk(
+      4,
+      'tuition',
+      [12000, 26000, 50000, 85000],
+      [120, 200, 280, 360],
+      [4, 4, 5, 6],
+      [600, 690, 790, 900],
+      (i) => ({
+        defense: {
+          range: 12,
+          minRange: 4,
+          rate: 4.5,
+          dps: [12, 16, 21, 27][i],
+          splash: [1.5, 1.6, 1.8, 2][i],
+          falloff: 0.4,
+          knockback: [1.2, 1.3, 1.5, 1.7][i],
+          lobTime: 1.4,
+          projectileSpeed: 0,
+        },
+      }),
+    ),
+    movable: true,
+  },
   nest: {
     type: 'nest',
     name: 'Yellow Jacket Nest',
@@ -482,7 +513,7 @@ export const SHOP_TABS: { id: string; label: string; types: BuildingType[] }[] =
   {
     id: 'defense',
     label: 'Defenses',
-    types: ['ratower', 'safetycart', 'sprayer', 'bibleprof', 'stinger', 'nest', 'wall'],
+    types: ['ratower', 'safetycart', 'sprayer', 'bibleprof', 'stinger', 'catapult', 'nest', 'wall'],
   },
   { id: 'deco', label: 'Decor', types: ['lake'] },
 ];

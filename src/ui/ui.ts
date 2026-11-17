@@ -603,9 +603,13 @@ export class UI {
       } else if (d.ramp) {
         if (b.type === 'stinger') add('Mode', 'Single (switch it from the building menu)');
         add('Beam dmg/sec (ramps)', d.ramp.join(' / '), nd?.ramp?.join(' / '));
-      } else add('Damage/sec', d.dps, nd?.dps);
-      add('Range', `${d.range} tiles`, nd ? `${nd.range} tiles` : undefined);
+      } else if (d.lobTime) add('Damage per tray (centre)', Math.round(d.dps * d.rate), nd ? Math.round(nd.dps * nd.rate) : undefined);
+      else add('Damage/sec', d.dps, nd?.dps);
+      if (d.minRange) add('Range', `${d.minRange}–${d.range} tiles (blind spot up close)`, nd ? `${nd.minRange}–${nd.range} tiles` : undefined);
+      else add('Range', `${d.range} tiles`, nd ? `${nd.range} tiles` : undefined);
+      if (d.lobTime) add('Fires every', `${d.rate}s`, nd ? `${nd.rate}s` : undefined);
       if (d.splash) add('Splash radius', d.splash, nd?.splash);
+      if (d.knockback) add('Knockback', `${d.knockback} tiles`, nd?.knockback ? `${nd.knockback} tiles` : undefined);
       if (d.slow) add('Slow', `${Math.round(d.slow * 100)}%`);
       if (d.freezeCharge) add('Freeze every', `${d.freezeCharge}s`, nd?.freezeCharge ? `${nd.freezeCharge}s` : undefined);
       if (d.blessHeal !== undefined) add('Wall blessing', d.blessHeal ? `${(d.blessHeal * 100).toFixed(1)}%/s` : 'Lv3+', nd?.blessHeal ? `${(nd.blessHeal * 100).toFixed(1)}%/s` : undefined);

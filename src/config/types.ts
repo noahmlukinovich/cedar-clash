@@ -35,6 +35,7 @@ export type BuildingType =
   | 'sprayer'
   | 'bibleprof'
   | 'stinger'
+  | 'catapult'
   | 'nest'
   | 'wall'
   | 'lake';
@@ -53,6 +54,10 @@ export interface DefenseStats {
   rampTimes?: number[]; // seconds of continuous lock to reach stage 2, 3, ...
   multiDps?: number; // stinger multi mode: flat beam dps on each target (no ramp)
   multiTargets?: number; // stinger multi mode: how many raiders it beams at once
+  minRange?: number; // tiles: can't fire at anything closer than this (catapult blind spot)
+  lobTime?: number; // seconds a lobbed shot is in the air (it lands where it was aimed)
+  falloff?: number; // splash damage at the rim, as a fraction of the centre hit
+  knockback?: number; // tiles a splash hit shoves raiders away from the impact
 }
 
 /** Stinger Statue targeting: one ramping beam, or several flat beams. */

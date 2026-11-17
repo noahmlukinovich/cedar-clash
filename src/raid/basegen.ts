@@ -109,9 +109,9 @@ export function generateBase(dmc: number, seed: number): BaseLayout {
   const core: BuildingType[] = [];
   for (const t of ['registrar', 'rinnova'] as BuildingType[]) for (let i = 0; i < count(t); i++) core.push(t);
   const defs: BuildingType[] = [];
-  for (const t of ['ratower', 'safetycart', 'sprayer', 'bibleprof', 'stinger', 'hive'] as BuildingType[]) for (let i = 0; i < count(t); i++) defs.push(t);
-  // splash defenses (sprayer, bible prof) and the stinger statue love the middle
-  const mid = (t: BuildingType): number => (t === 'sprayer' || t === 'bibleprof' || t === 'stinger' ? -1 : 0);
+  for (const t of ['ratower', 'safetycart', 'sprayer', 'bibleprof', 'stinger', 'catapult', 'hive'] as BuildingType[]) for (let i = 0; i < count(t); i++) defs.push(t);
+  // splash defenses (sprayer, bible prof), the stinger statue and the catapult (whose blind spot needs cover) love the middle
+  const mid = (t: BuildingType): number => (t === 'sprayer' || t === 'bibleprof' || t === 'stinger' || t === 'catapult' ? -1 : 0);
   defs.sort((a, b) => mid(a) - mid(b));
   const innerDefs = defs.slice(0, Math.ceil(defs.length * 0.6));
   const outerDefs = defs.slice(innerDefs.length);

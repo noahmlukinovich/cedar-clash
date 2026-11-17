@@ -74,6 +74,8 @@ export class RaidScene implements Scene {
   trees: TreeSpot[] = borderTrees(0);
   beams: Beam[] = [];
   graves: Grave[] = [];
+  /** Casserole stains where catapult trays landed (visual only); t counts up to 1 then they're gone. */
+  splats: { x: number; y: number; r: number; t: number }[] = [];
   /** Hebrew letters in flight from the Bible Prof's crossbow (visual only). */
   letters: { fx: number; fy: number; tx: number; ty: number; ch: string; big: boolean; t: number }[] = [];
   forbidFlash = 0;
@@ -504,6 +506,7 @@ export class RaidScene implements Scene {
       }
     }
     for (const g of this.graves) g.t += dt;
+    for (let i = this.splats.length - 1; i >= 0; i--) if ((this.splats[i].t += dt / 2.5) >= 1) this.splats.splice(i, 1);
     for (let i = this.letters.length - 1; i >= 0; i--) {
       const l = this.letters[i];
       l.t += dt / LETTER_FLIGHT;
@@ -644,12 +647,24 @@ export class RaidScene implements Scene {
             if (b.type === 'safetycart') P2.text(p.x, p.y - 40, 30, 'Ticket voided!', '#ff8fb8', 16);
             if (b.type === 'ratower') P2.text(p.x, p.y - 40, 30, 'Quiet hours over!', '#fff', 16);
             if (b.type === 'stinger') P2.text(p.x, p.y - 40, 30, 'Stinger un-stung!', '#9fd4ff', 16);
+            if (b.type === 'catapult') P2.text(p.x, p.y - 40, 30, 'Kitchen closed!', '#ffb36b', 16);
           }
           break;
         }
         case 'shoot':
-          sfx(ev.kind === 'ticket' ? 'cannon' : 'shoot');
+          sfx(ev.kind === 'ticket' || ev.kind === 'casserole' ? 'cannon' : 'shoot');
           break;
+        case 'splat': {
+          const p = toWorld(ev.x, ev.y);
+          this.splats.push({ x: ev.x, y: ev.y, r: ev.r, t: 0 });
+          P2.burst(p.x, p.y, 8, 14, { kind: 'shard', color: '#b5762e', size: 5, speed: ev.r * 70, max: 0.7, gravity: 380, vz: 170 });
+          P2.burst(p.x, p.y, 8, 6, { kind: 'shard', color: '#7fae3a', size: 3, speed: ev.r * 60, max: 0.6, gravity: 380, vz: 150 });
+          P2.add({ kind: 'ring', x: p.x, y: p.y, z: 0, max: 0.35, size: 8, grow: ev.r * 45 * 2, color: 'rgba(224,119,58,0.9)' });
+          if (ev.n >= 3) P2.text(p.x, p.y - 40, 30, ev.n >= 6 ? 'FOOD FIGHT!' : 'SPLAT!', '#ffb36b', ev.n >= 6 ? 22 : 18);
+          this.cam.shake(Math.min(6, 2 + ev.n), 0.2);
+          sfx('boom');
+          break;
+        }
         case 'freeze': {
           const b = ev.b;
           const p = toWorld(b.cx, b.cy);
@@ -879,6 +894,32 @@ export class RaidScene implements Scene {
       ctx.stroke();
     }
 
+    // casserole stains, and the shadow of every tray still in the air (it lands right there)
+    for (const sp of this.splats) {
+      const p = toWorld(sp.x, sp.y);
+      ctx.fillStyle = `rgba(150,92,40,${0.45 * (1 - sp.t)})`;
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y, sp.r * 0.8 * 45.25, sp.r * 0.8 * 22.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    for (const pr of sim.projectiles) {
+      if (!pr.splash) continue;
+      const p = toWorld(pr.tx, pr.ty);
+      const k = Math.min(1, pr.t / pr.dur);
+      const r = pr.splash.r;
+      ctx.fillStyle = `rgba(30,10,0,${0.12 + 0.25 * k})`;
+      ctx.strokeStyle = `rgba(255,70,40,${0.5 + 0.4 * Math.abs(Math.sin(t * 12))})`;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y, r * 45.25, r * 22.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(30,10,0,0.35)';
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y, r * 45.25 * k, r * 22.6 * k, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     const vis = (gx: number, gy: number, m = 150): boolean => {
       const w = toWorld(gx, gy);
       return this.cam.visible(w.x, w.y, m);
@@ -1019,7 +1060,21 @@ export class RaidScene implements Scene {
       ctx.rotate(pr.t * 12);
       ctx.lineWidth = 1.5;
       ctx.strokeStyle = OUT;
-      if (pr.kind === 'writeup') {
+      if (pr.kind === 'casserole') {
+        // an orange dining-hall tray heaped with Mystery Bake, tumbling slowly
+        ctx.rotate(-pr.t * 12 + pr.t * 3);
+        ctx.fillStyle = '#e0773a';
+        ctx.fillRect(-11, -5, 22, 10);
+        ctx.strokeRect(-11, -5, 22, 10);
+        ctx.fillStyle = '#b5762e';
+        ctx.beginPath();
+        ctx.ellipse(0, -4, 8, 5, 0, Math.PI, 0);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#7fae3a';
+        ctx.fillRect(-4, -7, 2, 2);
+        ctx.fillRect(2, -6, 2, 2);
+      } else if (pr.kind === 'writeup') {
         ctx.fillStyle = '#fff';
         ctx.fillRect(-4, -5, 8, 10);
         ctx.strokeRect(-4, -5, 8, 10);
