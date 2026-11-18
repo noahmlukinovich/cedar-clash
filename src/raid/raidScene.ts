@@ -733,6 +733,10 @@ export class RaidScene implements Scene {
           P2.add({ kind: 'glow', x: p.x + (Math.random() - 0.5) * 16, y: p.y, z: 14, vz: 25, max: 0.8, size: 3, color: 'rgba(255,230,120,0.9)' });
           break;
         }
+        case 'senioritis':
+          this.game.ui.banner('🎓 Graduation is in sight! Seniors go all out!', '#ffe066');
+          sfx('whistle');
+          break;
         case 'wind':
           if (ev.on) {
             this.game.ui.banner(`🌬️ ${pick(WIND_LINES)}`, '#cfe9ff');

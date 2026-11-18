@@ -10,6 +10,17 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 26,
+    date: 'Nov 18, 2026',
+    title: 'New troop: the Senior',
+    items: [
+      'Biblical Studies can now go to Lv4 at DMC 7, where it trains Seniors (12 housing, Coffee).',
+      'Seniors are tough and slow, with a bad case of senioritis: they barely try when the raid starts, then hit harder and move faster every second. Two minutes in they are at +80% damage and +50% speed, and the whole campus hears about it.',
+      'Research them up to level 7 in the Library. They pick up a gold stole, honor cords and, at last, a diploma.',
+      "Fixed: The Rock's crash damage now keeps growing at research levels 6 and 7.",
+    ],
+  },
+  {
     v: 25,
     date: 'Nov 18, 2026',
     title: 'Parking Gate Arm',

@@ -221,11 +221,31 @@ export const TROOPS: Record<TroopType, TroopDef> = {
     range: 0.9,
     attackRate: 2,
     prefers: 'defense',
-    crumble: { count: 2, radius: 1.5, dmg: [150, 190, 240, 300, 370] },
+    crumble: { count: 2, radius: 1.5, dmg: [150, 190, 240, 300, 370, 450, 540] },
     heavy: true,
     color: '#8a8478',
     size: 1.6,
     levels: tl([3000, 3600, 4300, 5100, 6000, 6900, 7900], [15, 19, 24, 29, 35, 41, 48], [2000, 2600, 3300, 4100, 5000, 6000, 7200], [0, 12000, 28000, 52000, 85000, 136000, 218000], [0, 120, 200, 280, 360, 450, 540], [0, 3, 4, 5, 5, 6, 7]),
+  },
+  senior: {
+    type: 'senior',
+    name: 'Senior',
+    short: 'Senior',
+    desc: 'Tough and slow, with a bad case of senioritis: barely trying when the raid starts, but the closer it gets to the end, the harder and faster they go. Up to +80% damage and +50% speed two minutes in. Goes for the nearest building.',
+    flavor: 'Has not opened the syllabus since September. Has, however, already bought the cap and gown.',
+    housing: 12,
+    res: 'coffee',
+    trainTime: 30,
+    barracks: 'biblical',
+    barracksLevel: 4,
+    speed: 1.3,
+    range: 0.8,
+    attackRate: 1.3,
+    prefers: 'any',
+    senioritis: { full: 120, dmg: 0.8, speed: 0.5 },
+    color: '#2a2f5a',
+    size: 1.2,
+    levels: tl([1400, 1650, 1950, 2300, 2700, 3100, 3600], [40, 48, 57, 67, 79, 92, 107], [900, 1150, 1450, 1800, 2200, 2650, 3150], [0, 30000, 50000, 80000, 120000, 160000, 220000], [0, 150, 230, 310, 390, 470, 550], [0, 4, 5, 5, 6, 6, 7]),
   },
 };
 
@@ -338,4 +358,4 @@ export const HEROES: Record<HeroType, HeroDef> = {
   },
 };
 
-export const TROOP_ORDER: TroopType[] = ['freshman', 'athlete', 'engineer', 'theology', 'nurse', 'business', 'music', 'runner', 'ra', 'goteam', 'rock'];
+export const TROOP_ORDER: TroopType[] = ['freshman', 'athlete', 'engineer', 'theology', 'nurse', 'business', 'music', 'runner', 'ra', 'goteam', 'rock', 'senior'];

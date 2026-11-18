@@ -154,6 +154,8 @@ export type SimEvent =
   | { e: 'splat'; x: number; y: number; r: number; n: number }
   | { e: 'ramp'; b: RB; stage: number }
   | { e: 'swarm'; x: number; y: number; r: number }
+  /** Seniors on the field just hit full senioritis. */
+  | { e: 'senioritis' }
   /** A Parking Gate Arm swung down on `u`. */
   | { e: 'gate'; b: RB; u: RU }
   /** A Dean's Office summons hit `pts[0]` and jumped on through the rest, in order. */
@@ -234,6 +236,7 @@ export class RaidSim {
   private uid = 1;
   private pathBudget = 0;
   private pairT = 0;
+  private seniorsPeaked = false;
   private dirtyCost = true;
 
   constructor(public base: BaseLayout, public opts: RaidOptions) {
@@ -504,6 +507,11 @@ export class RaidSim {
   // ---------- Main tick ----------
   update(dt: number): void {
     this.time += dt;
+    const sn = TROOPS.senior.senioritis!;
+    if (!this.seniorsPeaked && this.time >= sn.full && this.units.some((u) => !u.dead && u.type === 'senior')) {
+      this.seniorsPeaked = true;
+      this.events.push({ e: 'senioritis' });
+    }
     this.pathBudget = 30;
     if (this.dirtyCost) this.rebuildCost();
 
@@ -1152,7 +1160,14 @@ export class RaidSim {
     if (u.convoUntil > this.time) m *= 1.5;
     if (u.auraUntil > this.time) m *= 1 + TROOPS.theology.aura!.dmg;
     if (u.pairedUntil > this.time) m *= 1.2;
+    const sn = u.def?.senioritis;
+    if (sn) m *= 1 + sn.dmg * this.senioritis(sn.full);
     return m;
+  }
+
+  /** How far into senioritis (0..1) the raid clock is: graduation gets closer every second. */
+  senioritis(full: number): number {
+    return Math.min(1, this.time / full);
   }
 
   private mulSpeed(u: RU): number {
@@ -1164,6 +1179,8 @@ export class RaidSim {
     if (u.convoUntil > this.time) m *= 1.3;
     if (u.auraUntil > this.time) m *= 1 + TROOPS.theology.aura!.speed;
     if (u.pairedUntil > this.time) m *= 1.2;
+    const sn = u.def?.senioritis;
+    if (sn) m *= 1 + sn.speed * this.senioritis(sn.full);
     return m;
   }
 
