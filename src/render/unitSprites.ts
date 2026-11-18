@@ -43,18 +43,18 @@ function rr(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: n
 }
 
 const OUTFIT: Record<UnitType, { body: string; legs: string; hair: string }> = {
-  freshman: { body: '#3a7bd5', legs: '#2d3a55', hair: '#5a3a1e' },
-  engineer: { body: '#f2a20c', legs: '#3d4e66', hair: '#2a1d14' },
-  nurse: { body: '#2bb3a3', legs: '#2bb3a3', hair: '#8a5a2b' },
-  theology: { body: '#7b3fa0', legs: '#3a2a4a', hair: '#c9a14a' },
-  athlete: { body: '#f5c32c', legs: '#1c3d7a', hair: '#1a1410' },
+  freshman: { body: '#123e69', legs: '#163b60', hair: '#5a3a1e' },
+  engineer: { body: '#173f63', legs: '#3d4e66', hair: '#2a1d14' },
+  nurse: { body: '#174a70', legs: '#174a70', hair: '#8a5a2b' },
+  theology: { body: '#33363b', legs: '#33363b', hair: '#654120' },
+  athlete: { body: '#123e69', legs: '#f5c32c', hair: '#1a1410' },
   prof: { body: '#8a6a4a', legs: '#4a3a30', hair: '#d8d8d8' },
   president: { body: '#1c3d7a', legs: '#1c2440', hair: '#bcbcbc' },
   fan: { body: '#ffd23f', legs: '#1c3d7a', hair: '#1a1410' },
-  business: { body: '#33415a', legs: '#262f42', hair: '#3a2a1a' },
-  music: { body: '#b23a6f', legs: '#2a2a33', hair: '#1a1410' },
-  runner: { body: '#e86a17', legs: '#e8b890', hair: '#7a4a22' },
-  ra: { body: '#1c3d7a', legs: '#b9a37a', hair: '#4a3020' },
+  business: { body: '#123e69', legs: '#262f42', hair: '#3a2a1a' },
+  music: { body: '#123e69', legs: '#2a2a33', hair: '#1a1410' },
+  runner: { body: '#123e69', legs: '#e8b890', hair: '#7a4a22' },
+  ra: { body: '#123e69', legs: '#173f63', hair: '#4a3020' },
   goteam: { body: '#f4efe4', legs: '#333', hair: '#333' },
   gomember: { body: '#e4572e', legs: '#4a6a8a', hair: '#5a3a1e' },
   rock: { body: '#8a8478', legs: '#5a554c', hair: '#5a554c' },
@@ -301,15 +301,16 @@ function drawVan(ctx: CanvasRenderingContext2D, x: number, y: number, o: UnitDra
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
-  // globe
-  ctx.beginPath();
-  ctx.arc(-9, -8, 3.2, 0, Math.PI * 2);
-  ctx.fillStyle = '#4aa3df';
-  ctx.fill();
-  ctx.stroke();
-  ctx.fillStyle = C.green;
-  ctx.fillRect(-10.5, -9.5, 2.2, 2);
-  ctx.fillRect(-8.2, -7.5, 1.8, 1.6);
+  ctx.fillStyle = C.navy;
+  ctx.fillRect(-16, -14, 32, 8);
+  ctx.fillStyle = C.gold;
+  ctx.beginPath(); ctx.moveTo(-16, -5); ctx.quadraticCurveTo(-3, -12, 15, -6); ctx.lineTo(15, -4); ctx.lineTo(-16, -4); ctx.fill();
+  campusBadge(ctx, -11, -10, 0.8);
+  ctx.save(); ctx.scale(o.facing, 1);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 3px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('CEDARVILLE', 2, -9.5, 20);
+  ctx.fillStyle = C.gold; ctx.font = '2px sans-serif'; ctx.fillText('UNIVERSITY', 2, -7, 17);
+  ctx.restore();
   // headlight
   ctx.fillStyle = C.gold;
   ctx.fillRect(16, -10, 2, 3);
@@ -376,19 +377,11 @@ export function drawUnit(ctx: CanvasRenderingContext2D, x: number, y: number, ty
   ctx.stroke();
 
   // back accessories
-  if (type === 'freshman') rr(ctx, -9, -20, 6, 10, 2, '#e4572e'); // backpack
+  if (type === 'freshman') rr(ctx, -9, -20, 6, 10, 2, C.gold); // backpack
   if (type === 'gomember') rr(ctx, -9.5, -21, 6.5, 12, 2, lv >= 4 ? C.navy : '#2f6f4f'); // trip backpack
-  if (type === 'engineer' && lv >= 4) {
-    // blueprint tube slung on the back
-    ctx.save();
-    ctx.translate(-8, -15);
-    ctx.rotate(-0.5);
-    rr(ctx, -2, -9, 4, 18, 2, '#e9eef5');
-    ctx.restore();
-  }
-  if ((type === 'theology' && lv >= 4) || (type === 'prof' && lv >= 4) || (type === 'fan' && lv >= 4)) {
+  if ((type === 'prof' && lv >= 4) || (type === 'fan' && lv >= 4)) {
     // cape
-    ctx.fillStyle = type === 'theology' ? '#4a2466' : type === 'prof' ? C.red : C.navy;
+    ctx.fillStyle = type === 'prof' ? C.red : C.navy;
     ctx.strokeStyle = OUT;
     ctx.lineWidth = 1.4;
     ctx.beginPath();
@@ -417,7 +410,7 @@ export function drawUnit(ctx: CanvasRenderingContext2D, x: number, y: number, ty
 
   // body
   const bodyW = type === 'athlete' ? (lv >= 3 ? 19 : 16) : type === 'ra' || type === 'thesis' ? 16 : type === 'runner' ? 11 : 13;
-  const bodyCol = type === 'nurse' && lv >= 4 ? '#f4f7f8' : type === 'freshman' && lv >= 5 ? '#23262e' : type === 'gomember' && lv >= 5 ? C.gold : of.body;
+  const bodyCol = type === 'gomember' && lv >= 5 ? C.gold : of.body;
   const bodyH = type === 'theology' || type === 'prof' ? 15 : 12;
   rr(ctx, -bodyW / 2, -8 - bodyH, bodyW, bodyH + 2, 4, bodyCol);
   if (type === 'theology') {
@@ -433,10 +426,10 @@ export function drawUnit(ctx: CanvasRenderingContext2D, x: number, y: number, ty
     ctx.stroke();
   }
   if (type === 'athlete') {
-    ctx.fillStyle = C.navy;
+    ctx.fillStyle = '#fff';
     ctx.font = 'bold 7px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('1', 0, -12);
+    ctx.save(); ctx.scale(o.facing, 1); ctx.fillText('12', 0, -12); ctx.restore();
   }
   if (type === 'nurse') {
     ctx.fillStyle = '#fff';
@@ -477,7 +470,7 @@ export function drawUnit(ctx: CanvasRenderingContext2D, x: number, y: number, ty
     ctx.lineTo(0, -12);
     ctx.lineTo(2.5, -19);
     ctx.fill();
-    ctx.fillStyle = '#2f9a5f';
+    ctx.fillStyle = C.gold;
     ctx.fillRect(-1, -18, 2, 8);
   }
   if (type === 'music') {
@@ -501,13 +494,13 @@ export function drawUnit(ctx: CanvasRenderingContext2D, x: number, y: number, ty
     ctx.fillStyle = C.navy;
     ctx.font = 'bold 5px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('26', 0, -12.8);
+    ctx.save(); ctx.scale(o.facing, 1); ctx.fillText('275', 0, -12.8); ctx.restore();
   }
   if (type === 'ra') {
     ctx.fillStyle = C.gold;
     ctx.font = 'bold 7px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('RA', 0, -12);
+    ctx.save(); ctx.scale(o.facing, 1); ctx.fillText('RA', 0, -12); ctx.restore();
   }
   if (type === 'gomember') {
     // globe on the team t-shirt
@@ -520,7 +513,7 @@ export function drawUnit(ctx: CanvasRenderingContext2D, x: number, y: number, ty
     ctx.stroke();
   }
 
-  gear(ctx, type, lv);
+  if (!campusGear(ctx, type, lv, o.facing)) gear(ctx, type, lv);
 
   // arm + held item (swing when attacking)
   const swing = o.attacking > 0 ? Math.sin(o.attacking * Math.PI) * 1.4 : 0;
@@ -546,12 +539,6 @@ export function drawUnit(ctx: CanvasRenderingContext2D, x: number, y: number, ty
     ctx.font = 'bold 6px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('x  x', 2, hy + 2);
-  } else if ((type === 'business' && lv >= 4) || (type === 'runner' && lv >= 3)) {
-    // sunglasses
-    ctx.fillRect(-0.5, hy - 2, 8, 3.2);
-    ctx.fillStyle = type === 'runner' ? '#ff8a1f' : '#5a6a80';
-    ctx.fillRect(0.5, hy - 1.3, 2.4, 1.6);
-    ctx.fillRect(4, hy - 1.3, 2.4, 1.6);
   } else {
     ctx.fillRect(1, hy - 1, 1.8, 2.6);
     ctx.fillRect(4.5, hy - 1, 1.8, 2.6);
@@ -561,14 +548,6 @@ export function drawUnit(ctx: CanvasRenderingContext2D, x: number, y: number, ty
     ctx.fillStyle = type === 'fan' ? C.navy : OUT;
     ctx.fillRect(0.5, hy + 2.2, 2.6, 1.2);
     ctx.fillRect(4.2, hy + 2.2, 2.6, 1.2);
-  }
-  if ((type === 'nurse' || type === 'theology') && lv >= 5) {
-    // halo
-    ctx.strokeStyle = C.gold;
-    ctx.lineWidth = 1.8;
-    ctx.beginPath();
-    ctx.ellipse(0, hy - 12, 6.5, 2.2, 0, 0, Math.PI * 2);
-    ctx.stroke();
   }
   if (type === 'thesis') {
     // big round glasses and the bags under the eyes that came with them
@@ -927,6 +906,7 @@ function gear(ctx: CanvasRenderingContext2D, type: UnitType, lv: number): void {
 }
 
 function drawHeld(ctx: CanvasRenderingContext2D, type: UnitType, lv = 1): void {
+  if (campusHeld(ctx, type)) return;
   ctx.lineWidth = 1.4;
   ctx.strokeStyle = OUT;
   switch (type) {
@@ -1204,6 +1184,7 @@ function drawHeld(ctx: CanvasRenderingContext2D, type: UnitType, lv = 1): void {
 }
 
 function drawHead(ctx: CanvasRenderingContext2D, type: UnitType, hy: number, hair: string, lv = 1): void {
+  if (campusHead(ctx, type, hy, hair)) return;
   ctx.lineWidth = 1.6;
   ctx.strokeStyle = OUT;
   switch (type) {
@@ -1477,4 +1458,73 @@ export function drawBuilder(ctx: CanvasRenderingContext2D, x: number, y: number,
   ctx.fillRect(8, -3, 4, 6);
   ctx.restore();
   ctx.restore();
+}
+
+
+// Reference-inspired Cedarville uniforms. These helpers only draw; they never touch balance.
+function campusBadge(ctx: CanvasRenderingContext2D, x: number, y: number, scale = 1): void {
+  ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale);
+  ctx.strokeStyle = C.gold; ctx.lineWidth = 0.7;
+  for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; ctx.beginPath(); ctx.moveTo(Math.cos(a), Math.sin(a)); ctx.lineTo(Math.cos(a) * 2.7, Math.sin(a) * 2.7); ctx.stroke(); }
+  ctx.fillStyle = C.gold; ctx.beginPath(); ctx.arc(0, 0, 1.4, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.fillRect(-0.6, 0, 1.2, 4); ctx.restore();
+}
+function campusGear(ctx: CanvasRenderingContext2D, type: UnitType, lv: number, facing: number): boolean {
+  if (!['freshman','athlete','engineer','theology','nurse','business','music','runner','ra'].includes(type)) return false;
+  ctx.save();
+  if (type === 'engineer') {
+    ctx.fillStyle = C.gold; ctx.fillRect(-6,-20,3,12); ctx.fillRect(3,-20,3,12); ctx.fillRect(-6,-11,12,3);
+    ctx.fillStyle = '#fff'; ctx.fillRect(-5,-19,1,7); ctx.fillRect(4,-19,1,7);
+  } else if (type === 'theology') {
+    ctx.fillStyle = '#fff'; ctx.fillRect(-5,-23,3,19); ctx.fillRect(2,-23,3,19); campusBadge(ctx,3.5,-11,0.5);
+  } else if (type === 'nurse') {
+    ctx.fillStyle = OUTFIT.nurse.body; ctx.fillRect(-4,-18,8,9);
+    ctx.strokeStyle = '#d7e5e9'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(0,-18,3,0,Math.PI); ctx.lineTo(2,-12); ctx.stroke();
+    circle(ctx,2,-12,1.2,'#cdd4dc',0.6);
+    ctx.fillStyle = '#fff'; ctx.fillRect(-4,-11,3,3);
+  } else if (type === 'music') {
+    ctx.strokeStyle = C.gold; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-6,-20); ctx.lineTo(5,-9); ctx.stroke();
+    ctx.fillStyle = C.gold; ctx.fillRect(-7,-21,4,2); ctx.fillRect(3,-21,4,2);
+  } else if (type === 'ra') {
+    ctx.strokeStyle = C.gold; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(-4,-20); ctx.lineTo(3,-12); ctx.lineTo(5,-20); ctx.stroke();
+    rr(ctx,1,-12,4,5,0.5,'#fff');
+  } else if (type === 'freshman') {
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 2.6px sans-serif'; ctx.textAlign = 'center'; ctx.scale(facing, 1); ctx.fillText('CEDARVILLE',0,-16,11);
+  }
+  if (type === 'business') campusBadge(ctx,-4,-17,0.5);
+  if (lv >= 3) { ctx.fillStyle=C.gold; ctx.fillRect(-6,-9,2,1); }
+  if (lv >= 5) { ctx.fillStyle=C.gold; ctx.fillRect(-6,-7,2,1); }
+  ctx.restore(); return true;
+}
+function campusHeld(ctx: CanvasRenderingContext2D, type: UnitType): boolean {
+  ctx.save();
+  if (type === 'freshman') { rr(ctx,-1,6,6,10,1,'#a53332'); ctx.fillStyle='#fff'; ctx.fillRect(1,7,1,8); ctx.fillRect(3,7,1,8); }
+  else if (type === 'engineer') { rr(ctx,-1,3,4,14,1,'#9fd3f0'); circle(ctx,1,3,2,'#d7edf7',1); }
+  else if (type === 'nurse') { rr(ctx,-1,5,8,11,1,'#fff'); rr(ctx,1,4,4,2,0.5,'#7d8d9a'); campusBadge(ctx,3,10,0.7); }
+  else if (type === 'athlete') { ctx.fillStyle='#94501f'; ctx.beginPath(); ctx.ellipse(1,10,4,6,-0.4,0,Math.PI*2);ctx.fill();ctx.strokeStyle=OUT;ctx.lineWidth=1;ctx.stroke();ctx.strokeStyle='#fff';ctx.beginPath();ctx.moveTo(0,7);ctx.lineTo(2,12);ctx.stroke(); }
+  else if (type === 'music') { ctx.strokeStyle=C.gold;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(0,4);ctx.lineTo(0,10);ctx.quadraticCurveTo(0,14,5,14);ctx.lineTo(8,10);ctx.stroke();ctx.fillStyle=C.gold;ctx.beginPath();ctx.moveTo(5,9);ctx.lineTo(11,8);ctx.lineTo(9,14);ctx.closePath();ctx.fill();ctx.strokeStyle=OUT;ctx.lineWidth=1;ctx.stroke(); }
+  else if (type === 'runner' || type === 'ra') { circle(ctx,1,8,2,C.skin,1); }
+  else { ctx.restore(); return false; }
+  ctx.restore(); return true;
+}
+function campusHead(ctx: CanvasRenderingContext2D, type: UnitType, hy: number, hair: string): boolean {
+  if (!['freshman','athlete','engineer','theology','nurse','business','music','runner','ra'].includes(type)) return false;
+  ctx.save(); ctx.strokeStyle=OUT;ctx.lineWidth=1.3;
+  ctx.fillStyle=hair;ctx.beginPath();ctx.arc(0,hy-2,7.3,Math.PI,Math.PI*2);ctx.fill();
+  if (type === 'freshman' || type === 'ra') {
+    if(type==='ra') {circle(ctx,-6,hy+3,3.7,hair,1);}
+    ctx.fillStyle=C.navy;ctx.beginPath();ctx.arc(0,hy-3,8,Math.PI,0);ctx.closePath();ctx.fill();ctx.stroke();
+    rr(ctx,-1,hy-4,12,2,1,C.gold);campusBadge(ctx,0,hy-8,0.65);
+  } else if (type === 'engineer' || type === 'athlete') {
+    ctx.fillStyle=C.gold;ctx.beginPath();ctx.arc(0,hy-2,8,Math.PI,0);ctx.closePath();ctx.fill();ctx.stroke();
+    rr(ctx,-8,hy-3,17,2,0.6,type==='athlete'?C.navy:C.gold);
+    if(type==='athlete') {ctx.fillStyle=C.navy;ctx.fillRect(-2,hy-10,3,7);ctx.strokeStyle=C.navy;ctx.lineWidth=1.3;ctx.strokeRect(-1,hy-2,9,7);}
+    else {rr(ctx,-1,hy-1,8,4,1,'#c6e7f6');campusBadge(ctx,0,hy-7,0.5);}
+  } else if (type === 'music') {
+    rr(ctx,-7,hy-13,14,9,1,C.navy);ctx.fillStyle=C.gold;ctx.fillRect(-7,hy-7,14,2);
+    ctx.beginPath();ctx.ellipse(0,hy-16,2.5,5,-0.2,0,Math.PI*2);ctx.fill();ctx.stroke();campusBadge(ctx,0,hy-10,0.6);
+  } else if (type === 'runner') {ctx.fillStyle=C.gold;ctx.fillRect(-7,hy-5,14,2.5);}
+  else if (type === 'nurse') {circle(ctx,-6,hy-5,3,hair,1);ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,hy-2,7,Math.PI*1.05,Math.PI*1.9);ctx.stroke();}
+  else if (type === 'theology') {ctx.strokeStyle=OUT;ctx.lineWidth=1;ctx.strokeRect(0,hy-2,3,4);ctx.strokeRect(4,hy-2,3,4);ctx.beginPath();ctx.moveTo(3,hy);ctx.lineTo(4,hy);ctx.stroke();}
+  ctx.restore();return true;
 }
