@@ -51,9 +51,9 @@ const OUTFIT: Record<UnitType, { body: string; legs: string; hair: string }> = {
   prof: { body: '#8a6a4a', legs: '#4a3a30', hair: '#d8d8d8' },
   president: { body: '#1c3d7a', legs: '#1c2440', hair: '#bcbcbc' },
   fan: { body: '#ffd23f', legs: '#1c3d7a', hair: '#1a1410' },
-  business: { body: '#123e69', legs: '#262f42', hair: '#3a2a1a' },
+  business: { body: '#19191c', legs: '#19191c', hair: '#3a2a1a' },
   music: { body: '#123e69', legs: '#2a2a33', hair: '#1a1410' },
-  runner: { body: '#123e69', legs: '#e8b890', hair: '#7a4a22' },
+  runner: { body: '#ffd23f', legs: '#e8b890', hair: '#7a4a22' },
   ra: { body: '#123e69', legs: '#173f63', hair: '#4a3020' },
   goteam: { body: '#f4efe4', legs: '#333', hair: '#333' },
   gomember: { body: '#e4572e', legs: '#4a6a8a', hair: '#5a3a1e' },
@@ -376,8 +376,20 @@ export function drawUnit(ctx: CanvasRenderingContext2D, x: number, y: number, ty
   ctx.fill();
   ctx.stroke();
 
+  if (isCampusTroop(type)) {
+    // Rounded shoes and white sole trim follow the existing animated feet.
+    for (const [fx, sy] of [[-3, step * 0.3], [3, -step * 0.3]]) {
+      rr(ctx, fx - 2.8, -1 + sy, 6.5, 3, 1.5, type === 'business' ? '#19191c' : C.navy);
+      ctx.fillStyle = '#f7f3df'; ctx.fillRect(fx - 2, 0.7 + sy, 5, 0.8);
+    }
+  }
+
   // back accessories
-  if (type === 'freshman') rr(ctx, -9, -20, 6, 10, 2, C.gold); // backpack
+  if (type === 'freshman') {
+    rr(ctx, -11, -22, 8, 14, 3, C.gold);
+    rr(ctx, -11, -15, 5, 6, 1.4, '#efb916');
+    ctx.strokeStyle='#fff0a0';ctx.lineWidth=0.8;ctx.beginPath();ctx.moveTo(-9,-20);ctx.lineTo(-9,-17);ctx.stroke();
+  }
   if (type === 'gomember') rr(ctx, -9.5, -21, 6.5, 12, 2, lv >= 4 ? C.navy : '#2f6f4f'); // trip backpack
   if ((type === 'prof' && lv >= 4) || (type === 'fan' && lv >= 4)) {
     // cape
@@ -413,6 +425,11 @@ export function drawUnit(ctx: CanvasRenderingContext2D, x: number, y: number, ty
   const bodyCol = type === 'gomember' && lv >= 5 ? C.gold : of.body;
   const bodyH = type === 'theology' || type === 'prof' ? 15 : 12;
   rr(ctx, -bodyW / 2, -8 - bodyH, bodyW, bodyH + 2, 4, bodyCol);
+  if (isCampusTroop(type)) {
+    // The reference silhouettes have a visible relaxed far arm and rounded hand.
+    rr(ctx, -bodyW / 2 - 2.5, -19, 4, 10, 2, bodyCol);
+    circle(ctx, -bodyW / 2 - 0.5, -9, 2, C.skin, 1);
+  }
   if (type === 'theology') {
     // robe extends down
     ctx.fillStyle = of.body;
@@ -437,16 +454,9 @@ export function drawUnit(ctx: CanvasRenderingContext2D, x: number, y: number, ty
     ctx.fillRect(-3.5, -15, 7, 3);
   }
   if (type === 'freshman') {
-    // lanyard
-    ctx.strokeStyle = C.gold;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(-3, -19);
-    ctx.lineTo(0, -12);
-    ctx.lineTo(3, -19);
-    ctx.stroke();
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(-2, -12, 4, 3);
+    ctx.strokeStyle='#e9e5d6';ctx.lineWidth=0.6;
+    for (const dx of [-2,2]) {ctx.beginPath();ctx.moveTo(dx,-21);ctx.lineTo(dx,-18);ctx.stroke();}
+    ctx.strokeStyle='#335777';ctx.beginPath();ctx.moveTo(-3,-11);ctx.lineTo(3,-11);ctx.stroke();
   }
   if (type === 'president') {
     ctx.fillStyle = '#fff';
@@ -470,7 +480,7 @@ export function drawUnit(ctx: CanvasRenderingContext2D, x: number, y: number, ty
     ctx.lineTo(0, -12);
     ctx.lineTo(2.5, -19);
     ctx.fill();
-    ctx.fillStyle = C.gold;
+    ctx.fillStyle = '#29292d';
     ctx.fillRect(-1, -18, 2, 8);
   }
   if (type === 'music') {
@@ -486,8 +496,8 @@ export function drawUnit(ctx: CanvasRenderingContext2D, x: number, y: number, ty
     ctx.fill();
   }
   if (type === 'runner') {
-    // shorts + race bib
-    ctx.fillStyle = C.navy;
+    // yellow running kit + race bib
+    ctx.fillStyle = C.gold;
     ctx.fillRect(-5.5, -9, 11, 4);
     ctx.fillStyle = '#fff';
     ctx.fillRect(-3.5, -17, 7, 5);
@@ -520,7 +530,7 @@ export function drawUnit(ctx: CanvasRenderingContext2D, x: number, y: number, ty
   ctx.save();
   ctx.translate(5, -16);
   ctx.rotate(-0.4 + swing);
-  ctx.fillStyle = type === 'freshman' && lv >= 3 && lv < 5 ? '#fff' : type === 'engineer' && lv >= 5 ? '#9aa3ad' : bodyCol;
+  ctx.fillStyle = bodyCol;
   ctx.fillRect(-1.5, 0, 3.5, 8);
   ctx.strokeStyle = OUT;
   ctx.lineWidth = 1.4;
@@ -531,6 +541,12 @@ export function drawUnit(ctx: CanvasRenderingContext2D, x: number, y: number, ty
   // head
   const hy = -8 - bodyH - 6;
   circle(ctx, 0, hy, 7, C.skin);
+  if (isCampusTroop(type)) {
+    const face = ctx.createLinearGradient(-5, hy - 5, 6, hy + 6);
+    face.addColorStop(0, '#ffe7a2'); face.addColorStop(1, '#edb864');
+    ctx.fillStyle = face; ctx.beginPath(); ctx.ellipse(0, hy, 7.2, 7.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    circle(ctx, -6, hy + 1, 1.6, '#f2c87f', 0.8);
+  }
   // hair / hats
   drawHead(ctx, type, hy, of.hair, lv);
   // eyes
@@ -540,8 +556,12 @@ export function drawUnit(ctx: CanvasRenderingContext2D, x: number, y: number, ty
     ctx.textAlign = 'center';
     ctx.fillText('x  x', 2, hy + 2);
   } else {
-    ctx.fillRect(1, hy - 1, 1.8, 2.6);
-    ctx.fillRect(4.5, hy - 1, 1.8, 2.6);
+    if (isCampusTroop(type)) {
+      for (const ex of [-1.5, 3.5]) { ctx.beginPath(); ctx.ellipse(ex, hy + 0.4, 1.1, 2.2, 0, 0, Math.PI * 2); ctx.fill(); }
+    } else {
+      ctx.fillRect(1, hy - 1, 1.8, 2.6);
+      ctx.fillRect(4.5, hy - 1, 1.8, 2.6);
+    }
   }
   if ((type === 'athlete' && lv >= 4) || (type === 'fan' && lv >= 2)) {
     // eye black / face paint
@@ -1491,6 +1511,10 @@ function campusGear(ctx: CanvasRenderingContext2D, type: UnitType, lv: number, f
   } else if (type === 'freshman') {
     ctx.fillStyle = '#fff'; ctx.font = 'bold 2.6px sans-serif'; ctx.textAlign = 'center'; ctx.scale(facing, 1); ctx.fillText('CEDARVILLE',0,-16,11);
   }
+  ctx.strokeStyle = type === 'business' ? '#46464b' : '#3d6683'; ctx.lineWidth = 0.5; ctx.beginPath();ctx.moveTo(-5,-18);ctx.lineTo(-5,-10);ctx.stroke();
+  if (type === 'business' || type === 'music') {
+    ctx.fillStyle=C.gold;for (const by of [-16,-13,-10]) {ctx.beginPath();ctx.arc(2,by,0.55,0,Math.PI*2);ctx.fill();}
+  }
   if (type === 'business') campusBadge(ctx,-4,-17,0.5);
   if (lv >= 3) { ctx.fillStyle=C.gold; ctx.fillRect(-6,-9,2,1); }
   if (lv >= 5) { ctx.fillStyle=C.gold; ctx.fillRect(-6,-7,2,1); }
@@ -1502,29 +1526,54 @@ function campusHeld(ctx: CanvasRenderingContext2D, type: UnitType): boolean {
   else if (type === 'engineer') { rr(ctx,-1,3,4,14,1,'#9fd3f0'); circle(ctx,1,3,2,'#d7edf7',1); }
   else if (type === 'nurse') { rr(ctx,-1,5,8,11,1,'#fff'); rr(ctx,1,4,4,2,0.5,'#7d8d9a'); campusBadge(ctx,3,10,0.7); }
   else if (type === 'athlete') { ctx.fillStyle='#94501f'; ctx.beginPath(); ctx.ellipse(1,10,4,6,-0.4,0,Math.PI*2);ctx.fill();ctx.strokeStyle=OUT;ctx.lineWidth=1;ctx.stroke();ctx.strokeStyle='#fff';ctx.beginPath();ctx.moveTo(0,7);ctx.lineTo(2,12);ctx.stroke(); }
-  else if (type === 'music') { ctx.strokeStyle=C.gold;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(0,4);ctx.lineTo(0,10);ctx.quadraticCurveTo(0,14,5,14);ctx.lineTo(8,10);ctx.stroke();ctx.fillStyle=C.gold;ctx.beginPath();ctx.moveTo(5,9);ctx.lineTo(11,8);ctx.lineTo(9,14);ctx.closePath();ctx.fill();ctx.strokeStyle=OUT;ctx.lineWidth=1;ctx.stroke(); }
+  else if (type === 'music') { ctx.strokeStyle='#ffdc49';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(0,4);ctx.lineTo(0,10);ctx.quadraticCurveTo(0,14,5,14);ctx.lineTo(8,10);ctx.stroke();ctx.fillStyle=C.gold;ctx.beginPath();ctx.moveTo(5,9);ctx.lineTo(11,8);ctx.lineTo(9,14);ctx.closePath();ctx.fill();ctx.strokeStyle=OUT;ctx.lineWidth=1;ctx.stroke();ctx.fillStyle='#b17614';ctx.beginPath();ctx.ellipse(9,10.5,1.2,2,-0.4,0,Math.PI*2);ctx.fill();for(const vx of [0,2,4]){ctx.fillStyle='#ffed91';ctx.fillRect(vx,8,1,3);} }
   else if (type === 'runner' || type === 'ra') { circle(ctx,1,8,2,C.skin,1); }
   else { ctx.restore(); return false; }
   ctx.restore(); return true;
 }
+function isCampusTroop(type: UnitType): boolean {
+  return ['freshman', 'athlete', 'engineer', 'theology', 'nurse', 'business', 'music', 'runner', 'ra'].includes(type);
+}
+
 function campusHead(ctx: CanvasRenderingContext2D, type: UnitType, hy: number, hair: string): boolean {
-  if (!['freshman','athlete','engineer','theology','nurse','business','music','runner','ra'].includes(type)) return false;
-  ctx.save(); ctx.strokeStyle=OUT;ctx.lineWidth=1.3;
-  ctx.fillStyle=hair;ctx.beginPath();ctx.arc(0,hy-2,7.3,Math.PI,Math.PI*2);ctx.fill();
+  if (!isCampusTroop(type)) return false;
+  ctx.save(); ctx.translate(0, hy); ctx.strokeStyle = OUT; ctx.lineWidth = 1.15;
+  const navy = ctx.createLinearGradient(-8, -12, 8, 0);
+  navy.addColorStop(0, '#276792'); navy.addColorStop(0.55, '#103c64'); navy.addColorStop(1, C.navy);
+  const gold = ctx.createLinearGradient(-7, -11, 6, 0);
+  gold.addColorStop(0, '#fff19b'); gold.addColorStop(0.4, '#ffcf18'); gold.addColorStop(1, '#d99c08');
+  // Swept hair, rather than a flat semicircle, echoes the illustrated portraits.
+  if (type === 'theology' || type === 'business' || type === 'runner') {
+  ctx.fillStyle = hair; ctx.beginPath(); ctx.moveTo(-7, 0); ctx.bezierCurveTo(-11, -8, -4, -11, 0, -8);
+  ctx.bezierCurveTo(5, -10, 7, -7, 9, -10); ctx.bezierCurveTo(11, -5, 4, -3, -1, -5);
+  ctx.lineTo(-4, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = '#a66a36'; ctx.lineWidth = 0.65; ctx.beginPath();ctx.moveTo(-5,-6);ctx.quadraticCurveTo(0,-9,5,-7);ctx.stroke();
+  } else {
+    ctx.fillStyle=hair;ctx.beginPath();ctx.arc(0,-2,7.3,Math.PI,Math.PI*2);ctx.fill();
+  }
+  ctx.strokeStyle = OUT; ctx.lineWidth = 1.15;
   if (type === 'freshman' || type === 'ra') {
-    if(type==='ra') {circle(ctx,-6,hy+3,3.7,hair,1);}
-    ctx.fillStyle=C.navy;ctx.beginPath();ctx.arc(0,hy-3,8,Math.PI,0);ctx.closePath();ctx.fill();ctx.stroke();
-    rr(ctx,-1,hy-4,12,2,1,C.gold);campusBadge(ctx,0,hy-8,0.65);
+    if (type === 'ra') { ctx.fillStyle = hair; ctx.beginPath();ctx.moveTo(-6,-2);ctx.bezierCurveTo(-7,4,-13,8,-10,13);ctx.quadraticCurveTo(-4,15,-4,3);ctx.fill();ctx.stroke(); }
+    ctx.fillStyle = navy; ctx.beginPath();ctx.moveTo(-8,-3);ctx.bezierCurveTo(-9,-15,6,-15,8,-4);ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.strokeStyle='#397fa4';ctx.lineWidth=0.6;ctx.beginPath();ctx.moveTo(-1,-12);ctx.quadraticCurveTo(-3,-7,-2,-4);ctx.stroke();
+    ctx.strokeStyle=OUT;ctx.lineWidth=1;ctx.fillStyle=gold;ctx.beginPath();ctx.moveTo(-4,-4);ctx.quadraticCurveTo(7,-7,11,-3);ctx.quadraticCurveTo(4,0,-4,-2);ctx.closePath();ctx.fill();ctx.stroke();campusBadge(ctx,1,-8,0.6);
   } else if (type === 'engineer' || type === 'athlete') {
-    ctx.fillStyle=C.gold;ctx.beginPath();ctx.arc(0,hy-2,8,Math.PI,0);ctx.closePath();ctx.fill();ctx.stroke();
-    rr(ctx,-8,hy-3,17,2,0.6,type==='athlete'?C.navy:C.gold);
-    if(type==='athlete') {ctx.fillStyle=C.navy;ctx.fillRect(-2,hy-10,3,7);ctx.strokeStyle=C.navy;ctx.lineWidth=1.3;ctx.strokeRect(-1,hy-2,9,7);}
-    else {rr(ctx,-1,hy-1,8,4,1,'#c6e7f6');campusBadge(ctx,0,hy-7,0.5);}
-  } else if (type === 'music') {
-    rr(ctx,-7,hy-13,14,9,1,C.navy);ctx.fillStyle=C.gold;ctx.fillRect(-7,hy-7,14,2);
-    ctx.beginPath();ctx.ellipse(0,hy-16,2.5,5,-0.2,0,Math.PI*2);ctx.fill();ctx.stroke();campusBadge(ctx,0,hy-10,0.6);
-  } else if (type === 'runner') {ctx.fillStyle=C.gold;ctx.fillRect(-7,hy-5,14,2.5);}
-  else if (type === 'nurse') {circle(ctx,-6,hy-5,3,hair,1);ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,hy-2,7,Math.PI*1.05,Math.PI*1.9);ctx.stroke();}
-  else if (type === 'theology') {ctx.strokeStyle=OUT;ctx.lineWidth=1;ctx.strokeRect(0,hy-2,3,4);ctx.strokeRect(4,hy-2,3,4);ctx.beginPath();ctx.moveTo(3,hy);ctx.lineTo(4,hy);ctx.stroke();}
+    ctx.fillStyle=gold;ctx.beginPath();ctx.arc(0,-3,8.8,Math.PI,0);ctx.lineTo(8,-1);ctx.lineTo(-8,-1);ctx.closePath();ctx.fill();ctx.stroke();
+    if(type==='athlete') {
+      ctx.fillStyle=C.navy;ctx.beginPath();ctx.moveTo(-2,-11);ctx.lineTo(1,-11);ctx.lineTo(3,-3);ctx.lineTo(-1,-3);ctx.fill();
+      ctx.strokeStyle='#fff';ctx.lineWidth=0.6;ctx.beginPath();ctx.moveTo(-3,-11);ctx.lineTo(-2,-3);ctx.stroke();
+      rr(ctx,-5,-3,12,3,0.7,C.navy);ctx.strokeStyle=C.navy;ctx.lineWidth=1.6;ctx.beginPath();ctx.moveTo(-5,-1);ctx.lineTo(-4,5);ctx.lineTo(7,5);ctx.lineTo(8,-2);ctx.stroke();
+    } else {
+      rr(ctx,-9,-3,18,2,0.6,C.gold);ctx.fillStyle='#fff3a0';ctx.fillRect(-2,-10,1,6);
+      rr(ctx,-5,-1,12,4,1,'#eaf6fa');ctx.fillStyle='#8ec3dd';ctx.fillRect(-3.5,-0.5,3,3);ctx.fillRect(2,-0.5,3,3);campusBadge(ctx,2,-7,0.5);
+    }
+  } else if(type==='music') {
+    ctx.fillStyle=navy;ctx.beginPath();ctx.moveTo(-8,-5);ctx.lineTo(-9,-13);ctx.lineTo(6,-15);ctx.lineTo(8,-5);ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.strokeStyle=C.gold;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-8,-6);ctx.lineTo(8,-7);ctx.stroke();
+    ctx.fillStyle=gold;ctx.strokeStyle=OUT;ctx.lineWidth=0.8;
+    for(let i=0;i<5;i++){ctx.beginPath();ctx.ellipse(-1+(i-2)*0.8,-16-Math.abs(2-i)*0.3,1.4,3.8,(i-2)*0.35,0,Math.PI*2);ctx.fill();ctx.stroke();}campusBadge(ctx,0,-10,0.6);
+  } else if(type==='runner') {rr(ctx,-7,-5,14,2.5,0.6,C.gold);campusBadge(ctx,2,-4,0.4);}
+  else if(type==='nurse') {circle(ctx,-6,-7,3,hair,1);ctx.strokeStyle='#fff';ctx.lineWidth=2.4;ctx.beginPath();ctx.arc(0,-2,7,Math.PI*1.04,Math.PI*1.94);ctx.stroke();}
+  else if(type==='theology') {ctx.strokeStyle=OUT;ctx.lineWidth=1;ctx.strokeRect(-4,-2,4,5);ctx.strokeRect(2,-2,4,5);ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(2,0);ctx.stroke();}
   ctx.restore();return true;
 }
