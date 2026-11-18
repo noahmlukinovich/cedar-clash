@@ -10,6 +10,12 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 35,
+    date: 'Nov 18, 2026',
+    title: 'Original Stinger Statue restored',
+    items: ['The Stinger Statue returns to its original appearance. Gameplay is unchanged.'],
+  },
+  {
     v: 34,
     date: 'Nov 18, 2026',
     title: "Chuck’s catapult kitchen detail",
