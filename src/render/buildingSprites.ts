@@ -2005,59 +2005,71 @@ export const CATAPULT_AXLE_Z = 60;
 
 /** Chuck's Casserole Catapult: a wooden A-frame on a serving platform. The throwing arm is drawn live (world.ts). */
 function catapult(ctx: Ctx, L: number): void {
-  site(ctx, L, 3);
-  // serving platform
-  box(ctx, -1.05, -1.05, 1.05, 1.05, 4, 12, L <= 1 ? WOOD : C.brick);
-  if (L >= 3) box(ctx, -1.08, -1.08, 1.08, 1.08, 12, 14, CREAM);
-  const z0 = L >= 3 ? 14 : 12;
-  // stack of dining-hall trays on the left corner
-  const th = 6 + L * 4;
-  box(ctx, -0.95, 0.45, -0.5, 0.95, z0, z0 + th, '#e0773a');
-  ctx.strokeStyle = 'rgba(90,30,0,0.45)';
-  ctx.lineWidth = 1;
-  for (let z = z0 + 3; z < z0 + th - 1; z += 3) {
-    line(ctx, P(-0.95, 0.95, z), P(-0.5, 0.95, z));
-    line(ctx, P(-0.5, 0.95, z), P(-0.5, 0.45, z));
+  pad(ctx, 3, '#b8b5aa');
+  const timber = L >= 3 ? '#85653c' : '#a18450';
+  const beam = (a: [number, number], b: [number, number], width = 7): void => {
+    ctx.lineCap = 'round'; ctx.strokeStyle = OUT; ctx.lineWidth = width + 2; line(ctx, a, b);
+    ctx.strokeStyle = timber; ctx.lineWidth = width; line(ctx, a, b);
+    ctx.strokeStyle = '#c2a16a'; ctx.lineWidth = 0.7; line(ctx, [a[0]-1,a[1]], [b[0]-1,b[1]]);
+  };
+  // Wheeled timber serving platform, with planks and bolted iron straps.
+  for (const u of [-0.8,0.8]) for(const v of [-0.85,0.85]) {
+    const [x,y]=P(u,v,4);ctx.fillStyle='#55504a';ctx.strokeStyle=OUT;ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.ellipse(x,y,5,6,0,0,Math.PI*2);ctx.fill();ctx.stroke();
   }
-  // a vat of Mystery Bake on the right corner
-  cylinder(ctx, 0.68, -0.68, 0.3, z0, 16, '#9aa3ad', '#6b4a2a');
-  const [vx, vy] = P(0.68, -0.68, z0 + 16);
-  ctx.fillStyle = '#7fae3a';
-  for (const [ox, oy] of [[-4, -1], [3, 1], [0, 2]] as [number, number][]) ctx.fillRect(vx + ox, vy + oy, 2, 2);
-  // A-frame uprights either side of the arm
-  ctx.lineCap = 'round';
-  for (const v of [-0.45, 0.45]) {
-    const top = P(0, v, CATAPULT_AXLE_Z);
-    for (const u of [-0.7, 0.7]) {
-      const foot = P(u, v, z0);
-      ctx.strokeStyle = OUT;
-      ctx.lineWidth = 8;
-      line(ctx, foot, top);
-      ctx.strokeStyle = L >= 2 ? C.woodDark : WOOD;
-      ctx.lineWidth = 5;
-      line(ctx, foot, top);
+  box(ctx,-1.08,-1.08,1.08,1.08,5,12,timber);
+  box(ctx,-1.12,-1.12,1.12,1.12,12,15,'#b5a78b');
+  ctx.lineWidth=0.7;ctx.strokeStyle='#695b48';
+  for(let q=-0.9;q<1;q+=0.3)line(ctx,P(q,-1.1,15),P(q,1.1,15));
+  for(const u of [-0.8,0,0.8]) {
+    box(ctx,u-0.045,1.08,u+0.045,1.13,5,15,'#73767a');
+    const [x,y]=P(u,1.135,10);ctx.fillStyle=OUT;ctx.fillRect(x-0.8,y-0.8,1.6,1.6);
+  }
+  // Prep table with stacked metal trays and tiny vegetable tins.
+  box(ctx,-1.36,0.1,-0.9,0.8,5,29,'#836342');
+  box(ctx,-1.4,0.06,-0.86,0.84,29,32,'#b28d57');
+  for(let z=33;z<=38;z+=1.5)box(ctx,-1.31,0.14,-1.02,0.44,z,z+0.7,'#aab0b2');
+  for(const v of [0.54,0.69])cylinder(ctx,-1.17,v,0.065,32,6,'#739d59','#b9c1ba');
+  // Serving vat and spoon, recognizable even in the small game view.
+  cylinder(ctx,0.89,-0.9,0.29,15,22,'#aeb6bd','#f7b341');
+  const [vx,vy]=P(0.89,-0.9,37);
+  ctx.fillStyle='#629347';for(const [x,y]of [[-4,0],[3,-2],[5,2]]){ctx.beginPath();ctx.arc(vx+x,vy+y,1.3,0,7);ctx.fill();}
+  beam([vx+4,vy+1],[vx+11,vy-17],2);
+  plaque(ctx,vx,vy+12,'SPECIAL',3.4);
+  // Two braced A-frames, iron reinforcing plates and rope bindings.
+  for(const v of [-0.46,0.46]) {
+    box(ctx,-0.83,v-0.08,0.83,v+0.08,15,20,timber);
+    const top=P(0,v,CATAPULT_AXLE_Z);
+    for(const u of [-0.72,0.72]) {
+      beam(P(u,v,20),top,7);
+      const [x,y]=P(u*0.48,v,40);
+      ctx.strokeStyle='#d0bd8a';ctx.lineWidth=1;
+      for(let k=-2;k<=2;k++)line(ctx,[x-4,y+k*1.5],[x+4,y+k*1.5+1]);
     }
-    // cross brace
-    ctx.strokeStyle = OUT;
-    ctx.lineWidth = 2;
-    line(ctx, P(-0.5, v, z0 + 18), P(0.5, v, z0 + 18));
+    const a=P(-0.5,v,31),b=P(0.5,v,31);
+    ctx.strokeStyle=OUT;ctx.lineWidth=5;line(ctx,a,b);ctx.strokeStyle='#818386';ctx.lineWidth=3;line(ctx,a,b);
+    ctx.fillStyle=OUT;for(const pt of [a,b]){ctx.beginPath();ctx.arc(pt[0],pt[1],1,0,7);ctx.fill();}
+    const [x,y]=top;poly(ctx,[[x-4,y-5],[x+4,y-3],[x+4,y+6],[x-4,y+4]],'#9b9c9b',true,1);
   }
-  // axle
-  ctx.strokeStyle = OUT;
-  ctx.lineWidth = 5;
-  line(ctx, P(0, -0.5, CATAPULT_AXLE_Z), P(0, 0.5, CATAPULT_AXLE_Z));
-  ctx.strokeStyle = L >= 4 ? C.gold : '#777';
-  ctx.lineWidth = 3;
-  line(ctx, P(0, -0.5, CATAPULT_AXLE_Z), P(0, 0.5, CATAPULT_AXLE_Z));
-  ctx.lineCap = 'butt';
-  if (L >= 2) {
-    const [sx, sy] = P(0.2, 1.08, 9);
-    plaque(ctx, sx, sy, "CHUCK'S", 6);
+  beam(P(0,-0.54,CATAPULT_AXLE_Z),P(0,0.54,CATAPULT_AXLE_Z),4);
+  // Winch rope and hanging tie-down chains.
+  ctx.strokeStyle='#c8b88e';ctx.lineWidth=1.4;
+  line(ctx,P(-0.45,-0.4,42),P(-0.72,0.7,24));
+  for(const u of [-0.6,0.65]) {
+    const [x,y]=P(u,0.86,22);ctx.strokeStyle='#45464a';ctx.lineWidth=1;
+    for(let k=0;k<6;k++){ctx.beginPath();ctx.ellipse(x+k*0.8,y+k*2,1.6,2.5,0.4,0,7);ctx.stroke();}
   }
-  if (L >= 4) {
-    const [fx, fy] = P(-0.95, -0.95, z0 + 12);
-    flag(ctx, fx, fy, 30, C.gold);
-  }
+  // Dining-hall cook: hat, apron, smile and oven mitt beside the winch.
+  const [cx,cy]=P(-0.48,0.74,17);
+  ctx.fillStyle='#26333d';ctx.fillRect(cx-4,cy-2,3,5);ctx.fillRect(cx+1,cy-2,3,5);
+  poly(ctx,[[cx-4,cy-19],[cx+3,cy-19],[cx+5,cy],[cx-5,cy]],'#f4eee0',true,1);
+  ctx.fillStyle='#dfb58d';ctx.strokeStyle=OUT;ctx.lineWidth=0.8;ctx.beginPath();ctx.arc(cx,cy-23,4,0,7);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#e5f0e8';for(const ox of [-3,0,3]){ctx.beginPath();ctx.arc(cx+ox,cy-28,3,0,7);ctx.fill();ctx.stroke();}
+  ctx.fillStyle=OUT;ctx.fillRect(cx+1,cy-24,0.8,1);ctx.beginPath();ctx.arc(cx+1,cy-22,1.5,0,2.3);ctx.stroke();
+  ctx.fillStyle='#b8753e';ctx.beginPath();ctx.ellipse(cx+7,cy-17,2.5,4,-0.5,0,7);ctx.fill();ctx.stroke();
+  const [sx,sy]=P(0,1.34,13);
+  plaque(ctx,sx,sy,"CHUCK'S",7);
+  ctx.lineCap='butt';
 }
 
 /** Height (px above the footprint centre) of the Stinger Statue's raised stinger tip: where its beam starts. */
