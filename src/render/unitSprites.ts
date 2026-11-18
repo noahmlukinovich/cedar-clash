@@ -60,6 +60,7 @@ const OUTFIT: Record<UnitType, { body: string; legs: string; hair: string }> = {
   rock: { body: '#8a8478', legs: '#5a554c', hair: '#5a554c' },
   pebble: { body: '#8a8478', legs: '#5a554c', hair: '#5a554c' },
   senior: { body: '#23264a', legs: '#23264a', hair: '#4a3020' },
+  thesis: { body: '#6b2f3a', legs: '#4a4e57', hair: '#3a2a1a' },
 };
 
 function dot(ctx: CanvasRenderingContext2D, x: number, y: number, r: number): void {
@@ -415,7 +416,7 @@ export function drawUnit(ctx: CanvasRenderingContext2D, x: number, y: number, ty
   }
 
   // body
-  const bodyW = type === 'athlete' ? (lv >= 3 ? 19 : 16) : type === 'ra' ? 16 : type === 'runner' ? 11 : 13;
+  const bodyW = type === 'athlete' ? (lv >= 3 ? 19 : 16) : type === 'ra' || type === 'thesis' ? 16 : type === 'runner' ? 11 : 13;
   const bodyCol = type === 'nurse' && lv >= 4 ? '#f4f7f8' : type === 'freshman' && lv >= 5 ? '#23262e' : type === 'gomember' && lv >= 5 ? C.gold : of.body;
   const bodyH = type === 'theology' || type === 'prof' ? 15 : 12;
   rr(ctx, -bodyW / 2, -8 - bodyH, bodyW, bodyH + 2, 4, bodyCol);
@@ -569,6 +570,19 @@ export function drawUnit(ctx: CanvasRenderingContext2D, x: number, y: number, ty
     ctx.ellipse(0, hy - 12, 6.5, 2.2, 0, 0, Math.PI * 2);
     ctx.stroke();
   }
+  if (type === 'thesis') {
+    // big round glasses and the bags under the eyes that came with them
+    ctx.strokeStyle = OUT;
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.arc(2, hy, 2.3, 0, Math.PI * 2);
+    ctx.moveTo(7.8, hy);
+    ctx.arc(5.5, hy, 2.3, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(110,80,140,0.45)';
+    ctx.fillRect(0.6, hy + 2.6, 2.8, 1);
+    ctx.fillRect(4.1, hy + 2.6, 2.8, 1);
+  }
   if (type === 'prof') {
     ctx.strokeStyle = OUT;
     ctx.lineWidth = 1.2;
@@ -633,6 +647,43 @@ function gear(ctx: CanvasRenderingContext2D, type: UnitType, lv: number): void {
     ctx.fillRect(-w / 2, y, w, h);
   };
   switch (type) {
+    case 'thesis':
+      // cardigan: open front over a white shirt, buttons down one side
+      ctx.fillStyle = '#f4efe4';
+      ctx.fillRect(-2.5, -21, 5, 13);
+      ctx.fillStyle = '#d9c9a0';
+      for (const by of [-18, -14, -10]) ctx.fillRect(-4.5, by, 1.6, 1.6);
+      if (lv >= 2) {
+        // lanyard with a grad-office keycard
+        ctx.strokeStyle = C.navy;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(-2, -21);
+        ctx.lineTo(0.5, -13);
+        ctx.lineTo(2, -21);
+        ctx.stroke();
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(-1, -13, 3.5, 4);
+        ctx.strokeStyle = OUT;
+      }
+      if (lv >= 3) {
+        // a coffee stain that is now part of the cardigan
+        ctx.fillStyle = 'rgba(90,55,25,0.55)';
+        ctx.beginPath();
+        ctx.ellipse(5, -12, 2.2, 1.6, 0.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (lv >= 4) {
+        // elbow-patch-brown leather messenger strap
+        ctx.strokeStyle = '#7a4e2a';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.moveTo(-7, -21);
+        ctx.lineTo(7, -9);
+        ctx.stroke();
+        ctx.strokeStyle = OUT;
+      }
+      break;
     case 'senior':
       if (lv >= 2) {
         // gold stole
@@ -879,6 +930,40 @@ function drawHeld(ctx: CanvasRenderingContext2D, type: UnitType, lv = 1): void {
   ctx.lineWidth = 1.4;
   ctx.strokeStyle = OUT;
   switch (type) {
+    case 'thesis': {
+      // the thesis: a slab of a book, thicker with every revision, gold spine from Lv3
+      const thick = lv >= 4 ? 8 : 6.5;
+      rr(ctx, -thick / 2 + 1, 3, thick, 17, 1.5, '#7a1f2b');
+      ctx.fillStyle = lv >= 3 ? C.gold : '#c9b48a';
+      ctx.fillRect(-thick / 2 + 1, 3, 1.8, 17);
+      // page edges
+      ctx.fillStyle = '#f4efe4';
+      ctx.fillRect(thick / 2 - 0.6, 4, 1.4, 15);
+      // sticky-note tabs from Lv2
+      if (lv >= 2) {
+        ctx.fillStyle = '#ffe066';
+        ctx.fillRect(thick / 2 + 0.6, 6, 2, 2);
+        ctx.fillStyle = '#ff8fb8';
+        ctx.fillRect(thick / 2 + 0.6, 11, 2, 2);
+        ctx.fillStyle = '#7fd8ff';
+        ctx.fillRect(thick / 2 + 0.6, 15, 2, 2);
+      }
+      if (lv >= 5) {
+        // the committee signed it: a red APPROVED seal on the cover
+        ctx.strokeStyle = '#e03a3a';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(1.5, 11.5, 2.6, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0.3, 11.6);
+        ctx.lineTo(1.3, 12.7);
+        ctx.lineTo(2.9, 10.3);
+        ctx.stroke();
+        ctx.strokeStyle = OUT;
+      }
+      break;
+    }
     case 'senior':
       if (lv >= 5) {
         // the diploma, finally
@@ -1122,6 +1207,27 @@ function drawHead(ctx: CanvasRenderingContext2D, type: UnitType, hy: number, hai
   ctx.lineWidth = 1.6;
   ctx.strokeStyle = OUT;
   switch (type) {
+    case 'thesis': {
+      // hasn't had a haircut since the proposal: tufts sticking up, pencil tucked behind the ear
+      ctx.fillStyle = hair;
+      ctx.beginPath();
+      ctx.arc(0, hy - 2, 7.6, Math.PI, Math.PI * 2);
+      ctx.fill();
+      for (const [tx, ty] of [[-5, -8], [-1, -10], [3, -9.5], [6, -7]] as const) {
+        ctx.beginPath();
+        ctx.arc(tx, hy + ty, 2.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.save();
+      ctx.translate(-4.5, hy + 0.5);
+      ctx.rotate(0.3);
+      ctx.fillStyle = C.gold;
+      ctx.fillRect(-1, -4, 2, 7);
+      ctx.fillStyle = '#ff8fb8';
+      ctx.fillRect(-1, -5.5, 2, 1.8);
+      ctx.restore();
+      break;
+    }
     case 'senior': {
       // mortarboard: skull cap, a flat board, and a tassel (gold from Lv3)
       ctx.fillStyle = '#1a1c33';
