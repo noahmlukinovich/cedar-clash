@@ -10,6 +10,12 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 38,
+    date: 'Nov 18, 2026',
+    title: 'Fresh spell and hero artwork',
+    items: ['Updated All-Nighter, Snow Day, Chapel Announcement and Syllabus Week icons, plus the Bible Prof and President artwork. Spell effects, costs, cooldowns and unlock requirements are unchanged.'],
+  },
+  {
     v: 37,
     date: 'Nov 18, 2026',
     title: 'A fresh campus arrival',

@@ -347,6 +347,115 @@ function drawVan(ctx: CanvasRenderingContext2D, x: number, y: number, o: UnitDra
   }
 }
 
+/** Reference-matched hero art; only drawing changes, all battle behavior stays in the simulation. */
+function drawRefinedHero(ctx: CanvasRenderingContext2D, kind: 'prof' | 'president', o: UnitDrawOpts, lv: number): void {
+  const ink = OUT, gold = lv >= 3 ? '#efb820' : '#c49b48', skin = '#ffc783';
+  const attack = o.attacking > 0 ? Math.sin(o.attacking * Math.PI) : 0;
+  const step = o.moving ? Math.sin(o.t * 12) * 9 : 0;
+  const shade = (h: string, k: number): string => '#' + h.slice(1).match(/../g)!.map(v => Math.min(255, Math.round(parseInt(v,16)*k)).toString(16).padStart(2,'0')).join('');
+  const p = (d: string, f: string, s = ink, w = 5): void => {
+    if (/^#[0-9a-f]{6}$/i.test(f)) { const g = ctx.createLinearGradient(-70,-70,90,190); g.addColorStop(0,shade(f,1.28)); g.addColorStop(.46,f); g.addColorStop(1,shade(f,.67)); ctx.fillStyle = g; } else ctx.fillStyle = f;
+    ctx.strokeStyle = s; ctx.lineWidth = w*.8; ctx.lineJoin='round'; ctx.lineCap='round';
+    const path = new Path2D(d); ctx.fill(path); if(w) ctx.stroke(path);
+  };
+  const line = (d: string, col = ink, w = 5): void => { ctx.strokeStyle=col; ctx.lineWidth=w; ctx.lineCap='round'; ctx.stroke(new Path2D(d)); };
+  const ell = (x: number, y: number, rx: number, ry: number, f: string, s = ink, w = 4): void => { ctx.beginPath(); ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2); ctx.fillStyle=f; ctx.fill(); if(w) {ctx.strokeStyle=s;ctx.lineWidth=w;ctx.stroke();} };
+  ctx.save(); ctx.scale(.135,.135); ctx.translate(0,-200);
+if(kind==='prof'){
+// lined academic cape, robe and shoes
+p('M-48 57 L-96 172 Q-76 166-60 181 L65 183 L45 61Z','#8b3927');p('M-65 89 L-88 165 L-69 168 L-45 97Z','#bd5535','',0);
+ctx.save();ctx.translate(0, step);p('M-22 176 L-26 190 Q-48 190-43 201 L-3 199 L2 181Z','#392e22');ctx.restore();ctx.save();ctx.translate(0,-step);p('M26 176 L33 190 Q54 188 57 200 L17 200 L12 179Z','#392e22');
+ctx.restore();p('M-43 63 Q-20 48 22 60 L47 93 L62 181 Q8 197-53 180 L-43 111Z','#684521');p('M-20 85 L-36 179 L-7 186 L4 90Z','#80582d','',0);p('M29 88 L44 183 L54 181 L38 90Z','#b98225','',0);
+p('M-38 61 L-3 103 L29 61 L38 71 L-2 122 L-47 74Z',gold);p('M-19 62 L-3 89 L12 64Z','#f4eee0');p('M-4 67 L2 75 L-2 86 L-8 75Z','#9b631d',ink,2);
+line('M-34 114 L-46 179',gold,7);line('M29 116 L47 184',gold,7);
+// substantial folds and gold embroidered robe edges
+p('M-23 116 L-33 179 L-15 182 L-9 133Z','#51371f','',0);
+p('M5 124 L0 185 L15 185 L12 132Z','#9c7138','',0);
+p('M26 129 L37 181 L28 182 L17 137Z','#4c321d','',0);
+line('M-38 123 L-48 178','#ffe279',2);
+line('M35 124 L48 178','#ffd269',2);
+line('M-45 74 L-2 114 L35 72','#ffdc59',3);
+ctx.save(); ctx.translate(-38, 65); ctx.rotate(-attack * 0.18); ctx.translate(38, -65);
+// outstretched teaching arm
+p('M-41 69 L-79 55 L-88 101 Q-65 119-35 101Z','#67411f');p('M-78 57 Q-89 73-81 101 L-73 103 Q-79 78-70 61Z',gold,ink,2);
+p('M-78 58 Q-92 52-106 45 Q-120 38-119 31 Q-117 24-103 29 L-91 36 Q-94 17-87 18 Q-81 20-80 35 L-72 47Z',skin);
+line('M-113 33 L-98 40','#d58b4a',2);
+p('M-72 69 Q-77 87-68 99 L-48 102 Q-64 88-62 73Z','#8c5a2c','',0);
+p('M-70 101 Q-53 100-38 92 L-37 101 Q-50 112-70 106Z','#432d1c','',0);
+ctx.restore();
+// head and hair
+p('M-32 8 Q-44-25-21-40 Q9-57 34-31 L38 21 Q27 51-4 50 Q-30 47-32 8Z','#c7c3b6');p('M-20-25 Q8-42 32-24 L35 15 Q31 36 8 40 L-17 26Z',skin);ell(-24,13,11,13,skin);line('M-28 10 Q-20 5-19 18','#e9a163',3);
+p('M-33-3 Q-36-24-6-37 L9-31 Q-4-11-29-7Z','#dcd9c9');line('M-28-18 L-7-27','#aaa89f',3);
+// sculpted silver hair and cheek planes
+p('M-19-26 Q-9-38 13-33 Q0-26-14-21Z','#efebdc','',0);
+p('M-32-12 Q-30-23-16-25 L-24-13 L-30 3Z','#96968e','',0);
+p('M23-18 Q32-14 34-3 L34 20 L26 25 L24 5Z','#eaa362','',0);
+line('M-23 24 Q-16 30-9 29','#c38553',2);
+// beard and moustache
+p('M-19 19 Q-15 29-6 26 Q8 14 24 21 L33 24 Q40 37 32 46 Q29 52 23 49 Q18 57 12 52 Q7 59 0 53 Q-7 58-12 50 Q-20 54-24 45 Q-31 35-19 19Z','#d1cfc2');p('M-5 24 Q7 13 19 22 L27 29 Q15 25 9 29 Q4 23-7 31Z','#e4dfd0',ink,2);line('M3 36 Q12 31 19 36',ink,3);
+// layered beard locks
+p('M-23 30 Q-24 45-14 46 L-16 34Z','#aaa99e','',0);
+p('M-13 35 Q-13 52-4 51 L-6 37Z','#eeeadd','',0);
+p('M-3 40 Q-2 52 5 51 L4 39Z','#eeeadd','',0);
+p('M10 39 Q11 53 17 48 L18 39Z','#eeeadd','',0);
+p('M24 33 Q30 44 23 49 L30 43 L34 30Z','#999b94','',0);
+// glasses and brows
+line('M-18-5 Q-9-9 1-5 M14-5 L27-8',ink,4);p('M-23 1 Q-13-1 1 0 L1 13 Q0 21-10 20 L-18 18 Q-23 14-23 1Z','rgba(255,255,255,0.1)',ink,3);p('M13 0 Q26-3 34-2 L35 11 Q35 19 27 19 L20 19 Q14 18 14 11Z','rgba(255,255,255,0.1)',ink,3);line('M2 6 L13 5',ink,3);ell(-3,8,3,7,ink,'',0);ell(24,7,3,7,ink,'',0);
+// mortarboard
+p('M-64-39 Q-67-41-62-45 L-7-75 Q-4-77 2-75 L58-63 Q64-61 67-57 L72-50 L12-24Z','#1d2c46');p('M-37-28 Q-6-55 35-49 L38-36 Q-6-38-37-16Z','#17253c');line('M-61-40 L-5-69 L27-64','#73798d',3);line('M34-64 Q70-65 77-33',gold,5);ell(77,-29,4,5,gold);p('M74-24 L70-7 Q77-3 83-7 L80-24Z',gold,ink,3);
+// full tassel and highlighted mortarboard
+p('M29-64 Q38-66 42-59 L48-60 Q53-54 60-54 L66-45 L53-48 L46-44 L38-52 L32-52Z','#f8bf22',ink,2);
+line('M35-62 L40-55 M47-57 L53-49 M76-23 L75-10 M79-23 L80-10','#ffe38b',2);
+// open Bible with pages, cover and cross
+p('M36 75 Q55 54 76 69 Q94 53 111 62 L99 119 L65 126 L32 109Z','#152945');p('M38 72 Q55 59 75 74 Q94 60 108 64 L102 73 Q91 66 75 82 Q55 67 39 81Z','#f4edda',ink,3);p('M38 81 L75 87 L108 74 L100 119 L65 130 L31 112Z','#203955');line('M74 86 L65 128','#0e182b',4);line('M91 87 L86 110 M80 97 L98 93',gold,4);line('M45 88 L41 108',gold,3);p('M68 125 Q68 116 74 115 Q79 115 78 123 L81 119 Q82 107 88 109 Q93 111 89 124 Q96 116 99 123 Q99 132 87 138 Q78 144 66 136Z',skin);
+line('M41 76 Q57 66 74 79 M78 77 Q91 66 103 68','#b7ae95',1.2);
+line('M44 73 Q59 65 73 76 M79 74 Q92 64 103 66','#b7ae95',1);
+line('M34 110 L64 122 L98 114','#456084',2);
+}else{
+// cape and navy suit
+p('M-41 58 L-86 176 Q-53 189-35 178 L48 178 L30 60Z','#1b3157');p('M-80 168 L-45 177 L-41 187 L-84 179Z',gold);p('M35 79 L57 172 L42 182 L26 87Z',gold);
+p('M-32 144 L-37 190 L-5 193 L6 158 L17 192 L45 190 L34 142Z','#182940');ctx.save();ctx.translate(0,step);p('M-37 188 Q-54 191-47 202 L-6 200 L-4 190Z','#282522');ctx.restore();ctx.save();ctx.translate(0,-step);p('M18 189 L18 200 L57 201 Q62 192 43 187Z','#282522');
+ctx.restore();p('M-39 64 Q-5 47 30 63 L45 130 L31 153 L6 143 L-20 154 L-45 129Z','#243a59');p('M-20 60 L3 94 L24 60Z','#f2f0e8');p('M2 73 L9 81 L6 101 L-3 91 L-4 81Z','#224c80');p('M-26 61 L-14 101 L1 94 L-6 113 L-27 147 L-41 126Z','#192b46');p('M26 61 L14 98 L4 94 L8 116 L29 147 L39 127Z','#17253b');
+p('M-41 68 Q-56 68-58 85 L-61 135 L-31 137 L-26 87Z','#263d5e');p('M-57 135 L-56 146 Q-55 159-43 159 Q-37 166-33 156 Q-23 161-24 151 L-26 138Z',skin);
+p('M31 72 Q43 68 49 84 L59 107 L81 99 L88 121 Q62 144 44 125 L32 107Z','#213653');
+// tailored suit planes and cape folds
+p('M-46 92 L-53 129 L-36 130 L-30 98Z','#314c75','',0);
+p('M-74 162 L-60 113 L-49 100 L-60 170Z','#314c77','',0);
+line('M-75 171 L-48 179','#ffe16b',2);
+p('M-21 150 L-28 182 L-13 183 L0 154Z','#304763','',0);
+p('M17 155 L23 181 L37 181 L31 152Z','#101f33','',0);
+line('M-19 116 L-27 141 M16 118 L29 143','#486080',2);
+ell(4,127,1.6,1.6,'#b3a073','',0);
+// neck and head
+p('M-17 52 L-15 64 Q3 77 21 58 L19 43Z',skin);p('M-33-25 Q-17-49 18-33 Q42-26 43 1 L44 33 Q40 54 15 57 L-13 54 Q-36 45-37 20Z',skin);p('M27-27 Q42-24 44-7 L35-17Z','#172337');ell(-33,26,12,14,skin);line('M-38 23 Q-30 18-29 31','#df985d',3);
+// swept silver hair
+p('M-40 24 Q-61-5-41-26 Q-43-52-4-60 Q31-67 40-44 Q45-34 30-31 Q8-13-14-19 Q-8-7-19 5 L-19 24 L-28 22 Q-35 10-40 24Z','#b8b6ad');p('M-38-26 Q-27-53 13-54 Q31-56 35-45 Q10-36-14-32 Q-29-28-38-26Z','#e4dfcf','',0);p('M-14-32 Q4-36 25-48 L8-30 Q-5-21-22-22Z','#8f908d','',0);line('M-47-7 L-31-18 M-42 2 L-24-8','#ded9cb',4);
+line('M-8 3 L7 5 M24 4 L36 1',ink,5);ell(2,15,3,7,ink,'',0);ell(32,14,3,7,ink,'',0);line('M15 37 L28 36',ink,2.5);
+// face planes and layered silver hair
+p('M33-14 Q41 2 40 28 Q39 44 23 49 L9 50 L16 55 Q43 53 44 33 L43 1Z','#e6a163','',0);
+line('M-38 22 Q-33 17-28 24','#f3bb7e',2);
+p('M-42-23 Q-34-38-19-41 L-30-25 L-43-14Z','#d7d3c5','',0);
+p('M-27-37 Q-8-50 11-52 L-6-42 L-16-34Z','#fff7e4','',0);
+line('M-38-8 Q-30-18-20-20 M-43 3 Q-33-8-24-11','#8b8d89',2);
+// ceremonial gold chain
+line('M-36 63 Q-21 90 5 102 Q28 94 35 65',gold,7);for(let i=0;i<9;i++){let t=i/8;ell(-33+67*t,66+34*Math.sin(t*Math.PI),2.2,3,'#ffdb54','',0)}ell(5,106,14,15,gold,ink,2);ell(5,106,9,10,'#f4c32b','#b88414',2);
+ell(1,102,5,8,'#ffe577','',0);
+ctx.save(); ctx.translate(80, 120); ctx.rotate(attack * 0.18); ctx.translate(-80, -120);
+// staff with crowned round university seal
+p('M79 57 L88 58 L79 193 Q75 203 68 194Z',gold,ink,4);line('M82 64 L73 187','#ffe172',2);p('M69 61 L89 63 L91 52 L71 49Z',gold);
+p('M66-5 L62-14 L70-13 L73-23 L80-18 L87-31 L94-19 L103-22 L105-13 L114-11 L111-1 L118 3 L112 11Z',gold);
+ell(88,17,29,33,gold);ell(88,17,24,27,'#1d3d67','#b37c0c',3);line('M74 5 L103 8 M76 11 L101 14 M78 32 L99 35',gold,4);line('M81 16 L79 29 M89 17 L87 30 M97 18 L95 31',gold,3);
+p('M80 100 Q71 95 65 99 Q60 103 64 108 Q59 113 64 117 Q60 122 65 126 Q62 132 70 133 L81 132 Q91 127 89 112 Q88 105 80 100Z',skin);
+ctx.restore();
+}
+
+  if (o.stunned) {
+    ctx.fillStyle = skin; ctx.fillRect(-5,0,10,20); ctx.fillRect(21,0,14,20);
+    line('M-3 3 L4 15 M4 3 L-3 15 M24 3 L31 15 M31 3 L24 15',ink,3);
+  }
+  ctx.restore();
+}
+
 export function drawUnit(ctx: CanvasRenderingContext2D, x: number, y: number, type: UnitType, o: UnitDrawOpts, enemy = false): void {
   if (type === 'goteam') return drawVan(ctx, x, y, o);
   if (type === 'rock' || type === 'pebble') return drawRock(ctx, x, y, o, type === 'pebble');
@@ -365,6 +474,9 @@ export function drawUnit(ctx: CanvasRenderingContext2D, x: number, y: number, ty
   ctx.translate(x, y - bob);
   ctx.scale(s * o.facing / squash, s * squash);
 
+  if ((['prof', 'president'] as UnitType[]).includes(type)) {
+    drawRefinedHero(ctx, type as 'prof' | 'president', o, lv);
+  } else {
   // legs
   const step = o.moving ? Math.sin(o.t * 12) * 3 : 0;
   ctx.fillStyle = of.legs;
@@ -593,7 +705,9 @@ export function drawUnit(ctx: CanvasRenderingContext2D, x: number, y: number, ty
     ctx.arc(2, hy + 4, 4.5, 0, Math.PI);
     ctx.fill();
   }
+  }
   if (enemy) {
+    const hy = type === 'prof' ? -29 : -26;
     // face paint stripe for defenders
     ctx.fillStyle = C.navy;
     ctx.fillRect(-1, hy + 1, 7, 1.8);
