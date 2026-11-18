@@ -2077,78 +2077,139 @@ export const STINGER_TIP_Z = 92;
 
 /** Chrome campus sculpture, with the existing beam origin and two-tile lot retained. */
 function stinger(ctx: Ctx, L: number): void {
-  pad(ctx,2,'#999b9e');
-  ctx.strokeStyle='#62666a';ctx.lineWidth=0.7;
-  for(const q of [-0.6,-0.2,0.2,0.6]) {
-    line(ctx,P(q,-0.94,2),P(q,0.94,2));line(ctx,P(-0.94,q,2),P(0.94,q,2));
+  pad(ctx, 2, C.stone);
+  // dark granite plinth with a polished cap
+  const s = 0.42;
+  box(ctx, -s, -s, s, s, 4, 34, '#3b3e48');
+  box(ctx, -s - 0.08, -s - 0.08, s + 0.08, s + 0.08, 34, 37, '#aab1ba');
+  // donor plaque on the front-left face
+  {
+    const a = P(-0.22, s, 26);
+    const b = P(0.22, s, 26);
+    const c = P(0.22, s, 15);
+    const d = P(-0.22, s, 15);
+    poly(ctx, [a, b, c, d], '#15161c', true, 1.2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo((a[0] + d[0]) / 2 + 3, (a[1] + d[1]) / 2 + 1.5);
+    ctx.lineTo((b[0] + c[0]) / 2 - 3, (b[1] + c[1]) / 2 - 1.5);
+    ctx.stroke();
   }
-  const chrome=(y0:number,y1:number):CanvasGradient=>{
-    const g=ctx.createLinearGradient(0,y0,0,y1);
-    g.addColorStop(0,'#f6fbff');g.addColorStop(0.35,'#c4cdd5');
-    g.addColorStop(0.52,'#707a85');g.addColorStop(0.65,'#e3eaf0');g.addColorStop(1,'#a1abb5');return g;
+  // sign struts
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(-8, -37);
+  ctx.lineTo(-20, -46);
+  ctx.moveTo(8, -37);
+  ctx.lineTo(20, -46);
+  ctx.stroke();
+  // arched black CEDARVILLE sign
+  ctx.beginPath();
+  ctx.moveTo(-44, -44);
+  ctx.quadraticCurveTo(0, -52, 44, -44);
+  ctx.lineTo(41, -59);
+  ctx.quadraticCurveTo(0, -68, -41, -59);
+  ctx.closePath();
+  ctx.fillStyle = '#17181f';
+  ctx.fill();
+  ctx.lineWidth = 2.2;
+  ctx.strokeStyle = L >= 2 ? C.gold : '#dfe6ec';
+  ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.font = '900 10px "Trebuchet MS", system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const word = 'CEDARVILLE';
+  for (let i = 0; i < word.length; i++) {
+    const k = (i - (word.length - 1) / 2) / ((word.length - 1) / 2); // -1..1
+    ctx.fillText(word[i], k * 33, -54.5 + k * k * 3.6);
+  }
+
+  // chrome yellow jacket perched on the sign, facing the viewer, stinger raised
+  const chrome = (y0: number, y1: number): CanvasGradient => {
+    const g = ctx.createLinearGradient(0, y0, 0, y1);
+    g.addColorStop(0, '#f7fbfd');
+    g.addColorStop(0.45, '#a9b8c4');
+    g.addColorStop(0.6, '#5f6d7a');
+    g.addColorStop(1, '#cfd9e0');
+    return g;
   };
-  const metal=(pts:[number,number][]):void=>poly(ctx,pts,chrome(-108,-38),true,1.6);
-  box(ctx,-0.42,-0.42,0.42,0.42,4,32,'#282c32');
-  box(ctx,-0.49,-0.49,0.49,0.49,32,36,'#aab3bd');
-  poly(ctx,[P(-0.18,0.43,23),P(0.18,0.43,23),P(0.18,0.43,15),P(-0.18,0.43,15)],'#d1dae3',true,1.3);
-  // Dark diagonal supports, beneath the sign rather than through the insect.
-  poly(ctx,[[-11,-34],[-30,-53],[-24,-55],[-7,-36]],'#282d33',true,1.5);
-  poly(ctx,[[11,-34],[30,-53],[24,-55],[7,-36]],'#282d33',true,1.5);
-  // Segmented abdomen curls beneath the banner.
-  ctx.strokeStyle=OUT;ctx.lineWidth=12;ctx.lineCap='round';
-  ctx.beginPath();ctx.moveTo(-10,-57);ctx.bezierCurveTo(-13,-35,8,-33,14,-47);ctx.stroke();
-  ctx.strokeStyle=chrome(-57,-34);ctx.lineWidth=9;ctx.stroke();
-  ctx.strokeStyle='#626c75';ctx.lineWidth=1;
-  for(const [x,y] of [[-9,-47],[-5,-41],[3,-40]]) {ctx.beginPath();ctx.moveTo(x-2,y-3);ctx.lineTo(x+2,y+3);ctx.stroke();}
-  // Swept angular wings and their polished facets.
-  metal([[5,-78],[25,-99],[43,-110],[39,-97],[15,-79]]);
-  poly(ctx,[[11,-81],[39,-103],[37,-99],[18,-83]],'#788590',false);
-  metal([[9,-76],[41,-94],[37,-83],[15,-73]]);
-  poly(ctx,[[14,-77],[36,-88],[31,-83],[18,-76]],'#8996a0',false);
-  metal([[-5,-80],[-9,-110],[-3,-99],[0,-82]]);
-  // Body shell is deliberately angular like the supplied metal sculpture.
-  metal([[-7,-83],[5,-84],[15,-74],[11,-65],[-2,-64],[-12,-72]]);
-  poly(ctx,[[5,-82],[13,-74],[10,-67],[3,-72]],'#6b7680',false);
-  metal([[-13,-86],[-2,-87],[5,-80],[1,-70],[-9,-65],[-17,-75]]);
-  poly(ctx,[[-12,-83],[-8,-70],[-1,-81]],'#f5f8fa',false);
-  poly(ctx,[[-8,-70],[-1,-81],[0,-72],[-9,-66]],'#6c7780',false);
-  // Shoulder shields, cheek planes and narrow specular cuts make the metal insect read in silhouette.
-  metal([[-15,-83],[-19,-77],[-17,-69],[-13,-73],[-10,-82]]);
-  metal([[1,-84],[8,-79],[6,-73],[-1,-71],[2,-78]]);
-  poly(ctx,[[-13,-82],[-10,-72],[-8,-68],[-6,-78]],'#edf4fa',false);
-  poly(ctx,[[-8,-68],[-1,-71],[-5,-65],[-12,-64]],'#65717d',false);
-  ctx.strokeStyle='rgba(255,255,255,0.8)';ctx.lineWidth=0.9;
-  line(ctx,[-7,-104],[-5,-85]);line(ctx,[18,-87],[39,-105]);line(ctx,[19,-80],[36,-89]);
-  // Fixed raised tip: do not move, as raid beams use STINGER_TIP_Z.
-  metal([[-3,-86],[0,-STINGER_TIP_Z],[3,-86]]);
-  // Curved black plaque with silver lettering.
-  ctx.save();ctx.translate(0,7);
-  ctx.beginPath();ctx.moveTo(-44,-48);ctx.quadraticCurveTo(0,-59,44,-48);
-  ctx.lineTo(44,-64);ctx.quadraticCurveTo(0,-77,-44,-64);ctx.closePath();
-  ctx.fillStyle='#22272d';ctx.fill();ctx.strokeStyle=OUT;ctx.lineWidth=2;ctx.stroke();
-  ctx.fillStyle='#e4ebef';ctx.font='900 12px "Trebuchet MS",system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
-  const word='CEDARVILLE';
-  for(let i=0;i<word.length;i++){const k=(i-(word.length-1)/2)/((word.length-1)/2);ctx.save();ctx.translate(k*34,-62+k*k*4);ctx.scale(0.78,1.08);ctx.fillText(word[i],0,0);ctx.restore();}
-  ctx.beginPath();ctx.moveTo(-32,-49);ctx.quadraticCurveTo(0,-56,32,-49);
-  ctx.lineTo(32,-43);ctx.quadraticCurveTo(0,-49,-32,-43);ctx.closePath();
-  ctx.fillStyle=chrome(-56,-42);ctx.fill();ctx.strokeStyle=OUT;ctx.lineWidth=1.3;ctx.stroke();
-  ctx.fillStyle='#232830';ctx.font='900 4.8px "Trebuchet MS",system-ui,sans-serif';
-  const sub='YELLOW JACKETS';
-  for(let i=0;i<sub.length;i++){const k=(i-(sub.length-1)/2)/((sub.length-1)/2);ctx.fillText(sub[i],k*27,-49+k*k*3);}
-  ctx.restore();
-  // Jointed legs overlap the upper rim; chrome highlights preserve their silhouette.
-  const legs=[[-12,-80,-23,-74,-31,-62],[-7,-78,-19,-70,-22,-64],[10,-77,22,-73,29,-62],[12,-74,27,-69,35,-61]];
-  for(const [sx,sy,kx,ky,ex,ey] of legs){
-    ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(kx,ky);ctx.lineTo(ex,ey);
-    ctx.strokeStyle=OUT;ctx.lineWidth=4;ctx.stroke();ctx.strokeStyle='#cbd5dd';ctx.lineWidth=2;ctx.stroke();
+  const blob = (x: number, y: number, rx: number, ry: number, rot = 0): void => {
+    ctx.beginPath();
+    ctx.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2);
+    ctx.fillStyle = chrome(y - ry, y + ry);
+    ctx.fill();
+    ctx.lineWidth = 1.8;
+    ctx.strokeStyle = OUT;
+    ctx.stroke();
+  };
+  // wings
+  for (const sx of [-1, 1]) {
+    ctx.beginPath();
+    ctx.ellipse(sx * 15, -84, 12, 4.5, sx * -0.75, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(226,238,246,0.9)';
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = OUT;
+    ctx.stroke();
   }
-  // Two swept antennae and a subtle level-dependent highlight at the emitter.
-  for(const pts of [[-12,-83,-15,-96,-22,-92],[-3,-85,1,-97,-6,-93]]){
-    ctx.beginPath();ctx.moveTo(pts[0],pts[1]);ctx.lineTo(pts[2],pts[3]);ctx.lineTo(pts[4],pts[5]);
-    ctx.strokeStyle=OUT;ctx.lineWidth=3.5;ctx.stroke();ctx.strokeStyle='#dce5ec';ctx.lineWidth=1.7;ctx.stroke();
+  // raised abdomen + stinger spike
+  blob(0, -80, 6.5, 8.5);
+  if (L >= 2) {
+    ctx.strokeStyle = C.gold;
+    ctx.lineWidth = 2;
+    for (const yy of [-83, -79]) {
+      ctx.beginPath();
+      ctx.moveTo(-5, yy);
+      ctx.quadraticCurveTo(0, yy + 2, 5, yy);
+      ctx.stroke();
+    }
   }
-  if(L>=3){ctx.beginPath();ctx.arc(0,-STINGER_TIP_Z,1.5,0,Math.PI*2);ctx.fillStyle='#9bdcff';ctx.fill();}
-  ctx.lineCap='butt';ctx.textBaseline='alphabetic';
+  poly(ctx, [[-2.5, -87], [0, -STINGER_TIP_Z - 3], [2.5, -87]], L >= 3 ? '#8fd0ff' : '#e6edf2', true, 1.5);
+  // legs gripping the sign
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 3.4;
+  const legs: [number, number, number, number][] = [
+    [9, -72, 22, -62],
+    [11, -70, 30, -60],
+    [7, -74, 14, -63],
+  ];
+  const drawLegs = (): void => {
+    ctx.beginPath();
+    for (const sx of [-1, 1]) {
+      for (const [kx, ky, fx, fy] of legs) {
+        ctx.moveTo(sx * 5, -70);
+        ctx.lineTo(sx * kx * 1.5, ky - 6);
+        ctx.lineTo(sx * fx, fy);
+      }
+    }
+    ctx.stroke();
+  };
+  drawLegs();
+  ctx.strokeStyle = '#c3ced7';
+  ctx.lineWidth = 1.6;
+  drawLegs();
+  // thorax + head
+  blob(0, -72, 9, 7.5);
+  blob(0, -65, 7.5, 6);
+  // antennae
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(-3, -70);
+  ctx.quadraticCurveTo(-9, -78, -13, -73);
+  ctx.moveTo(3, -70);
+  ctx.quadraticCurveTo(9, -78, 13, -73);
+  ctx.stroke();
+  // angry eyes
+  ctx.fillStyle = L >= 3 ? '#4aa8ff' : '#20222b';
+  for (const sx of [-1, 1]) {
+    ctx.beginPath();
+    ctx.ellipse(sx * 3.6, -65.5, 2.4, 1.6, sx * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 function nest(ctx: Ctx, L: number): void {
