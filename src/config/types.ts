@@ -195,7 +195,7 @@ export interface HeroDef {
   regenTime: number; // seconds to fully recover after a raid at 0 hp
 }
 
-export type SpellType = 'allnighter' | 'snowday' | 'announcement';
+export type SpellType = 'allnighter' | 'snowday' | 'announcement' | 'syllabus';
 
 export interface SpellDef {
   type: SpellType;
@@ -209,5 +209,7 @@ export interface SpellDef {
   sscLevel: number;
   radius: number;
   duration: number;
+  /** Fraction of max HP healed per second for your troops in the zone. */
+  heal?: number;
   color: string;
 }

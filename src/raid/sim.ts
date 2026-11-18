@@ -134,6 +134,8 @@ export interface Zone {
   until: number;
   start: number;
   dps: number;
+  /** Healing zones: sim time of the next "+" pulse (a visual tick every 0.5s). */
+  pulse?: number;
 }
 
 /** Lock-on stage (0-based) of a ramping beam defense after `beamT` seconds on one target. */
@@ -477,7 +479,8 @@ export class RaidSim {
       }
       for (const u of this.units) if (u.side === 'def' && dist(u.x, u.y, x, y) <= d.radius) u.frozenUntil = this.time + d.duration;
     }
-    this.zones.push({ kind, x, y, r: d.radius, until: this.time + d.duration, start: this.time, dps: 0 });
+    // for a healing spell, `dps` holds the fraction of max HP healed per second
+    this.zones.push({ kind, x, y, r: d.radius, until: this.time + d.duration, start: this.time, dps: d.heal ?? 0 });
   }
 
   useAbility(u: RU): void {
@@ -557,11 +560,18 @@ export class RaidSim {
         this.zones.splice(i, 1);
         continue;
       }
+      // healing zones show a "+" on each healed raider every half second
+      const pulse = z.kind === 'syllabus' && this.time >= (z.pulse ??= z.start + 0.5);
+      if (pulse) z.pulse! += 0.5;
       for (const u of this.units) {
         if (u.dead || dist(u.x, u.y, z.x, z.y) > z.r) continue;
         if (z.kind === 'allnighter' && u.side === 'atk') u.rageUntil = this.time + 0.3;
         if (z.kind === 'announcement' && u.side === 'atk') u.ignoreTrapsUntil = this.time + 0.4;
         if (z.kind === 'swarm' && u.side === 'atk') this.damageUnit(u, z.dps * dt * (u.def?.taunt?.trapDmg ?? 1), 'sting');
+        if (z.kind === 'syllabus' && u.side === 'atk' && u.hp < u.maxHp) {
+          u.hp = Math.min(u.maxHp, u.hp + u.maxHp * z.dps * dt);
+          if (pulse) this.events.push({ e: 'heal', u });
+        }
       }
     }
 

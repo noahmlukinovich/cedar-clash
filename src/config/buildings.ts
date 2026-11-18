@@ -261,10 +261,10 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
     name: 'Student Center Brew Lab',
     category: 'army',
     size: 3,
-    desc: 'Brews spells. Lv1: All-Nighter. Lv2: Snow Day. Lv3: Chapel Announcement.',
+    desc: 'Brews spells. Lv1: All-Nighter. Lv2: Snow Day. Lv3: Chapel Announcement. Lv4 (DMC 8): Syllabus Week.',
     flavor: 'Half pharmacy, half coffee bar, all "please don\'t tell Health Services."',
     counts: [0, 0, 0, 1, 1, 1, 1, 1, 1],
-    levels: mk(3, 'tuition', [5000, 15000, 40000], [60, 150, 270], [3, 4, 5], [450, 550, 650]),
+    levels: mk(4, 'tuition', [5000, 15000, 40000, 90000], [60, 150, 270, 420], [3, 4, 5, 8], [450, 550, 650, 760]),
     movable: true,
   },
   faculty: {

@@ -10,6 +10,16 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 27,
+    date: 'Nov 18, 2026',
+    title: 'New spell: Syllabus Week',
+    items: [
+      'The Student Center Brew Lab can go to Lv4 at DMC 8. It brews Syllabus Week and holds one more spell.',
+      'Syllabus Week is the first healing spell: your troops inside the zone heal 6% of their health every second for 8 seconds. Nothing is due yet, so everyone gets some rest.',
+      'A Snow Day now also freezes Parking Gate Arms, so you can sneak past one without a bonk.',
+    ],
+  },
+  {
     v: 26,
     date: 'Nov 18, 2026',
     title: 'New troop: the Senior',

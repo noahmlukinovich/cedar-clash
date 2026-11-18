@@ -827,6 +827,7 @@ export class RaidScene implements Scene {
           }
           if (ev.kind === 'allnighter') this.game.ui.banner('⚡ ALL-NIGHTER!', '#ff9fd0');
           if (ev.kind === 'announcement') this.game.ui.banner('📣 "Just a few quick announcements…"', '#ffe58a');
+          if (ev.kind === 'syllabus') this.game.ui.banner('📄 SYLLABUS WEEK! Nothing is due yet.', '#b8f5c8');
           sfx('spell');
           break;
         }
@@ -931,6 +932,7 @@ export class RaidScene implements Scene {
       if (z.kind === 'allnighter') col = `rgba(255,79,163,${0.22 + Math.sin(t * 10) * 0.06})`;
       else if (z.kind === 'snowday') col = 'rgba(160,220,255,0.28)';
       else if (z.kind === 'announcement') col = `rgba(255,216,74,${0.2 + Math.sin(t * 6) * 0.05})`;
+      else if (z.kind === 'syllabus') col = `rgba(94,240,138,${0.2 + Math.sin(t * 4) * 0.05})`;
       else if (z.kind === 'swarm') col = 'rgba(255,200,0,0.12)';
       else if (z.kind === 'quiz') col = `rgba(255,255,255,${0.5 * (1 - life)})`;
       else if (z.kind === 'convo') col = `rgba(245,195,44,${0.4 * (1 - life)})`;
