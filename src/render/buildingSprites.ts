@@ -467,7 +467,7 @@ function levelFlags(ctx: Ctx, level: number, u: number, v: number, z: number): v
 
 export function drawBuilding(ctx: Ctx, type: BuildingType, level: number, variant = 0): void {
   const size = BUILDINGS[type].size;
-  if (type !== 'wall' && type !== 'lake' && type !== 'nest' && type !== 'firealarm') groundShadow(ctx, size);
+  if (type !== 'wall' && type !== 'gate' && type !== 'lake' && type !== 'nest' && type !== 'firealarm') groundShadow(ctx, size);
   if (level === 0) {
     drawScaffold(ctx, size);
     return;
@@ -530,6 +530,8 @@ export function drawBuilding(ctx: Ctx, type: BuildingType, level: number, varian
       return fireAlarm(ctx, L);
     case 'wall':
       return wall(ctx, L, variant);
+    case 'gate':
+      return gate(ctx, L, variant);
     case 'lake':
       return lake(ctx);
   }
@@ -2404,6 +2406,65 @@ function wall(ctx: Ctx, L: number, mask: number): void {
   if (lv >= 8) {
     const [x, y] = P(0, 0, h + 16);
     star5(ctx, x, y, 5.5, C.gold);
+  }
+}
+
+/**
+ * Parking Gate Arm. `variant`: bit 1/2 = wall to the +u/+v side (as for walls), bit 4 = arm raised
+ * (it has already swung). The arm runs along the wall line: along v when the only neighbour is +v.
+ * Housing: grey at Lv1, navy at Lv2, navy and gold at Lv3.
+ */
+function gate(ctx: Ctx, L: number, variant: number): void {
+  const mask = variant & 3;
+  const raised = (variant & 4) !== 0;
+  const alongV = (mask & 2) !== 0 && (mask & 1) === 0;
+  // map (along, across) to (u, v)
+  const Pa = (a: number, c: number, z: number): [number, number] => (alongV ? P(c, a, z) : P(a, c, z));
+  const curb = '#c9cdd3';
+  // low curbs that meet neighbouring walls
+  if (mask & 2) box(ctx, -0.16, 0.2, 0.16, 1 - 0.2, 0, 6, curb);
+  if (mask & 1) box(ctx, 0.2, -0.16, 1 - 0.2, 0.16, 0, 6, curb);
+  box(ctx, -0.42, -0.42, 0.42, 0.42, 0, 3, curb);
+  // the housing at the back end of the arm
+  const body = L >= 2 ? C.navy : '#8a8f99';
+  if (alongV) box(ctx, -0.16, -0.42, 0.16, -0.12, 3, 24, body, { top: L >= 3 ? C.gold : shade(body, 0.2) });
+  else box(ctx, -0.42, -0.16, -0.12, 0.16, 3, 24, body, { top: L >= 3 ? C.gold : shade(body, 0.2) });
+  // a little red/green lamp on top
+  const [lx, ly] = Pa(-0.27, 0, 27);
+  ctx.beginPath();
+  ctx.arc(lx, ly, 2.4, 0, Math.PI * 2);
+  ctx.fillStyle = raised ? '#5fd06a' : '#ff4a3d';
+  ctx.fill();
+  ctx.lineWidth = 1.2;
+  ctx.strokeStyle = OUT;
+  ctx.stroke();
+  // the striped boom arm
+  const a0 = Pa(-0.27, 0, 19);
+  const a1 = raised ? Pa(-0.2, 0, 54) : Pa(0.5, 0, 17); // raised stays inside the 1-tile sprite's headroom
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 6;
+  line(ctx, a0, a1);
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 3.6;
+  line(ctx, a0, a1);
+  ctx.strokeStyle = '#e0312b';
+  ctx.setLineDash([4, 4]);
+  line(ctx, a0, a1);
+  ctx.setLineDash([]);
+  ctx.lineCap = 'butt';
+  // a tiny permit sign on the housing
+  if (L >= 2) {
+    const [sx, sy] = alongV ? P(0.16, -0.27, 14) : P(-0.27, 0.16, 14);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(sx - 4, sy - 3, 8, 6);
+    ctx.strokeStyle = OUT;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(sx - 4, sy - 3, 8, 6);
+    ctx.fillStyle = C.navy;
+    ctx.font = '900 4.5px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('P', sx, sy + 1.8);
   }
 }
 

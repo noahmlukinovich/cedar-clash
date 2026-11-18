@@ -538,6 +538,25 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
     ),
     movable: true,
   },
+  gate: {
+    type: 'gate',
+    name: 'Parking Gate Arm',
+    category: 'wall',
+    size: 1,
+    desc: 'A wall tile with a striped boom arm. The first raider to walk up to it gets the arm swung down on their head and is knocked back. After that it is just a very sturdy wall. Fits into your wall lines. Requires DMC 8.',
+    flavor: 'Permit not recognized. Permit not recognized. Please see Campus Safety. Campus Safety is closed.',
+    counts: [0, 0, 0, 0, 0, 0, 0, 0, 4],
+    levels: mk(
+      3,
+      'tuition',
+      [60000, 90000, 120000],
+      [200, 300, 400],
+      [8, 8, 8],
+      [8000, 9000, 10000],
+      (i) => ({ swingDmg: [400, 550, 700][i], swingKnock: [1.6, 1.8, 2][i] }),
+    ),
+    movable: true,
+  },
   lake: {
     type: 'lake',
     name: 'Cedar Lake',
@@ -566,7 +585,7 @@ export const SHOP_TABS: { id: string; label: string; types: BuildingType[] }[] =
   {
     id: 'defense',
     label: 'Defenses',
-    types: ['ratower', 'safetycart', 'sprayer', 'bibleprof', 'stinger', 'catapult', 'deans', 'nest', 'firealarm', 'wall'],
+    types: ['ratower', 'safetycart', 'sprayer', 'bibleprof', 'stinger', 'catapult', 'deans', 'nest', 'firealarm', 'wall', 'gate'],
   },
   { id: 'deco', label: 'Decor', types: ['lake'] },
 ];

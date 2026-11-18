@@ -154,6 +154,8 @@ export type SimEvent =
   | { e: 'splat'; x: number; y: number; r: number; n: number }
   | { e: 'ramp'; b: RB; stage: number }
   | { e: 'swarm'; x: number; y: number; r: number }
+  /** A Parking Gate Arm swung down on `u`. */
+  | { e: 'gate'; b: RB; u: RU }
   /** A Dean's Office summons hit `pts[0]` and jumped on through the rest, in order. */
   | { e: 'chain'; pts: { x: number; y: number }[] }
   /** A Fire Alarm went off at (x, y): `n` raiders filed out and are standing around. */
@@ -252,10 +254,10 @@ export class RaidSim {
         hp: L.hp,
         maxHp: L.hp,
         dead: false,
-        isWall: p.type === 'wall',
+        isWall: def.category === 'wall',
         isTrap: def.category === 'trap',
         isDefense: !!L.defense,
-        counts: p.type !== 'wall' && def.category !== 'trap' && p.type !== 'lake',
+        counts: def.category !== 'wall' && def.category !== 'trap' && p.type !== 'lake',
         def: L.defense,
         cd: 0.5,
         target: null,
@@ -467,7 +469,7 @@ export class RaidSim {
     this.events.push({ e: 'spell', kind, x, y, r: d.radius });
     if (kind === 'snowday') {
       for (const b of this.buildings) {
-        if (b.dead || !b.isDefense) continue;
+        if (b.dead || !(b.isDefense || b.type === 'gate')) continue;
         if (distToRect(x, y, b.x, b.y, b.size, b.size) <= d.radius) b.frozenUntil = this.time + d.duration;
       }
       for (const u of this.units) if (u.side === 'def' && dist(u.x, u.y, x, y) <= d.radius) u.frozenUntil = this.time + d.duration;
@@ -562,6 +564,7 @@ export class RaidSim {
       b.hitT = Math.max(0, b.hitT - dt);
       if (b.type === 'hive') this.updateHive(b, dt);
       if (b.isTrap) this.updateTrap(b);
+      if (b.type === 'gate') this.updateGate(b);
       if (!b.def) continue;
       if (b.frozenUntil > this.time || b.stunUntil > this.time) {
         b.prayT = 0;
@@ -931,6 +934,44 @@ export class RaidSim {
       cur = next;
     }
     this.events.push({ e: 'chain', pts });
+  }
+
+  /**
+   * Parking Gate Arm: swings once, at the nearest raider within 1 tile of it (the older unit on a tie),
+   * then it is just a wall. `charge` records the swing (0 = armed, 1 = swung) so the scene can raise the arm.
+   * A frozen or stunned gate can be walked past.
+   */
+  private updateGate(b: RB): void {
+    if (b.charge >= 1 || b.frozenUntil > this.time || b.stunUntil > this.time) return;
+    let best: RU | null = null;
+    let bd = Infinity;
+    for (const u of this.units) {
+      if (u.dead || u.side !== 'atk') continue;
+      const d = distToRect(u.x, u.y, b.x, b.y, b.size, b.size);
+      if (d <= 1 && d < bd) {
+        bd = d;
+        best = u;
+      }
+    }
+    if (!best) return;
+    const L = BUILDINGS.gate.levels[Math.min(b.level, BUILDINGS.gate.levels.length) - 1];
+    b.charge = 1;
+    b.firing = 1;
+    this.damageUnit(best, L.swingDmg ?? 400, 'bonk');
+    this.events.push({ e: 'gate', b, u: best });
+    if (best.dead || best.def?.heavy) return;
+    const KB_TIME = 0.3;
+    const dx = best.x - b.cx;
+    const dy = best.y - b.cy;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    const nx = d > 0.05 ? dx / d : Math.SQRT1_2;
+    const ny = d > 0.05 ? dy / d : Math.SQRT1_2;
+    const kb = (L.swingKnock ?? 1.6) * (best.hero ? 0.5 : 1);
+    best.kbVx = (nx * kb) / KB_TIME;
+    best.kbVy = (ny * kb) / KB_TIME;
+    best.kbUntil = this.time + KB_TIME;
+    best.runT = 0;
+    best.needsPath = true;
   }
 
   /** Slide a knocked-back raider. Buildings and walls stop the slide (troops that jump walls only stop at buildings). */

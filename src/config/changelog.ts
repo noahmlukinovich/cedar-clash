@@ -10,6 +10,16 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 25,
+    date: 'Nov 18, 2026',
+    title: 'Parking Gate Arm',
+    items: [
+      'New at DMC 8: the Parking Gate Arm, four per campus. It is a wall tile that fits into your wall lines and joins up with the walls next to it.',
+      'The first raider to walk up to it gets the striped arm swung down on their head (400 to 700 damage by level) and is knocked back up to 2 tiles. Heroes fly half as far; The Rock does not budge.',
+      'After its one swing the arm stays up, and it is just a very sturdy wall. A Snow Day freezes it, so raiders can sneak past without a bonk.',
+    ],
+  },
+  {
     v: 24,
     date: 'Nov 17, 2026',
     title: "Dean's Office",

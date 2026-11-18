@@ -10,7 +10,7 @@ export function buildingThumb(type: BuildingType, level: number, w = 120, h = 10
   c.width = w * 2;
   c.height = h * 2;
   const ctx = c.getContext('2d')!;
-  const sp = getBuildingSprite(type, Math.max(1, level), type === 'wall' ? 1 : 0);
+  const sp = getBuildingSprite(type, Math.max(1, level), type === 'wall' || type === 'gate' ? 1 : 0);
   const size = BUILDINGS[type].size;
   // fit sprite: visible area approx width size*64+40, height size*32 + heightish
   const visW = size * 64 + 30;

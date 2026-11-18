@@ -144,7 +144,19 @@ export function generateBase(dmc: number, seed: number): BaseLayout {
       }
     }
   };
+  const ringStart = pieces.length;
   ring(minX - 1, minY - 1, maxX + 1, maxY + 1, dmc <= 2 ? 0.12 : 0.03);
+  // Parking Gate Arms replace a few evenly spaced tiles of the inner wall ring
+  const gates = count('gate');
+  const ringWalls = pieces.slice(ringStart);
+  if (gates > 0 && ringWalls.length >= gates * 4) {
+    const step = Math.floor(ringWalls.length / gates);
+    for (let i = 0; i < gates; i++) {
+      const pc = ringWalls[i * step + Math.floor(step / 2)];
+      pc.type = 'gate';
+      pc.level = lvl('gate');
+    }
+  }
 
   // Outer ring: remaining defenses, then economy & army buildings
   const R0 = Math.max(maxX - minX, maxY - minY) / 2 + 2;

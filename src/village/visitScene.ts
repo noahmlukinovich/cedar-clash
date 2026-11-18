@@ -125,11 +125,11 @@ export class VisitScene implements Scene {
     drawGround(ctx, { border: BORDER });
     const list: { depth: number; fn: () => void }[] = [];
     const walls = new Set<number>();
-    for (const b of this.info.buildings) if (b.type === 'wall') walls.add(b.y * GRID + b.x);
+    for (const b of this.info.buildings) if (BUILDINGS[b.type]?.category === 'wall') walls.add(b.y * GRID + b.x);
     for (const b of this.info.buildings) {
       const sz = BUILDINGS[b.type].size;
       let variant = 0;
-      if (b.type === 'wall') {
+      if (BUILDINGS[b.type]?.category === 'wall') {
         if (walls.has(b.y * GRID + b.x + 1)) variant |= 1;
         if (walls.has((b.y + 1) * GRID + b.x)) variant |= 2;
       }

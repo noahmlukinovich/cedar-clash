@@ -621,6 +621,10 @@ export class UI {
     }
     if (cur.fans) add('Reinforcement fans', cur.fans, nxt?.fans);
     if (cur.trapDps) add('Swarm dmg/sec', cur.trapDps, nxt?.trapDps);
+    if (cur.swingDmg) {
+      add('Arm swing damage (once)', cur.swingDmg, nxt?.swingDmg);
+      add('Knockback', `${cur.swingKnock} tiles`, nxt?.swingKnock ? `${nxt.swingKnock} tiles` : undefined);
+    }
     if (cur.trapStun) {
       add('Stands raiders outside for', `${cur.trapStun}s`, nxt?.trapStun ? `${nxt.trapStun}s` : undefined);
       add('Files them out', `${cur.trapPush} tiles`, nxt?.trapPush ? `${nxt.trapPush} tiles` : undefined);

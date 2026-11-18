@@ -40,6 +40,7 @@ export type BuildingType =
   | 'nest'
   | 'firealarm'
   | 'wall'
+  | 'gate'
   | 'lake';
 
 export interface DefenseStats {
@@ -90,6 +91,9 @@ export interface BuildingLevel {
   /** Fire Alarm: seconds raiders stand outside, and how far they file out (tiles). */
   trapStun?: number;
   trapPush?: number;
+  /** Parking Gate Arm: one swing at the first raider to come close, for this damage and knockback (tiles). */
+  swingDmg?: number;
+  swingKnock?: number;
 }
 
 export interface BuildingDef {

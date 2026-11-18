@@ -780,6 +780,14 @@ export class RaidScene implements Scene {
           sfx('zap');
           break;
         }
+        case 'gate': {
+          const p = toWorld(ev.u.x, ev.u.y);
+          P2.burst(p.x, p.y - 10, 14, 10, { kind: 'spark', color: '#fff3b0', size: 4, speed: 90, max: 0.35 });
+          P2.text(p.x, p.y - 45, 40, pick(['BONK!', 'Permit expired!', 'No parking!', 'Gate says no.']), '#ffffff', 18);
+          this.cam.shake(3, 0.15);
+          sfx('cannon');
+          break;
+        }
         case 'alarm': {
           const p = toWorld(ev.x, ev.y);
           // red-and-white strobe rings, then the whole floor files out
@@ -977,6 +985,7 @@ export class RaidScene implements Scene {
       if (b.isWall) {
         if (walls.has(b.y * GRID + b.x + 1)) variant |= 1;
         if (walls.has((b.y + 1) * GRID + b.x)) variant |= 2;
+        if (b.type === 'gate' && b.charge >= 1) variant |= 4;
       }
       const fill = b.type === 'registrar' ? 1 - b.lootTaken.tuition / Math.max(1, b.loot.tuition) : b.type === 'rinnova' ? 1 - b.lootTaken.coffee / Math.max(1, b.loot.coffee) : b.type === 'admissions' || b.type === 'coffeecart' ? 0.5 : undefined;
       list.push({
