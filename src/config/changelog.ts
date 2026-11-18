@@ -10,6 +10,12 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 34,
+    date: 'Nov 18, 2026',
+    title: "Chuck’s catapult kitchen detail",
+    items: ['The Casserole Catapult gains a braced timber frame, rope bindings, stocked counterweight crate, silver casserole pan, serving vat and dining-hall cook. Its footprint, stats and firing timing are unchanged.'],
+  },
+  {
     v: 33,
     date: 'Nov 18, 2026',
     title: 'Closer campus reference details',

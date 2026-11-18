@@ -467,27 +467,29 @@ function drawDynamic(ctx: Ctx, a: BuildingDrawArgs, size: number): void {
       ctx.lineWidth = 4;
       ctx.stroke();
       ctx.lineCap = 'butt';
-      // counterweight: a giant stock pot
-      ctx.fillStyle = '#8a929c';
-      ctx.strokeStyle = OUT;
-      ctx.lineWidth = 1.5;
-      ctx.fillRect(bx - 7, by - 2, 14, 12);
-      ctx.strokeRect(bx - 7, by - 2, 14, 12);
-      // the cup, with today's Mystery Bake while loaded
-      ctx.beginPath();
-      ctx.ellipse(ex, ey, 9, 4.5, 0, 0, Math.PI * 2);
-      ctx.fillStyle = '#e0773a';
-      ctx.fill();
-      ctx.stroke();
-      if (f < 0.3) {
-        ctx.beginPath();
-        ctx.ellipse(ex, ey - 2.5, 7, 3.5, 0, Math.PI, 0);
-        ctx.fillStyle = '#b5762e';
-        ctx.fill();
-        ctx.fillStyle = '#7fae3a';
-        ctx.fillRect(ex - 3, ey - 4, 2, 2);
-        ctx.fillRect(ex + 2, ey - 3, 2, 2);
+      // Rope-wrapped wooden counterweight crate, stocked with dining-hall supplies.
+      ctx.strokeStyle = OUT; ctx.lineWidth = 1.2;
+      ctx.fillStyle = '#9a8253'; ctx.fillRect(bx-9,by-5,18,17);ctx.strokeRect(bx-9,by-5,18,17);
+      ctx.strokeStyle='#4b422f';ctx.lineWidth=0.8;
+      for(let k=-6;k<=6;k+=4){ctx.beginPath();ctx.moveTo(bx+k,by-4);ctx.lineTo(bx+k,by+11);ctx.stroke();}
+      ctx.strokeRect(bx-10,by-1,20,3);ctx.strokeRect(bx-10,by+7,20,3);
+      ctx.fillStyle='#e9dfb8';ctx.fillRect(bx+1,by-13,6,9);ctx.strokeRect(bx+1,by-13,6,9);
+      ctx.fillStyle='#6f9250';ctx.fillRect(bx-7,by-9,5,5);ctx.strokeRect(bx-7,by-9,5,5);
+      ctx.strokeStyle='#d0bd8a';ctx.lineWidth=1;
+      for(const t of [0.15,0.42,0.75]) {
+        const rx=bx+(ex-bx)*t,ry=by+(ey-by)*t;
+        for(let k=-2;k<=2;k++){ctx.beginPath();ctx.moveTo(rx-sa*3+ca*k*1.5,ry+ca*3+sa*k*1.5);ctx.lineTo(rx+sa*3+ca*k*1.5,ry-ca*3+sa*k*1.5);ctx.stroke();}
       }
+      // Broad silver casserole pan; load disappears on the existing firing phase.
+      ctx.strokeStyle=OUT;ctx.lineWidth=1.3;ctx.fillStyle='#abb3b9';
+      ctx.beginPath();ctx.ellipse(ex,ey+2,13,6,0,0,Math.PI);ctx.lineTo(ex-13,ey-3);ctx.ellipse(ex,ey-3,13,5,0,Math.PI,Math.PI*2);ctx.closePath();ctx.fill();ctx.stroke();
+      ctx.fillStyle='#626d77';ctx.beginPath();ctx.ellipse(ex,ey-3,12,4.5,0,0,7);ctx.fill();ctx.stroke();
+      for(const dx of [-14,14]){ctx.beginPath();ctx.ellipse(ex+dx,ey-2,3,1.5,0,0,7);ctx.stroke();}
+      if (f < 0.3) {
+        ctx.fillStyle='#f4b43b';ctx.beginPath();ctx.ellipse(ex,ey-4,10.8,4.4,0,0,7);ctx.fill();
+        for(const [dx,dy] of [[-6,-1],[0,-2],[6,0],[-2,1]]){ctx.fillStyle='#de872b';ctx.beginPath();ctx.arc(ex+dx,ey-4+dy,1.8,0,7);ctx.fill();ctx.fillStyle='#628a3c';ctx.fillRect(ex+dx+1,ey-4+dy,1.5,1.5);}
+      }
+
       break;
     }
     case 'bibleprof': {
