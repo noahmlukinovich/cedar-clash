@@ -1,6 +1,8 @@
 // Chunky procedural characters for troops, heroes, fans, builders.
-import type { UnitType } from '../config/types';
+import type { UnitType, BuildingType, TroopType } from '../config/types';
 import { C, OUT } from './draw';
+import { BUILDINGS } from '../config/buildings';
+import { TROOPS } from '../config/troops';
 
 export interface UnitDrawOpts {
   t: number; // time for animation
@@ -457,6 +459,10 @@ ctx.restore();
 }
 
 export function drawUnit(ctx: CanvasRenderingContext2D, x: number, y: number, type: UnitType, o: UnitDrawOpts, enemy = false): void {
+  const rawContext = ctx;
+  const themeTier = troopThemeTier(type, o.level ?? 1);
+  if (themeTier !== null) ctx = troopThematicContext(ctx, themeTier, type);
+
   if (type === 'goteam') return drawVan(ctx, x, y, o);
   if (type === 'rock' || type === 'pebble') return drawRock(ctx, x, y, o, type === 'pebble');
   const lv = Math.max(1, Math.min(5, Math.floor(o.level ?? 1)));
@@ -706,6 +712,7 @@ export function drawUnit(ctx: CanvasRenderingContext2D, x: number, y: number, ty
     ctx.fill();
   }
   }
+  ctx = rawContext; // Keep defender markings and status overlays in their original colors.
   if (enemy) {
     const hy = type === 'prof' ? -29 : -26;
     // face paint stripe for defenders
@@ -1690,4 +1697,89 @@ function campusHead(ctx: CanvasRenderingContext2D, type: UnitType, hy: number, h
   else if(type==='nurse') {circle(ctx,-6,-7,3,hair,1);ctx.strokeStyle='#fff';ctx.lineWidth=2.4;ctx.beginPath();ctx.arc(0,-2,7,Math.PI*1.04,Math.PI*1.94);ctx.stroke();}
   else if(type==='theology') {ctx.strokeStyle=OUT;ctx.lineWidth=1;ctx.strokeRect(-4,-2,4,5);ctx.strokeRect(2,-2,4,5);ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(2,0);ctx.stroke();}
   ctx.restore();return true;
+}
+
+
+// Visual tier comes from existing unlock data, never from troop level alone.
+function troopThemeTier(type: UnitType, level: number): number | null {
+  if (type === 'prof' || type === 'president') return null;
+  const L = Math.max(1, Math.floor(level));
+  const dmc = (building: BuildingType, n: number): number => building === 'dmc' ? n : BUILDINGS[building].levels[Math.min(n, BUILDINGS[building].levels.length) - 1].dmc;
+  if (type === 'fan') return Math.max(1, dmc('hive', L));
+  const parent = type === 'gomember' ? 'goteam' : type === 'pebble' ? 'rock' : type;
+  const def = TROOPS[parent as TroopType];
+  const research = def.levels[Math.min(L, def.levels.length) - 1].libraryLevel;
+  return Math.max(1, dmc(def.barracks, def.barracksLevel), research > 0 ? dmc('library', research) : 0);
+}
+const troopContextCache = new WeakMap<CanvasRenderingContext2D, Map<string, CanvasRenderingContext2D>>();
+const troopThemes=[
+ {name:'Timber',body:'#a8713c',trim:'#c99a62',roof:'#a8713c',floor:'#c9b48a'},
+ {name:'Brick',body:'#bf5a3f',trim:'#d97a5f',roof:'#bd5c43',floor:'#c3b5a1'},
+ {name:'Dark brick + stone',body:'#a34a3a',trim:'#b8b2a7',roof:'#a34a3a',floor:'#b8b2a7'},
+ {name:'Grey + silver',body:'#9aa0a8',trim:'#dfe3e8',roof:'#c4c9cf',floor:'#aeb4bb'},
+ {name:'Gold',body:'#c9a13a',trim:'#f5c32c',roof:'#f5c32c',floor:'#b9aa7c'},
+ {name:'Blue + gold',body:'#2e63b8',trim:'#f5c32c',roof:'#2e63b8',floor:'#a6adb6'},
+ {name:'Navy + gold',body:'#1c3d7a',trim:'#f5c32c',roof:'#1c3d7a',floor:'#959eac'},
+ {name:'Obsidian black',body:'#272c34',trim:'#525b68',roof:'#171b22',floor:'#454c57'}
+];
+type RGB=[number,number,number];
+function rgb(s:string):RGB|null{
+ if(s.startsWith('#')){let x=s.slice(1);if(x.length===3)x=x.split('').map(c=>c+c).join('');if(x.length!==6)return null;return [parseInt(x.slice(0,2),16),parseInt(x.slice(2,4),16),parseInt(x.slice(4,6),16)];}
+ let m=s.match(/^rgb\(\s*(\d+)[, ]+\s*(\d+)[, ]+\s*(\d+)\s*\)$/);return m?[+m[1],+m[2],+m[3]]:null;
+}
+function output(v:RGB){return `rgb(${v.map(n=>Math.max(0,Math.min(255,Math.round(n)))).join(',')})`;}
+function shaded(target:string, n:number){const v=rgb(target)!;return output(v.map(x=>n>=0?x+(255-x)*n:x*(1+n)) as RGB);}
+const materials:[string,string][]=[
+ ['#bf5a3f','body'],['#93402c','body'],['#c87952','body'],['#ce8050','body'],['#b98652','body'],['#a8713c','body'],
+ ['#b8b2a7','body'],['#8f897e','body'],['#f1e4c6','trim'],['#f8f0dc','trim'],['#f4efe4','trim'],['#f5c32c','trim'],['#c9971a','trim'],
+ ['#2e63b8','roof'],['#1c3d7a','roof'],['#4f5262','roof'],['#53657d','roof'],['#272d39','roof'],
+ ['#d9d2c3','floor'],['#e6dfd0','floor'],['#c9b48a','floor']
+];
+function troopThematicContext(ctx: CanvasRenderingContext2D,tier:number,type:string): CanvasRenderingContext2D{
+ const key=type+':'+tier;
+ let contexts=troopContextCache.get(ctx);
+ if(!contexts){contexts=new Map();troopContextCache.set(ctx,contexts);}
+ const existing=contexts.get(key);if(existing)return existing;
+ const t:any=troopThemes[tier-1];
+ const cache=new Map();
+ const natural=new Set(['#ffe7a2','#edb864','#f2c87f','#f2c49b','#e8b890','#5a3a1e','#2a1d14','#8a5a2b','#654120','#1a1410','#3a2a1a','#7a4a22','#4a3020','#a66a36','#fff','#ffffff']);
+ if(type==='runner'){natural.add('#ffd23f');natural.add('#f5c32c');}
+ if(type==='business'){natural.add('#19191c');natural.add('#29292d');natural.add('#46464b');}
+ const recolor=(s:any)=>{
+  if(typeof s!=='string')return s;if(natural.has(s.toLowerCase()))return s;if(cache.has(s))return cache.get(s);
+  const v=rgb(s);if(!v)return s;
+  const [r,g,b]=v,hi=Math.max(...v),lo=Math.min(...v),sat=hi-lo;
+  // Leave ink, transparency, vegetation, water/glass, warm lamps and skin readable.
+  if(s.toLowerCase()==='#1e1b2b'||hi<42)return s;
+  if(g>r*1.13&&g>b*1.05)return s;
+  if(b>r*1.16&&g>r*1.12&&g>b*.66&&hi>130)return tier===8&&type==='ssc'?'#465765':s;
+  if(r>225&&g>175&&g<220&&b>135&&b<185)return s;
+  if(['#ffd870','#ffe9a8','#ffd877','#ffe6a0'].includes(s.toLowerCase()))return s;
+  if(type==='lake'&&(b>r||g>r))return s;
+  // Closely match source materials, including their normal shaded variants.
+  let best=Infinity,role='body',amount=0;
+  for(const [hex,k]of materials){const src=rgb(hex)!;for(const a of [-.4,-.3,-.25,-.2,-.18,-.15,-.12,-.1,0,.08,.12,.18,.2,.25]){
+   const candidate=src.map(x=>a>=0?x+(255-x)*a:x*(1+a));const e=candidate.reduce((p,x,j)=>p+(x-v[j])**2,0);
+   if(e<best){best=e;role=k;amount=a;}
+  }}
+  let result;
+  if(best<300) result=shaded(t[role],amount);
+  else if(r>g*1.2&&r>b*1.2) result=shaded(t.body,(hi-170)/600);
+  else if(b>r*1.05&&b>g*.95)result=shaded(t.roof,(hi-120)/700);
+  else if(sat<38){
+   const lum=(r+g+b)/3;result=shaded(lum>205?t.trim:lum>135?t.floor:lum>75?t.body:t.roof,(lum>205?(lum-230)/800:(lum-130)/1000));
+  }else if(r>g&&g>b)result=shaded(hi>210?t.trim:t.body,(hi-180)/700);
+  else result=tier===8?shaded(t.body,(hi-130)/850):shaded(t.roof,(hi-130)/850);
+  // Keep native clothing/material character; use tier colors as a softer overlay.
+  const target=rgb(result)!;
+  const strength=role==='trim'?.90:role==='roof'?.82:.72;
+  const base=tier===8?v.map(n=>n*.45):v;
+  result=output(target.map((n,i)=>n*strength+base[i]*(1-strength)) as RGB);
+  cache.set(s,result);return result;
+ };
+ const proxy = new Proxy(ctx as any,{
+  set(obj,key,val){obj[key]=(key==='fillStyle'||key==='strokeStyle')?recolor(val):val;return true;},
+  get(obj,key){if(key==='createLinearGradient'||key==='createRadialGradient')return (...args:any[])=>{const gradient=obj[key](...args);const add=gradient.addColorStop.bind(gradient);gradient.addColorStop=(p:number,c:string)=>add(p,recolor(c));return gradient;};if(key==='fillText')return (...args:any[])=>{const c=obj.fillStyle; obj.fillStyle=type==='runner'?'#1e1b2b':tier===8?'#bcc5d1':(tier===1||tier===4||tier===5)?'#1e1b2b':'#f4efe4';obj.fillText(...args);obj.fillStyle=c;};const v=obj[key];return typeof v==='function'?v.bind(obj):v;}
+ }) as CanvasRenderingContext2D;
+ contexts.set(key,proxy);return proxy;
 }
