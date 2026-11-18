@@ -1,7 +1,7 @@
 import { BUILDINGS, SHOP_TABS, maxCount, maxLevelForDmc } from '../config/buildings';
 import { DEBUG_SPEEDS, SCOUT_COST_PER_DMC } from '../config/balance';
 import { CHANGELOG, LATEST_CHANGE } from '../config/changelog';
-import { ACHIEVEMENTS, EVENT_INFO, LEAGUES, LOADING_TIPS, leagueFor, CHAPEL_ATTEND_LINES, CHUCKS_LINE } from '../config/humor';
+import { ACHIEVEMENTS, EVENT_INFO, LEAGUES, leagueFor, CHAPEL_ATTEND_LINES, CHUCKS_LINE } from '../config/humor';
 import { HEROES, TROOPS, TROOP_ORDER } from '../config/troops';
 import { SPELLS, SPELL_ORDER } from '../config/spells';
 import type { BuildingType, HeroType, ResourceId, TroopType } from '../config/types';
@@ -116,6 +116,747 @@ function markChangeSeen(): void {
   } catch {
     /* private mode: the popup may show again next time, which is harmless */
   }
+}
+
+/** Procedural, presentation-only loading artwork. No login or game-state changes. */
+function mountLoadingArtwork(host: HTMLElement): { setProgress: (p: number) => void; dispose: () => void } {
+  const canvas = document.createElement('canvas');
+  canvas.setAttribute('aria-hidden', 'true');
+  host.appendChild(canvas);
+  const context = canvas.getContext('2d');
+  if (!context) return { setProgress: () => {}, dispose: () => {} };
+  const ctx: CanvasRenderingContext2D = context;
+  const logoBuffer = document.createElement('canvas');
+  const logoContext = logoBuffer.getContext('2d');
+  if (!logoContext) return { setProgress: () => {}, dispose: () => {} };
+  const logoCtx: CanvasRenderingContext2D = logoContext;
+      const CONFIG = {
+        loadDuration: 4.5, // Seconds for smooth 0% -> 100% progress animation
+        palette: {
+          bgCenter: '#2558BD',
+          bgMid: '#123682',
+          bgEdge: '#0B1E4D',
+          goldLight: '#FFF275',
+          goldMid: '#FFC400',
+          goldDeep: '#DC7C00',
+          goldDark: '#7A4400',
+          navyOutline: '#08142E',
+          iceWhite: '#FFFFFF',
+          iceBlue: '#A8D0F8',
+          woodLight: '#8C522B',
+          woodMid: '#5E3418',
+          woodDark: '#381C0A'
+        },
+        loadingStatuses: [
+          'Tuning chapel bells...',
+          'Calibrating Hebrew crossbow bolts...',
+          'Brewing Rinnova espresso...',
+          'Polishing Yellow Jacket armor...',
+          'Measuring Cedar Lake crosswinds...'
+        ],
+        hebrewLetters: [
+          'א', 'ב', 'ג', 'ד', 'ה',
+          'ו', 'ז', 'ח', 'ט', 'י',
+          'כ', 'ל', 'מ', 'נ', 'ס',
+          'ע', 'פ', 'צ', 'ק', 'ר',
+          'ש', 'ת'
+        ],
+        disclaimer: 'An unofficial, affectionate parody. Not affiliated with any university or game studio. All art is procedurally generated.'
+      };
+
+
+      function drawRoundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+        const radius = Math.max(0, Math.min(r, Math.abs(w) * 0.5, Math.abs(h) * 0.5));
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + w - radius, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+        ctx.lineTo(x + w, y + h - radius);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+        ctx.lineTo(x + radius, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+      }
+
+      function wrapTextLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
+        const words = text.split(/\s+/);
+        const lines = [];
+        let currentLine = '';
+
+        for (let i = 0; i < words.length; i++) {
+          const word = words[i];
+          const testLine = currentLine ? `${currentLine} ${word}` : word;
+          if (ctx.measureText(testLine).width <= maxWidth || !currentLine) {
+            currentLine = testLine;
+          } else {
+            lines.push(currentLine);
+            currentLine = word;
+          }
+        }
+        if (currentLine) {
+          lines.push(currentLine);
+        }
+        return lines;
+      }
+
+      // --------------------------------------------------------------------------
+      // 6. LAYER 1: ATMOSPHERIC BACKGROUND, SUNBURST RAYS, LATTICE & VIGNETTE
+      // --------------------------------------------------------------------------
+      function drawBackground(ctx: CanvasRenderingContext2D, w: number, h: number, crestY: number, time: number) {
+        const cx = w * 0.5;
+        const maxRadius = Math.hypot(w, h) * 0.68;
+
+        // Deep royal navy-to-sapphire radial gradient (#2558BD -> #0B1E4D)
+        const bgGrad = ctx.createRadialGradient(cx, crestY, 10, cx, crestY, maxRadius);
+        bgGrad.addColorStop(0, CONFIG.palette.bgCenter);
+        bgGrad.addColorStop(0.52, CONFIG.palette.bgMid);
+        bgGrad.addColorStop(1, CONFIG.palette.bgEdge);
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, w, h);
+
+        // Slowly rotating translucent cathedral/sunburst light rays radiating from behind crest
+        ctx.save();
+        ctx.translate(cx, crestY);
+        ctx.rotate(time * 0.042);
+
+        const rayCount = 16;
+        const rayLength = Math.hypot(w, h) * 0.95;
+        const rayAngleWidth = (Math.PI * 2) / (rayCount * 2.35);
+
+        for (let i = 0; i < rayCount; i++) {
+          const angle = (i * Math.PI * 2) / rayCount;
+          const rayGrad = ctx.createRadialGradient(0, 0, 20, 0, 0, rayLength * 0.85);
+          rayGrad.addColorStop(0, 'rgba(145, 205, 255, 0.14)');
+          rayGrad.addColorStop(0.45, 'rgba(80, 152, 248, 0.06)');
+          rayGrad.addColorStop(1, 'rgba(20, 65, 155, 0)');
+
+          ctx.fillStyle = rayGrad;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.arc(0, 0, rayLength, angle - rayAngleWidth * 0.5, angle + rayAngleWidth * 0.5);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.restore();
+
+        // Subtle heraldic diamond lattice overlay for Clash arena texture
+        ctx.save();
+        ctx.strokeStyle = 'rgba(185, 222, 255, 0.045)';
+        ctx.lineWidth = 1;
+        const tile = 54;
+        ctx.beginPath();
+        for (let offset = -h; offset < w + h; offset += tile) {
+          ctx.moveTo(offset, 0);
+          ctx.lineTo(offset + h, h);
+          ctx.moveTo(offset, 0);
+          ctx.lineTo(offset - h, h);
+        }
+        ctx.stroke();
+        ctx.restore();
+
+        // Subtle warm golden aura right behind the shield & title
+        const haloGrad = ctx.createRadialGradient(cx, crestY, 5, cx, crestY, Math.min(w, h) * 0.36);
+        haloGrad.addColorStop(0, 'rgba(255, 210, 63, 0.19)');
+        haloGrad.addColorStop(0.55, 'rgba(65, 145, 255, 0.07)');
+        haloGrad.addColorStop(1, 'rgba(11, 30, 77, 0)');
+        ctx.fillStyle = haloGrad;
+        ctx.fillRect(0, 0, w, h);
+
+        // Edge vignette for cinematic Supercell framing
+        const vigGrad = ctx.createRadialGradient(
+          cx,
+          h * 0.5,
+          Math.min(w, h) * 0.32,
+          cx,
+          h * 0.5,
+          Math.max(w, h) * 0.78
+        );
+        vigGrad.addColorStop(0, 'rgba(4, 12, 32, 0)');
+        vigGrad.addColorStop(1, 'rgba(3, 10, 26, 0.58)');
+        ctx.fillStyle = vigGrad;
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      // --------------------------------------------------------------------------
+      // 7. LAYER 2: HERALDIC SHIELD CREST & CROSSED HEBREW CROSSBOWS
+      // --------------------------------------------------------------------------
+      function drawCrossbow(ctx: CanvasRenderingContext2D, angleRad: number, scale: number, hebrewGlyph: string) {
+        ctx.save();
+        ctx.rotate(angleRad);
+        ctx.scale(scale, scale);
+
+        // Drop shadow for crossbow
+        ctx.shadowColor = 'rgba(3, 10, 28, 0.6)';
+        ctx.shadowBlur = 12;
+        ctx.shadowOffsetY = 6;
+
+        // Wooden stock (vertical along local Y, pointing up-right after rotation)
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = CONFIG.palette.navyOutline;
+        const stockGrad = ctx.createLinearGradient(-12, 0, 12, 0);
+        stockGrad.addColorStop(0, CONFIG.palette.woodDark);
+        stockGrad.addColorStop(0.4, CONFIG.palette.woodLight);
+        stockGrad.addColorStop(1, CONFIG.palette.woodMid);
+
+        ctx.fillStyle = stockGrad;
+        drawRoundedRect(ctx, -9, -125, 18, 255, 7);
+        ctx.fill();
+        ctx.stroke();
+
+        // Reset shadow for crisp internal details
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetY = 0;
+
+        // Gold stirrup ring at front tip
+        ctx.strokeStyle = CONFIG.palette.navyOutline;
+        ctx.lineWidth = 7;
+        ctx.beginPath();
+        ctx.arc(0, -132, 13, Math.PI, 0);
+        ctx.stroke();
+        ctx.strokeStyle = CONFIG.palette.goldMid;
+        ctx.lineWidth = 3.5;
+        ctx.stroke();
+
+        // Curved laminated bow limbs (prod)
+        ctx.beginPath();
+        ctx.moveTo(-98, -62);
+        ctx.quadraticCurveTo(-52, -112, 0, -110);
+        ctx.quadraticCurveTo(52, -112, 98, -62);
+        ctx.lineWidth = 14;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = CONFIG.palette.navyOutline;
+        ctx.stroke();
+
+        const prodGrad = ctx.createLinearGradient(-98, -110, 98, -62);
+        prodGrad.addColorStop(0, CONFIG.palette.goldDark);
+        prodGrad.addColorStop(0.3, CONFIG.palette.goldLight);
+        prodGrad.addColorStop(0.5, CONFIG.palette.goldMid);
+        prodGrad.addColorStop(0.7, CONFIG.palette.goldLight);
+        prodGrad.addColorStop(1, CONFIG.palette.goldDark);
+
+        ctx.lineWidth = 8;
+        ctx.strokeStyle = prodGrad;
+        ctx.stroke();
+
+        // Bow limb gold end-caps
+        [-98, 98].forEach((bx) => {
+          ctx.fillStyle = CONFIG.palette.goldMid;
+          ctx.strokeStyle = CONFIG.palette.navyOutline;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(bx, -62, 6.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        });
+
+        // Taut bowstring drawn back to trigger nut
+        ctx.strokeStyle = '#DCEEFF';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.moveTo(-96, -62);
+        ctx.lineTo(0, -14);
+        ctx.lineTo(96, -62);
+        ctx.stroke();
+
+        // Gold trigger latch & bolt groove
+        ctx.fillStyle = CONFIG.palette.goldMid;
+        ctx.strokeStyle = CONFIG.palette.navyOutline;
+        ctx.lineWidth = 2.5;
+        drawRoundedRect(ctx, -6, -24, 12, 18, 4);
+        ctx.fill();
+        ctx.stroke();
+
+        // Loaded glowing bolt shaft & arrowhead
+        ctx.strokeStyle = '#FFE885';
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(0, -18);
+        ctx.lineTo(0, -148);
+        ctx.stroke();
+
+        // Steel/Gold broadhead tip
+        ctx.fillStyle = '#FFFFFF';
+        ctx.strokeStyle = CONFIG.palette.navyOutline;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(0, -162);
+        ctx.lineTo(9, -142);
+        ctx.lineTo(0, -146);
+        ctx.lineTo(-9, -142);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Subtle glowing Hebrew rune floating near the bolt tip
+        ctx.fillStyle = '#FFF078';
+        ctx.shadowColor = '#FFBE0B';
+        ctx.shadowBlur = 10;
+        ctx.font = '900 18px Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(hebrewGlyph, 0, -177);
+
+        ctx.restore();
+      }
+
+      function traceShieldPath(ctx: CanvasRenderingContext2D, w: number, h: number) {
+        const hw = w * 0.5;
+        const hh = h * 0.5;
+        ctx.beginPath();
+        // Top arched crown of shield
+        ctx.moveTo(-hw * 0.86, -hh * 0.92);
+        ctx.quadraticCurveTo(0, -hh * 1.08, hw * 0.86, -hh * 0.92);
+        // Upper-right notched flare
+        ctx.quadraticCurveTo(hw * 0.95, -hh * 0.72, hw, -hh * 0.52);
+        // Curved right side tapering down to bottom point
+        ctx.bezierCurveTo(hw * 0.98, hh * 0.18, hw * 0.52, hh * 0.74, 0, hh);
+        // Curved left side mirroring back up
+        ctx.bezierCurveTo(-hw * 0.52, hh * 0.74, -hw * 0.98, hh * 0.18, -hw, -hh * 0.52);
+        // Upper-left notched flare
+        ctx.quadraticCurveTo(-hw * 0.95, -hh * 0.72, -hw * 0.86, -hh * 0.92);
+        ctx.closePath();
+      }
+
+      function drawCrest(ctx: CanvasRenderingContext2D, cx: number, cy: number, scale: number, time: number) {
+        ctx.save();
+        // Gentle heroic floating bob
+        const bobY = Math.sin(time * 1.8) * 3.5 * scale;
+        ctx.translate(cx, cy + bobY);
+
+        // 1. Crossed procedural crossbows behind the shield
+        drawCrossbow(ctx, -0.62, scale * 0.96, 'א');
+        drawCrossbow(ctx, 0.62, scale * 0.96, 'ה');
+
+        ctx.scale(scale, scale);
+
+        const shieldW = 228;
+        const shieldH = 256;
+
+        // 2. Outer shield drop shadow
+        ctx.save();
+        ctx.shadowColor = 'rgba(2, 8, 24, 0.72)';
+        ctx.shadowBlur = 26;
+        ctx.shadowOffsetY = 14;
+        traceShieldPath(ctx, shieldW, shieldH);
+        ctx.fillStyle = CONFIG.palette.navyOutline;
+        ctx.fill();
+        ctx.restore();
+
+        // 3. Thick outer dark navy outline + beveled metallic gold rim
+        traceShieldPath(ctx, shieldW, shieldH);
+        const rimGrad = ctx.createLinearGradient(-shieldW * 0.5, -shieldH * 0.5, shieldW * 0.5, shieldH * 0.5);
+        rimGrad.addColorStop(0, '#FFF28C');
+        rimGrad.addColorStop(0.28, '#FFBE0B');
+        rimGrad.addColorStop(0.55, '#E08E00');
+        rimGrad.addColorStop(0.82, '#FFE066');
+        rimGrad.addColorStop(1, '#8C4E00');
+        ctx.fillStyle = rimGrad;
+        ctx.fill();
+
+        ctx.lineWidth = 7;
+        ctx.strokeStyle = CONFIG.palette.navyOutline;
+        ctx.stroke();
+
+        // Inner bevel highlight ring on gold frame
+        ctx.save();
+        ctx.scale(0.92, 0.925);
+        traceShieldPath(ctx, shieldW, shieldH);
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#6E3B00';
+        ctx.stroke();
+        ctx.restore();
+
+        // 4. Royal blue inner shield face
+        ctx.save();
+        ctx.scale(0.86, 0.87);
+        traceShieldPath(ctx, shieldW, shieldH);
+
+        const innerGrad = ctx.createRadialGradient(0, -25, 10, 0, 10, 145);
+        innerGrad.addColorStop(0, '#2369DB');
+        innerGrad.addColorStop(0.58, '#103B87');
+        innerGrad.addColorStop(1, '#082152');
+        ctx.fillStyle = innerGrad;
+        ctx.fill();
+
+        // Clip inside blue face for subtle filigree & heraldic emblem
+        ctx.clip();
+
+        // Subtle vertical heraldic split sheen
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.055)';
+        ctx.fillRect(0, -shieldH, shieldW, shieldH * 2);
+
+        // Subtle procedural heraldic torch / book filigree in upper & lower shield
+        ctx.strokeStyle = 'rgba(255, 210, 63, 0.22)';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(0, -95);
+        ctx.lineTo(0, 95);
+        ctx.moveTo(-65, -20);
+        ctx.lineTo(65, -20);
+        ctx.stroke();
+
+        // Stylized golden torch flame at top center of crest
+        const flameGrad = ctx.createLinearGradient(0, -98, 0, -52);
+        flameGrad.addColorStop(0, 'rgba(255, 240, 120, 0.55)');
+        flameGrad.addColorStop(1, 'rgba(255, 159, 28, 0.15)');
+        ctx.fillStyle = flameGrad;
+        ctx.beginPath();
+        ctx.moveTo(0, -98);
+        ctx.bezierCurveTo(18, -80, 15, -60, 0, -54);
+        ctx.bezierCurveTo(-15, -60, -18, -80, 0, -98);
+        ctx.fill();
+
+        // Stylized open book / chevron filigree at bottom of crest
+        ctx.strokeStyle = 'rgba(255, 224, 102, 0.28)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(-34, 52);
+        ctx.quadraticCurveTo(-16, 44, 0, 56);
+        ctx.quadraticCurveTo(16, 44, 34, 52);
+        ctx.lineTo(30, 74);
+        ctx.quadraticCurveTo(15, 64, 0, 76);
+        ctx.quadraticCurveTo(-15, 64, -30, 74);
+        ctx.closePath();
+        ctx.stroke();
+
+        ctx.restore();
+
+        // 5. Metallic gold rivets along the shield bezel
+        const rivets = [
+          [0, -116],
+          [-86, -98],
+          [86, -98],
+          [-99, -46],
+          [99, -46],
+          [-72, 42],
+          [72, 42],
+          [0, 114]
+        ];
+        rivets.forEach(([rx, ry]) => {
+          ctx.fillStyle = '#FFE875';
+          ctx.strokeStyle = '#5C3200';
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.arc(rx, ry, 3.6, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        });
+
+        ctx.restore();
+      }
+
+      // --------------------------------------------------------------------------
+      // 8. LAYER 3: TILTED 3D EXTRUDED "CEDARVILLE CLASH" LOGO + SHINE SWEEP
+      // --------------------------------------------------------------------------
+      function renderExtrudedWord(targetCtx: CanvasRenderingContext2D, text: string, x: number, y: number, font: string, topColor: string, midColor: string, botColor: string, extrudeDepth: number, outlineWidth: number) {
+        targetCtx.save();
+        targetCtx.font = font;
+        targetCtx.textAlign = 'center';
+        targetCtx.textBaseline = 'middle';
+        targetCtx.lineJoin = 'round';
+        targetCtx.miterLimit = 2;
+
+        // 1. Soft drop shadow beneath the 3D extrusion
+        targetCtx.save();
+        targetCtx.shadowColor = 'rgba(3, 10, 28, 0.72)';
+        targetCtx.shadowBlur = 16;
+        targetCtx.shadowOffsetY = extrudeDepth + 7;
+        targetCtx.fillStyle = CONFIG.palette.navyOutline;
+        targetCtx.lineWidth = outlineWidth;
+        targetCtx.strokeStyle = CONFIG.palette.navyOutline;
+        targetCtx.strokeText(text, x, y + extrudeDepth);
+        targetCtx.restore();
+
+        // 2. Multi-pass 3D block extrusion (dark navy to deep bronze-navy)
+        for (let i = extrudeDepth; i >= 1; i--) {
+          const ratio = i / extrudeDepth;
+          targetCtx.lineWidth = outlineWidth;
+          targetCtx.strokeStyle = ratio > 0.45 ? '#07122B' : '#122654';
+          targetCtx.fillStyle = ratio > 0.45 ? '#07122B' : '#122654';
+          const ox = i * 0.18;
+          const oy = i * 1.05;
+          targetCtx.strokeText(text, x + ox, y + oy);
+          targetCtx.fillText(text, x + ox, y + oy);
+        }
+
+        // 3. Crisp outer dark outline around top face
+        targetCtx.lineWidth = outlineWidth;
+        targetCtx.strokeStyle = CONFIG.palette.navyOutline;
+        targetCtx.strokeText(text, x, y);
+
+        // 4. Top-edge inner specular rim highlight
+        targetCtx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+        targetCtx.fillText(text, x, y - 1.8);
+
+        // 5. Rich vertical gradient face fill
+        const metrics = targetCtx.measureText(text);
+        const approxH = (metrics.actualBoundingBoxAscent || 40) + (metrics.actualBoundingBoxDescent || 12);
+        const faceGrad = targetCtx.createLinearGradient(x, y - approxH * 0.55, x, y + approxH * 0.55);
+        faceGrad.addColorStop(0, topColor);
+        faceGrad.addColorStop(0.52, midColor);
+        faceGrad.addColorStop(1, botColor);
+
+        targetCtx.fillStyle = faceGrad;
+        targetCtx.fillText(text, x, y);
+
+        targetCtx.restore();
+      }
+
+      function drawLogo(ctx: CanvasRenderingContext2D, cx: number, cy: number, scale: number, time: number) {
+        // Render logo onto offscreen buffer so the diagonal shine sweep clips purely to letters
+        const bufW = 860;
+        const bufH = 300;
+        if (logoBuffer.width !== bufW || logoBuffer.height !== bufH) {
+          logoBuffer.width = bufW;
+          logoBuffer.height = bufH;
+        }
+
+        logoCtx.clearRect(0, 0, bufW, bufH);
+
+        const midX = bufW * 0.5;
+        const primaryY = 114;
+        const secondaryY = 192;
+
+        const primaryFont = '900 82px Impact, "Arial Black", sans-serif';
+        const secondaryFont = '700 50px "Arial Black", sans-serif';
+
+        // Draw "CEDARVILLE" in royal gold 3D extrusion (#FFF275 -> #FFC400 -> #DC7C00)
+        renderExtrudedWord(
+          logoCtx,
+          'CEDARVILLE',
+          midX,
+          primaryY,
+          primaryFont,
+          '#FFF275',
+          '#FFC400',
+          '#DC7C00',
+          10,
+          13
+        );
+
+        // Draw "CLASH" in metallic white-to-ice-blue 3D extrusion
+        renderExtrudedWord(
+          logoCtx,
+          'CLASH',
+          midX,
+          secondaryY,
+          secondaryFont,
+          '#FFFFFF',
+          '#E6F3FF',
+          '#8DC0F2',
+          8,
+          10
+        );
+
+        // Animated diagonal glossy shine sweep across the letters every ~3.6 seconds
+        const sweepCycle = (time % 3.6) / 3.6;
+        if (sweepCycle < 0.42) {
+          const t = sweepCycle / 0.42;
+          const sweepX = -180 + t * (bufW + 360);
+
+          logoCtx.save();
+          logoCtx.globalCompositeOperation = 'source-atop';
+
+          const shineGrad = logoCtx.createLinearGradient(sweepX - 70, 0, sweepX + 70, 0);
+          shineGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
+          shineGrad.addColorStop(0.45, 'rgba(255, 255, 255, 0.34)');
+          shineGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.58)');
+          shineGrad.addColorStop(0.55, 'rgba(255, 255, 255, 0.34)');
+          shineGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+          logoCtx.translate(midX, bufH * 0.5);
+          logoCtx.transform(1, 0, -0.38, 1, 0, 0); // Skew beam diagonally
+          logoCtx.translate(-midX, -bufH * 0.5);
+
+          logoCtx.fillStyle = shineGrad;
+          logoCtx.fillRect(sweepX - 90, 0, 180, bufH);
+          logoCtx.restore();
+        }
+
+        // Composite level, upright lettering onto main canvas
+        ctx.save();
+        const bobY = Math.sin(time * 1.8) * 3.5 * scale;
+        ctx.translate(cx, cy + bobY);
+        ctx.scale(scale, scale);
+        ctx.drawImage(logoBuffer, -bufW * 0.5, -bufH * 0.5);
+        ctx.restore();
+      }
+
+      // --------------------------------------------------------------------------
+      // Loading progress artwork
+      // --------------------------------------------------------------------------
+      function drawProgressBar(ctx: CanvasRenderingContext2D, cx: number, cy: number, barW: number, barH: number, progress: number, time: number) {
+        const x = cx - barW * 0.5;
+        const y = cy - barH * 0.5;
+        const radius = barH * 0.5;
+
+        ctx.save();
+
+        // Rotating humorous Cedarville status line above the bar
+        const statusIndex = Math.min(
+          CONFIG.loadingStatuses.length - 1,
+          Math.floor(progress * CONFIG.loadingStatuses.length)
+        );
+        const statusText = progress >= 1 ? 'Arena gates unlocked!' : CONFIG.loadingStatuses[statusIndex];
+
+        ctx.font = `800 ${Math.max(13, Math.round(barH * 0.48))}px Arial, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillStyle = 'rgba(218, 236, 255, 0.92)';
+        ctx.shadowColor = 'rgba(4, 12, 32, 0.85)';
+        ctx.shadowBlur = 6;
+        ctx.shadowOffsetY = 2;
+        ctx.fillText(statusText, cx, y - 10);
+
+        // Reset shadow
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetY = 0;
+
+        // 1. Outer drop shadow + dark outline
+        ctx.save();
+        ctx.shadowColor = 'rgba(2, 8, 24, 0.72)';
+        ctx.shadowBlur = 16;
+        ctx.shadowOffsetY = 7;
+        drawRoundedRect(ctx, x - 4, y - 4, barW + 8, barH + 8, radius + 4);
+        ctx.fillStyle = CONFIG.palette.navyOutline;
+        ctx.fill();
+        ctx.restore();
+
+        // 2. Beveled metallic gold border frame
+        drawRoundedRect(ctx, x - 3, y - 3, barW + 6, barH + 6, radius + 3);
+        const frameGrad = ctx.createLinearGradient(x, y - 3, x, y + barH + 3);
+        frameGrad.addColorStop(0, '#FFF078');
+        frameGrad.addColorStop(0.5, '#E08E00');
+        frameGrad.addColorStop(1, '#7A4400');
+        ctx.fillStyle = frameGrad;
+        ctx.fill();
+
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = CONFIG.palette.navyOutline;
+        ctx.stroke();
+
+        // 3. Recessed dark-navy inner trough
+        drawRoundedRect(ctx, x, y, barW, barH, radius);
+        const troughGrad = ctx.createLinearGradient(x, y, x, y + barH);
+        troughGrad.addColorStop(0, '#040D21');
+        troughGrad.addColorStop(0.45, '#091B40');
+        troughGrad.addColorStop(1, '#0D2657');
+        ctx.fillStyle = troughGrad;
+        ctx.fill();
+
+        // 4. Clipped golden liquid fill
+        ctx.save();
+        drawRoundedRect(ctx, x + 1.5, y + 1.5, barW - 3, barH - 3, radius - 1.5);
+        ctx.clip();
+
+        const fillW = Math.max(0, (barW - 3) * progress);
+        if (fillW > 0) {
+          const fillGrad = ctx.createLinearGradient(x, y, x, y + barH);
+          fillGrad.addColorStop(0, '#FFF176');
+          fillGrad.addColorStop(0.42, '#FFBE0B');
+          fillGrad.addColorStop(0.85, '#E87A00');
+          fillGrad.addColorStop(1, '#C96200');
+
+          ctx.fillStyle = fillGrad;
+          ctx.fillRect(x + 1.5, y + 1.5, fillW, barH - 3);
+
+          // Animated diagonal shimmer stripes moving across the golden liquid
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(x + 1.5, y + 1.5, fillW, barH - 3);
+          ctx.clip();
+
+          const stripeSpacing = 26;
+          const stripeOffset = (time * 42) % stripeSpacing;
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
+          for (let sx = x - barH + stripeOffset; sx < x + fillW + barH; sx += stripeSpacing) {
+            ctx.beginPath();
+            ctx.moveTo(sx, y + barH);
+            ctx.lineTo(sx + barH * 0.7, y);
+            ctx.lineTo(sx + barH * 0.7 + 10, y);
+            ctx.lineTo(sx + 10, y + barH);
+            ctx.closePath();
+            ctx.fill();
+          }
+          ctx.restore();
+
+          // Top glossy white specular highlight strip
+          const specGrad = ctx.createLinearGradient(x, y + 2, x, y + barH * 0.46);
+          specGrad.addColorStop(0, 'rgba(255, 255, 255, 0.68)');
+          specGrad.addColorStop(1, 'rgba(255, 255, 255, 0.05)');
+          ctx.fillStyle = specGrad;
+          drawRoundedRect(ctx, x + 4, y + 2.5, Math.max(0, fillW - 5), barH * 0.36, barH * 0.18);
+          ctx.fill();
+
+          // Glowing leading edge flare while actively filling
+          if (progress > 0.02 && progress < 0.995) {
+            const tipX = x + 1.5 + fillW;
+            const flareGrad = ctx.createRadialGradient(tipX, cy, 1, tipX, cy, barH * 0.75);
+            flareGrad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+            flareGrad.addColorStop(0.45, 'rgba(255, 240, 120, 0.55)');
+            flareGrad.addColorStop(1, 'rgba(255, 190, 11, 0)');
+            ctx.fillStyle = flareGrad;
+            ctx.beginPath();
+            ctx.arc(tipX, cy, barH * 0.75, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+
+        // Subtle inner top shadow for recessed depth
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.45)';
+        ctx.lineWidth = 3;
+        drawRoundedRect(ctx, x + 1, y + 1, barW - 2, barH - 2, radius - 1);
+        ctx.stroke();
+        ctx.restore();
+
+        // 5. Crisp centered percentage readout with dark outline
+        const pctText = `${Math.round(progress * 100)}%`;
+        ctx.font = `700 ${Math.max(14, Math.round(barH * 0.56))}px Arial, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = 4.5;
+        ctx.strokeStyle = CONFIG.palette.navyOutline;
+        ctx.strokeText(pctText, cx, cy + 1);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillText(pctText, cx, cy + 1);
+
+        ctx.restore();
+      }
+
+
+
+  let progress = 0, frameId = 0;
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const start = performance.now();
+  function resize(): void {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(host.clientWidth * dpr);
+    canvas.height = Math.round(host.clientHeight * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  function frame(now: number): void {
+    const time = reduced.matches ? 0 : (now - start) / 1000;
+    const w = host.clientWidth, h = host.clientHeight, cx = w / 2;
+    const scale = Math.min(1.12, w / 690, h / 680), crestY = h * .40;
+    const barY = crestY + 144 * scale + 28;
+    drawBackground(ctx, w, h, crestY, time);
+    drawCrest(ctx, cx, crestY - 12 * scale, scale, time);
+    drawLogo(ctx, cx, crestY + 12 * scale, scale, time);
+    drawProgressBar(ctx, cx, barY, Math.min(440, w * .82), w < 520 ? 26 : 30, progress, time);
+    ctx.font = '12px Arial'; ctx.textAlign = 'center'; ctx.fillStyle = '#a9bddc';
+    const lines = wrapTextLines(ctx, CONFIG.disclaimer, w - 40);
+    lines.forEach((line, i) => ctx.fillText(line, cx, h - 24 - (lines.length - 1 - i) * 16));
+    frameId = requestAnimationFrame(frame);
+  }
+  resize(); window.addEventListener('resize', resize);
+  frameId = requestAnimationFrame(frame);
+  return {
+    setProgress: (p) => { progress = Math.max(0, Math.min(1, p)); },
+    dispose: () => { cancelAnimationFrame(frameId); window.removeEventListener('resize', resize); },
+  };
 }
 
 export class UI {
@@ -1757,21 +2498,25 @@ export class UI {
   showLoading(): Promise<void> {
     const l = el('div');
     l.id = 'loading';
-    l.innerHTML = `<h1 class="stroke">CEDARVILLE<span>CLASH</span></h1><div class="lbar"><div></div></div><div class="tip stroke"></div><div class="disclaimer">An unofficial, affectionate parody. Not affiliated with any university or game studio. All art is procedurally generated.</div>`;
+    l.setAttribute('role', 'progressbar');
+    l.setAttribute('aria-label', 'Loading Cedarville Clash');
+    l.setAttribute('aria-valuemin', '0');
+    l.setAttribute('aria-valuemax', '100');
+    l.setAttribute('aria-valuenow', '0');
+    l.textContent = 'Loading Cedarville Clash…';
     document.body.appendChild(l);
-    const bar = l.querySelector('.lbar div') as HTMLElement;
-    const tip = l.querySelector('.tip') as HTMLElement;
-    tip.textContent = pick(LOADING_TIPS);
+    const artwork = mountLoadingArtwork(l);
     return new Promise((res) => {
       let p = 0;
       const iv = setInterval(() => {
         p += 12 + Math.random() * 18;
-        bar.style.width = `${Math.min(100, p)}%`;
+        artwork.setProgress(Math.min(100, p) / 100);
+        l.setAttribute('aria-valuenow', String(Math.min(100, Math.round(p))));
         if (p >= 100) {
           clearInterval(iv);
           setTimeout(() => {
             l.style.opacity = '0';
-            setTimeout(() => l.remove(), 500);
+            setTimeout(() => { artwork.dispose(); l.remove(); }, 500);
             res();
           }, 600);
         }

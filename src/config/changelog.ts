@@ -10,6 +10,12 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 37,
+    date: 'Nov 18, 2026',
+    title: 'A fresh campus arrival',
+    items: ['A new navy-and-gold loading screen with centered lettering, a procedural crest and a polished progress bar. Login and gameplay are unchanged.'],
+  },
+  {
     v: 36,
     date: 'Nov 18, 2026',
     title: 'A campus that grows with its buildings',
