@@ -610,12 +610,26 @@ export class UI {
       if (d.lobTime) add('Fires every', `${d.rate}s`, nd ? `${nd.rate}s` : undefined);
       if (d.splash) add('Splash radius', d.splash, nd?.splash);
       if (d.knockback) add('Knockback', `${d.knockback} tiles`, nd?.knockback ? `${nd.knockback} tiles` : undefined);
+      if (d.chain) {
+        add('Damage per summons', Math.round(d.dps * d.rate), nd ? Math.round(nd.dps * nd.rate) : undefined);
+        add('Jumps to', `${d.chain} more raiders`, nd?.chain ? `${nd.chain} more` : undefined);
+        add('Each jump', `${Math.round((d.chainFalloff ?? 0.75) * 100)}% of the last, up to ${d.chainRange} tiles away`);
+      }
       if (d.slow) add('Slow', `${Math.round(d.slow * 100)}%`);
       if (d.freezeCharge) add('Freeze every', `${d.freezeCharge}s`, nd?.freezeCharge ? `${nd.freezeCharge}s` : undefined);
       if (d.blessHeal !== undefined) add('Wall blessing', d.blessHeal ? `${(d.blessHeal * 100).toFixed(1)}%/s` : 'Lv3+', nd?.blessHeal ? `${(nd.blessHeal * 100).toFixed(1)}%/s` : undefined);
     }
     if (cur.fans) add('Reinforcement fans', cur.fans, nxt?.fans);
     if (cur.trapDps) add('Swarm dmg/sec', cur.trapDps, nxt?.trapDps);
+    if (cur.swingDmg) {
+      add('Arm swing damage (once)', cur.swingDmg, nxt?.swingDmg);
+      add('Knockback', `${cur.swingKnock} tiles`, nxt?.swingKnock ? `${nxt.swingKnock} tiles` : undefined);
+    }
+    if (cur.trapStun) {
+      add('Stands raiders outside for', `${cur.trapStun}s`, nxt?.trapStun ? `${nxt.trapStun}s` : undefined);
+      add('Files them out', `${cur.trapPush} tiles`, nxt?.trapPush ? `${nxt.trapPush} tiles` : undefined);
+      add('Alarm radius', `${cur.trapRadius} tiles`, nxt?.trapRadius ? `${nxt.trapRadius} tiles` : undefined);
+    }
     if (def.trains) add('Trains', def.trains.map((x) => TROOPS[x].name).join(', '));
     const maxL = maxLevelForDmc(b.type, dmcLevel(s));
     add('Max level (current DMC)', `${maxL} / ${def.levels.length}`);

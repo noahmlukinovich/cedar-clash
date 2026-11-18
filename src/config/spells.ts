@@ -43,7 +43,22 @@ export const SPELLS: Record<SpellType, SpellDef> = {
     duration: 10,
     color: '#ffd84a',
   },
+  syllabus: {
+    type: 'syllabus',
+    name: 'Syllabus Week',
+    desc: 'Your troops in the zone heal 6% of their health every second while it lasts. Nothing is due yet, so everyone gets some rest.',
+    flavor: '"We\'ll just go over the syllabus today." Every class. All week. Bliss.',
+    res: 'coffee',
+    cost: 3000,
+    brewTime: 50,
+    housing: 1,
+    sscLevel: 4,
+    radius: 4,
+    duration: 8,
+    heal: 0.06,
+    color: '#5ef08a',
+  },
 };
 
-export const SPELL_CAPACITY = [0, 2, 3, 4]; // by SSC level
-export const SPELL_ORDER: SpellType[] = ['allnighter', 'snowday', 'announcement'];
+export const SPELL_CAPACITY = [0, 2, 3, 4, 5]; // by SSC level
+export const SPELL_ORDER: SpellType[] = ['allnighter', 'snowday', 'announcement', 'syllabus'];

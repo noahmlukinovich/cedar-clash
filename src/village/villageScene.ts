@@ -466,7 +466,7 @@ export class VillageScene implements Scene {
     type D = { depth: number; fn: () => void };
     const list: D[] = [];
     const walls = new Set<number>();
-    for (const b of s.buildings) if (b.type === 'wall') walls.add(b.y * GRID + b.x);
+    for (const b of s.buildings) if (BUILDINGS[b.type].category === 'wall') walls.add(b.y * GRID + b.x);
     const tuitionCap = caps(s);
     const fillT = s.resources.tuition / Math.max(1, tuitionCap.tuition);
     const fillC = s.resources.coffee / Math.max(1, tuitionCap.coffee);
@@ -483,7 +483,7 @@ export class VillageScene implements Scene {
         ghost = canPlace(s, b.type, bx, by, b.id) ? 'ok' : 'bad';
       }
       let variant = 0;
-      if (b.type === 'wall') {
+      if (BUILDINGS[b.type].category === 'wall') {
         if (walls.has(by * GRID + bx + 1)) variant |= 1;
         if (walls.has((by + 1) * GRID + bx)) variant |= 2;
       }

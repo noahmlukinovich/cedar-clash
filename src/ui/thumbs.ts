@@ -10,7 +10,7 @@ export function buildingThumb(type: BuildingType, level: number, w = 120, h = 10
   c.width = w * 2;
   c.height = h * 2;
   const ctx = c.getContext('2d')!;
-  const sp = getBuildingSprite(type, Math.max(1, level), type === 'wall' ? 1 : 0);
+  const sp = getBuildingSprite(type, Math.max(1, level), type === 'wall' || type === 'gate' ? 1 : 0);
   const size = BUILDINGS[type].size;
   // fit sprite: visible area approx width size*64+40, height size*32 + heightish
   const visW = size * 64 + 30;
@@ -79,6 +79,29 @@ export function spellThumb(type: SpellType, w = 70, h = 70): HTMLCanvasElement {
       ctx.lineTo(cx + Math.cos(a) * 13, cy + Math.sin(a) * 13);
       ctx.stroke();
     }
+  } else if (type === 'syllabus') {
+    // a syllabus page with a green "+"
+    ctx.fillStyle = '#fffdf4';
+    ctx.fillRect(cx - 14, cy - 20, 28, 36);
+    ctx.strokeRect(cx - 14, cy - 20, 28, 36);
+    ctx.strokeStyle = '#9aa3ad';
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < 5; i++) {
+      ctx.beginPath();
+      ctx.moveTo(cx - 9, cy - 13 + i * 6);
+      ctx.lineTo(cx + (i === 0 ? 3 : 9), cy - 13 + i * 6);
+      ctx.stroke();
+    }
+    ctx.fillStyle = d.color;
+    ctx.strokeStyle = OUT;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx + 12, cy + 12, 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(cx + 10.5, cy + 6.5, 3, 11);
+    ctx.fillRect(cx + 6.5, cy + 10.5, 11, 3);
   } else {
     // megaphone
     ctx.fillStyle = d.color;

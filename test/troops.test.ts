@@ -35,10 +35,10 @@ const B = (s: RaidSim, type: BuildingType) => s.buildings.find((b) => b.type ===
 
 describe('new troop definitions', () => {
   it('are trainable, researchable and unlocked by their buildings', () => {
-    for (const t of ['business', 'music', 'runner', 'ra', 'goteam', 'rock'] as TroopType[]) {
+    for (const t of ['business', 'music', 'runner', 'ra', 'goteam', 'rock', 'senior'] as TroopType[]) {
       const d = TROOPS[t];
       expect(TROOP_ORDER).toContain(t);
-      expect(d.levels).toHaveLength(5);
+      expect(d.levels).toHaveLength(7); // research tops out at Library 7 (DMC 8)
       expect(BUILDINGS[d.barracks].trains).toContain(t);
       expect(BUILDINGS[d.barracks].levels.length).toBeGreaterThanOrEqual(d.barracksLevel);
       const s = newGame();
@@ -61,7 +61,7 @@ describe('new troop definitions', () => {
     const old = JSON.parse(JSON.stringify(newGame()));
     old.troopLevels = { freshman: 3, engineer: 1, nurse: 1, theology: 1, athlete: 2 };
     const s = migrate(old);
-    expect(s.troopLevels).toMatchObject({ freshman: 3, athlete: 2, business: 1, music: 1, runner: 1, ra: 1, goteam: 1 });
+    expect(s.troopLevels).toMatchObject({ freshman: 3, athlete: 2, business: 1, music: 1, runner: 1, ra: 1, goteam: 1, senior: 1 });
   });
 });
 

@@ -117,11 +117,13 @@ export interface Projectile {
   dmg: number;
   t: number;
   dur: number;
-  kind: 'writeup' | 'ticket' | 'pen' | 'fan' | 'casserole';
+  kind: 'writeup' | 'ticket' | 'pen' | 'fan' | 'casserole' | 'summons';
   /** Peak height of the arc in px (cosmetic). Default 18. */
   arc?: number;
   /** Lobbed splash shot: lands on (tx, ty) whoever is there, instead of hitting `target`. */
   splash?: { r: number; falloff: number; kb: number; dx: number; dy: number };
+  /** Dean's Office summons: after the first hit, jumps to `n` more raiders within `r` tiles, each hit × `falloff`. */
+  chain?: { n: number; r: number; falloff: number };
 }
 
 export interface Zone {
@@ -132,6 +134,8 @@ export interface Zone {
   until: number;
   start: number;
   dps: number;
+  /** Healing zones: sim time of the next "+" pulse (a visual tick every 0.5s). */
+  pulse?: number;
 }
 
 /** Lock-on stage (0-based) of a ramping beam defense after `beamT` seconds on one target. */
@@ -152,6 +156,14 @@ export type SimEvent =
   | { e: 'splat'; x: number; y: number; r: number; n: number }
   | { e: 'ramp'; b: RB; stage: number }
   | { e: 'swarm'; x: number; y: number; r: number }
+  /** Seniors on the field just hit full senioritis. */
+  | { e: 'senioritis' }
+  /** A Parking Gate Arm swung down on `u`. */
+  | { e: 'gate'; b: RB; u: RU }
+  /** A Dean's Office summons hit `pts[0]` and jumped on through the rest, in order. */
+  | { e: 'chain'; pts: { x: number; y: number }[] }
+  /** A Fire Alarm went off at (x, y): `n` raiders filed out and are standing around. */
+  | { e: 'alarm'; x: number; y: number; r: number; n: number }
   | { e: 'heal'; u: RU }
   | { e: 'loot'; res: 'tuition' | 'coffee'; amt: number; x: number; y: number }
   | { e: 'star'; n: number; why: string }
@@ -226,6 +238,7 @@ export class RaidSim {
   private uid = 1;
   private pathBudget = 0;
   private pairT = 0;
+  private seniorsPeaked = false;
   private dirtyCost = true;
 
   constructor(public base: BaseLayout, public opts: RaidOptions) {
@@ -246,10 +259,10 @@ export class RaidSim {
         hp: L.hp,
         maxHp: L.hp,
         dead: false,
-        isWall: p.type === 'wall',
-        isTrap: p.type === 'nest',
+        isWall: def.category === 'wall',
+        isTrap: def.category === 'trap',
         isDefense: !!L.defense,
-        counts: p.type !== 'wall' && p.type !== 'nest' && p.type !== 'lake',
+        counts: def.category !== 'wall' && def.category !== 'trap' && p.type !== 'lake',
         def: L.defense,
         cd: 0.5,
         target: null,
@@ -263,7 +276,7 @@ export class RaidSim {
         targets: [],
         frozenUntil: 0,
         stunUntil: 0,
-        hidden: p.type === 'nest',
+        hidden: def.category === 'trap',
         loot: { tuition: 0, coffee: 0 },
         lootTaken: { tuition: 0, coffee: 0 },
         fansLeft: L.fans ?? 0,
@@ -461,12 +474,13 @@ export class RaidSim {
     this.events.push({ e: 'spell', kind, x, y, r: d.radius });
     if (kind === 'snowday') {
       for (const b of this.buildings) {
-        if (b.dead || !b.isDefense) continue;
+        if (b.dead || !(b.isDefense || b.type === 'gate')) continue;
         if (distToRect(x, y, b.x, b.y, b.size, b.size) <= d.radius) b.frozenUntil = this.time + d.duration;
       }
       for (const u of this.units) if (u.side === 'def' && dist(u.x, u.y, x, y) <= d.radius) u.frozenUntil = this.time + d.duration;
     }
-    this.zones.push({ kind, x, y, r: d.radius, until: this.time + d.duration, start: this.time, dps: 0 });
+    // for a healing spell, `dps` holds the fraction of max HP healed per second
+    this.zones.push({ kind, x, y, r: d.radius, until: this.time + d.duration, start: this.time, dps: d.heal ?? 0 });
   }
 
   useAbility(u: RU): void {
@@ -496,6 +510,11 @@ export class RaidSim {
   // ---------- Main tick ----------
   update(dt: number): void {
     this.time += dt;
+    const sn = TROOPS.senior.senioritis!;
+    if (!this.seniorsPeaked && this.time >= sn.full && this.units.some((u) => !u.dead && u.type === 'senior')) {
+      this.seniorsPeaked = true;
+      this.events.push({ e: 'senioritis' });
+    }
     this.pathBudget = 30;
     if (this.dirtyCost) this.rebuildCost();
 
@@ -541,11 +560,18 @@ export class RaidSim {
         this.zones.splice(i, 1);
         continue;
       }
+      // healing zones show a "+" on each healed raider every half second
+      const pulse = z.kind === 'syllabus' && this.time >= (z.pulse ??= z.start + 0.5);
+      if (pulse) z.pulse! += 0.5;
       for (const u of this.units) {
         if (u.dead || dist(u.x, u.y, z.x, z.y) > z.r) continue;
         if (z.kind === 'allnighter' && u.side === 'atk') u.rageUntil = this.time + 0.3;
         if (z.kind === 'announcement' && u.side === 'atk') u.ignoreTrapsUntil = this.time + 0.4;
         if (z.kind === 'swarm' && u.side === 'atk') this.damageUnit(u, z.dps * dt * (u.def?.taunt?.trapDmg ?? 1), 'sting');
+        if (z.kind === 'syllabus' && u.side === 'atk' && u.hp < u.maxHp) {
+          u.hp = Math.min(u.maxHp, u.hp + u.maxHp * z.dps * dt);
+          if (pulse) this.events.push({ e: 'heal', u });
+        }
       }
     }
 
@@ -556,6 +582,7 @@ export class RaidSim {
       b.hitT = Math.max(0, b.hitT - dt);
       if (b.type === 'hive') this.updateHive(b, dt);
       if (b.isTrap) this.updateTrap(b);
+      if (b.type === 'gate') this.updateGate(b);
       if (!b.def) continue;
       if (b.frozenUntil > this.time || b.stunUntil > this.time) {
         b.prayT = 0;
@@ -588,6 +615,7 @@ export class RaidSim {
       p.z = p.sz * (1 - k) + Math.sin(k * Math.PI) * (p.arc ?? 18);
       if (k >= 1) {
         if (p.splash) this.landSplash(p);
+        else if (p.chain && p.target && !p.target.dead) this.chainHit(p.target, p);
         else if (p.target && !p.target.dead) this.damageUnit(p.target, p.dmg, p.kind);
         this.projectiles.splice(i, 1);
       }
@@ -661,9 +689,9 @@ export class RaidSim {
       if (b.cd <= 0) {
         b.cd = d.rate;
         b.firing = 1;
-        const kind = b.type === 'ratower' ? 'writeup' : 'ticket';
+        const kind = b.type === 'ratower' ? 'writeup' : b.type === 'deans' ? 'summons' : 'ticket';
         const dd = dist(b.cx, b.cy, b.target.x, b.target.y);
-        const sz = b.type === 'ratower' ? 75 + b.level * 5 : 40;
+        const sz = b.type === 'ratower' ? 75 + b.level * 5 : b.type === 'deans' ? 62 : 40;
         this.projectiles.push({
           x: b.cx,
           y: b.cy,
@@ -678,6 +706,7 @@ export class RaidSim {
           t: 0,
           dur: Math.max(0.12, dd / (d.projectileSpeed ?? 12)),
           kind,
+          ...(d.chain ? { chain: { n: d.chain, r: d.chainRange ?? 3, falloff: d.chainFalloff ?? 0.75 } } : {}),
         });
         this.events.push({ e: 'shoot', b, kind });
       }
@@ -891,6 +920,78 @@ export class RaidSim {
     this.events.push({ e: 'splat', x: p.tx, y: p.ty, r: s.r, n });
   }
 
+  /**
+   * Dean's Office summons: hit the target, then jump to the nearest raider not yet summoned within
+   * `r` tiles of the last one, `n` times, each hit `falloff` times the one before. Ties go to the
+   * older unit (lower uid), so a replay picks the same raiders.
+   */
+  private chainHit(first: RU, p: Projectile): void {
+    const c = p.chain!;
+    const hit = new Set<number>([first.uid]);
+    const pts = [{ x: first.x, y: first.y }];
+    let cur = first;
+    let dmg = p.dmg;
+    this.damageUnit(first, dmg, 'summons');
+    for (let k = 0; k < c.n; k++) {
+      let next: RU | null = null;
+      let nd = Infinity;
+      for (const u of this.units) {
+        if (u.dead || u.side !== 'atk' || hit.has(u.uid)) continue;
+        const d = dist(u.x, u.y, cur.x, cur.y);
+        if (d > c.r) continue;
+        if (d < nd || (d === nd && next && u.uid < next.uid)) {
+          nd = d;
+          next = u;
+        }
+      }
+      if (!next) break;
+      dmg *= c.falloff;
+      hit.add(next.uid);
+      pts.push({ x: next.x, y: next.y });
+      this.damageUnit(next, dmg, 'summons');
+      cur = next;
+    }
+    this.events.push({ e: 'chain', pts });
+  }
+
+  /**
+   * Parking Gate Arm: swings once, at the nearest raider within 1 tile of it (the older unit on a tie),
+   * then it is just a wall. `charge` records the swing (0 = armed, 1 = swung) so the scene can raise the arm.
+   * A frozen or stunned gate can be walked past.
+   */
+  private updateGate(b: RB): void {
+    if (b.charge >= 1 || b.frozenUntil > this.time || b.stunUntil > this.time) return;
+    let best: RU | null = null;
+    let bd = Infinity;
+    for (const u of this.units) {
+      if (u.dead || u.side !== 'atk') continue;
+      const d = distToRect(u.x, u.y, b.x, b.y, b.size, b.size);
+      if (d <= 1 && d < bd) {
+        bd = d;
+        best = u;
+      }
+    }
+    if (!best) return;
+    const L = BUILDINGS.gate.levels[Math.min(b.level, BUILDINGS.gate.levels.length) - 1];
+    b.charge = 1;
+    b.firing = 1;
+    this.damageUnit(best, L.swingDmg ?? 400, 'bonk');
+    this.events.push({ e: 'gate', b, u: best });
+    if (best.dead || best.def?.heavy) return;
+    const KB_TIME = 0.3;
+    const dx = best.x - b.cx;
+    const dy = best.y - b.cy;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    const nx = d > 0.05 ? dx / d : Math.SQRT1_2;
+    const ny = d > 0.05 ? dy / d : Math.SQRT1_2;
+    const kb = (L.swingKnock ?? 1.6) * (best.hero ? 0.5 : 1);
+    best.kbVx = (nx * kb) / KB_TIME;
+    best.kbVy = (ny * kb) / KB_TIME;
+    best.kbUntil = this.time + KB_TIME;
+    best.runT = 0;
+    best.needsPath = true;
+  }
+
   /** Slide a knocked-back raider. Buildings and walls stop the slide (troops that jump walls only stop at buildings). */
   private slideKnockback(u: RU, dt: number): void {
     const grid = u.def?.jumps ? this.costJump : this.cost;
@@ -921,14 +1022,51 @@ export class RaidSim {
       const roomCheck = u.def?.taunt;
       if (dist(u.x, u.y, b.cx, b.cy) < (roomCheck ? roomCheck.trapRange : 1.2)) {
         if (roomCheck) this.events.push({ e: 'roomcheck', u });
-        const L = BUILDINGS.nest.levels[b.level - 1];
         b.hidden = false;
         b.dead = true;
+        if (b.type === 'firealarm') {
+          this.fireAlarm(b);
+          return;
+        }
+        const L = BUILDINGS.nest.levels[b.level - 1];
         this.zones.push({ kind: 'swarm', x: b.cx, y: b.cy, r: L.trapRadius ?? 2, until: this.time + (L.trapDuration ?? 5), start: this.time, dps: L.trapDps ?? 20 });
         this.events.push({ e: 'swarm', x: b.cx, y: b.cy, r: L.trapRadius ?? 2 });
         return;
       }
     }
+  }
+
+  /**
+   * Fire drill: every raider in range files out away from the alarm, then stands around outside.
+   * Heroes stay out half as long, RAs know the drill (their trap multiplier shortens it too), and
+   * heavy troops are stopped but not moved. Raiders inside a Chapel Announcement don't hear it.
+   */
+  private fireAlarm(b: RB): void {
+    const L = BUILDINGS.firealarm.levels[Math.min(b.level, BUILDINGS.firealarm.levels.length) - 1];
+    const r = L.trapRadius ?? 2;
+    const KB_TIME = 0.35;
+    let n = 0;
+    for (const u of this.units) {
+      if (u.dead || u.side !== 'atk' || u.ignoreTrapsUntil > this.time) continue;
+      const dx = u.x - b.cx;
+      const dy = u.y - b.cy;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d > r) continue;
+      const stun = (L.trapStun ?? 2) * (u.hero ? 0.5 : 1) * (u.def?.taunt?.trapDmg ?? 1);
+      u.stunUntil = Math.max(u.stunUntil, this.time + KB_TIME + stun);
+      u.runT = 0;
+      u.needsPath = true;
+      n++;
+      if (u.def?.heavy) continue;
+      // straight out from the alarm; anyone standing right on it heads for the nearest exit (down-right)
+      const nx = d > 0.05 ? dx / d : Math.SQRT1_2;
+      const ny = d > 0.05 ? dy / d : Math.SQRT1_2;
+      const push = L.trapPush ?? 1;
+      u.kbVx = (nx * push) / KB_TIME;
+      u.kbVy = (ny * push) / KB_TIME;
+      u.kbUntil = this.time + KB_TIME;
+    }
+    this.events.push({ e: 'alarm', x: b.cx, y: b.cy, r, n });
   }
 
   private updateHive(b: RB, dt: number): void {
@@ -1032,7 +1170,14 @@ export class RaidSim {
     if (u.convoUntil > this.time) m *= 1.5;
     if (u.auraUntil > this.time) m *= 1 + TROOPS.theology.aura!.dmg;
     if (u.pairedUntil > this.time) m *= 1.2;
+    const sn = u.def?.senioritis;
+    if (sn) m *= 1 + sn.dmg * this.senioritis(sn.full);
     return m;
+  }
+
+  /** How far into senioritis (0..1) the raid clock is: graduation gets closer every second. */
+  senioritis(full: number): number {
+    return Math.min(1, this.time / full);
   }
 
   private mulSpeed(u: RU): number {
@@ -1044,6 +1189,8 @@ export class RaidSim {
     if (u.convoUntil > this.time) m *= 1.3;
     if (u.auraUntil > this.time) m *= 1 + TROOPS.theology.aura!.speed;
     if (u.pairedUntil > this.time) m *= 1.2;
+    const sn = u.def?.senioritis;
+    if (sn) m *= 1 + sn.speed * this.senioritis(sn.full);
     return m;
   }
 

@@ -36,8 +36,11 @@ export type BuildingType =
   | 'bibleprof'
   | 'stinger'
   | 'catapult'
+  | 'deans'
   | 'nest'
+  | 'firealarm'
   | 'wall'
+  | 'gate'
   | 'lake';
 
 export interface DefenseStats {
@@ -58,6 +61,9 @@ export interface DefenseStats {
   lobTime?: number; // seconds a lobbed shot is in the air (it lands where it was aimed)
   falloff?: number; // splash damage at the rim, as a fraction of the centre hit
   knockback?: number; // tiles a splash hit shoves raiders away from the impact
+  chain?: number; // Dean's Office: extra raiders a summons jumps to after the first hit
+  chainRange?: number; // tiles: how far each jump can reach
+  chainFalloff?: number; // each jump deals this fraction of the previous hit
 }
 
 /** Stinger Statue targeting: one ramping beam, or several flat beams. */
@@ -82,6 +88,12 @@ export interface BuildingLevel {
   trapDps?: number;
   trapRadius?: number;
   trapDuration?: number;
+  /** Fire Alarm: seconds raiders stand outside, and how far they file out (tiles). */
+  trapStun?: number;
+  trapPush?: number;
+  /** Parking Gate Arm: one swing at the first raider to come close, for this damage and knockback (tiles). */
+  swingDmg?: number;
+  swingKnock?: number;
 }
 
 export interface BuildingDef {
@@ -103,7 +115,7 @@ export interface BuildingDef {
   removable?: boolean;
 }
 
-export type TroopType = 'freshman' | 'engineer' | 'nurse' | 'theology' | 'athlete' | 'business' | 'music' | 'runner' | 'ra' | 'goteam' | 'rock';
+export type TroopType = 'freshman' | 'engineer' | 'nurse' | 'theology' | 'athlete' | 'business' | 'music' | 'runner' | 'ra' | 'goteam' | 'rock' | 'senior';
 export type HeroType = 'prof' | 'president';
 /** 'gomember' is what a GO Team van unloads and 'pebble' is what The Rock breaks into; neither can be trained on its own. */
 export type UnitType = TroopType | HeroType | 'fan' | 'gomember' | 'pebble';
@@ -148,6 +160,8 @@ export interface TroopDef {
   unload?: { count: number; life: number };
   /** When destroyed: crashes onto buildings within `radius` tiles for `dmg` damage, then breaks into `count` Pebbles. */
   crumble?: { count: number; radius: number; dmg: number[] };
+  /** Senioritis: damage and speed grow with raid time, reaching +dmg and +speed (fractions) after `full` seconds. */
+  senioritis?: { full: number; dmg: number; speed: number };
   /** Too heavy to shove: splash knockback does not move it. */
   heavy?: boolean;
   /** Short label for the raid deploy bar (defaults to the first word of the name). */
@@ -181,7 +195,7 @@ export interface HeroDef {
   regenTime: number; // seconds to fully recover after a raid at 0 hp
 }
 
-export type SpellType = 'allnighter' | 'snowday' | 'announcement';
+export type SpellType = 'allnighter' | 'snowday' | 'announcement' | 'syllabus';
 
 export interface SpellDef {
   type: SpellType;
@@ -195,5 +209,7 @@ export interface SpellDef {
   sscLevel: number;
   radius: number;
   duration: number;
+  /** Fraction of max HP healed per second for your troops in the zone. */
+  heal?: number;
   color: string;
 }

@@ -114,6 +114,22 @@ function site(ctx: Ctx, L: number, size: number, color?: string): void {
     line(ctx, P(-s, s, 4), P(s, s, 4));
     line(ctx, P(s, s, 4), P(s, -s, 4));
   }
+  if (L >= 7) {
+    // navy inner stripe just inside the gold edging
+    const i = s - 0.08;
+    ctx.strokeStyle = C.navy;
+    ctx.lineWidth = 2;
+    line(ctx, P(-i, i, 4), P(i, i, 4));
+    line(ctx, P(i, i, 4), P(i, -i, 4));
+  }
+  if (L >= 8) {
+    // gold-capped bollards at the three front corners
+    for (const [u, v] of [
+      [-s + 0.08, s - 0.08],
+      [s - 0.08, s - 0.08],
+      [s - 0.08, -s + 0.08],
+    ]) box(ctx, u - 0.06, v - 0.06, u + 0.06, v + 0.06, 4, 11, C.navy, { top: C.gold });
+  }
   // Trees at the back corners go in with the lot, so the building is drawn in front of them.
   const half = size / 2;
   const k = size >= 4 ? 1 : 0.85;
@@ -451,7 +467,7 @@ function levelFlags(ctx: Ctx, level: number, u: number, v: number, z: number): v
 
 export function drawBuilding(ctx: Ctx, type: BuildingType, level: number, variant = 0): void {
   const size = BUILDINGS[type].size;
-  if (type !== 'wall' && type !== 'lake' && type !== 'nest') groundShadow(ctx, size);
+  if (type !== 'wall' && type !== 'gate' && type !== 'lake' && type !== 'nest' && type !== 'firealarm') groundShadow(ctx, size);
   if (level === 0) {
     drawScaffold(ctx, size);
     return;
@@ -506,10 +522,16 @@ export function drawBuilding(ctx: Ctx, type: BuildingType, level: number, varian
       return stinger(ctx, L);
     case 'catapult':
       return catapult(ctx, L);
+    case 'deans':
+      return deans(ctx, L);
     case 'nest':
       return nest(ctx, L);
+    case 'firealarm':
+      return fireAlarm(ctx, L);
     case 'wall':
       return wall(ctx, L, variant);
+    case 'gate':
+      return gate(ctx, L, variant);
     case 'lake':
       return lake(ctx);
   }
@@ -798,19 +820,43 @@ function dmc(ctx: Ctx, L: number): void {
       poly(ctx, [P(u1, v1, th), P(u1, v0, th), P(u1, v1, th - drop)], shade(SLATE, -0.25), true, 1.8);
       box(ctx, u0 - 0.04, v0 - 0.04, u1 + 0.04, v1 + 0.04, th, th + 3, L >= 5 ? C.gold : CREAM);
       pyramid(ctx, u0 - 0.04, v0 - 0.04, u1 + 0.04, v1 + 0.04, th + 3, 15, SLATE);
+      if (L >= 7) {
+        // clock faces on both visible sides of the tower, under the slate cap
+        const zc = th - drop - 12;
+        const face = (pt: (a: number) => [number, number]): void => {
+          const pts: [number, number][] = [];
+          for (let k = 0; k < 16; k++) pts.push(pt((k / 16) * Math.PI * 2));
+          poly(ctx, pts, L >= 8 ? C.gold : CREAM, true, 1.6);
+          const [cx, cy] = pt(0);
+          const [ox, oy] = pt(Math.PI);
+          const mx = (cx + ox) / 2;
+          const my = (cy + oy) / 2;
+          ctx.strokeStyle = OUT;
+          ctx.lineWidth = 1.4;
+          line(ctx, [mx, my], [mx, my - 5]); // 12 o'clock
+          line(ctx, [mx, my], [mx + 3, my + 1.5]); // ten past, as always
+        };
+        const vc = (v0 + v1) / 2;
+        const uc = (u0 + u1) / 2;
+        face((a) => P(u1, vc + Math.cos(a) * 0.17, zc + Math.sin(a) * 8));
+        face((a) => P(uc + Math.cos(a) * 0.17, v1, zc + Math.sin(a) * 8));
+      }
     }
     const [x, y] = P((u0 + u1) / 2, (v0 + v1) / 2, th + (L <= 1 ? 14 : 18));
     const mast = L <= 1 ? 7 : 17;
     ctx.strokeStyle = OUT;
     ctx.lineWidth = 2.4;
     line(ctx, [x, y + 2], [x, y - mast - 6]);
-    ctx.beginPath();
-    ctx.arc(x, y - mast, L <= 1 ? 3.5 : 7.5, 0, Math.PI * 2);
-    ctx.fillStyle = L >= 6 ? C.gold : '#f7f8f5';
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    if (L >= 2) {
+    if (L >= 8) star5(ctx, x, y - mast, 9, C.gold);
+    else {
+      ctx.beginPath();
+      ctx.arc(x, y - mast, L <= 1 ? 3.5 : 7.5, 0, Math.PI * 2);
+      ctx.fillStyle = L >= 6 ? C.gold : '#f7f8f5';
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    if (L >= 2 && L < 8) {
       // highlight on the ball
       ctx.beginPath();
       ctx.arc(x - 2, y - mast - 2, 1.8, 0, Math.PI * 2);
@@ -904,6 +950,13 @@ function dmc(ctx: Ctx, L: number): void {
     for (const s of [-1, 1]) {
       const [lu, lv] = at(s * 1.0, 0.92);
       lamp(ctx, lu, lv, true);
+    }
+  }
+  if (L >= 7) {
+    // Commencement banners on poles at the ends of the forecourt
+    for (const s of [-1, 1]) {
+      const [x, y] = Q(s * 1.5, 0.95, 0);
+      flag(ctx, x, y, 34, L >= 8 ? C.gold : C.navy);
     }
   }
 }
@@ -1691,6 +1744,53 @@ function faculty(ctx: Ctx, L: number): void {
   plaque(ctx, sx, sy, 'FACULTY', 7);
 }
 
+/**
+ * Dean's Office: a stately brick hall with a white portico and an inbox the size of a door.
+ * It only exists at DMC 8, so it starts high on the level ladder (Lv1 dresses like a Lv6).
+ */
+function deans(ctx: Ctx, L: number): void {
+  const T = L + 5;
+  site(ctx, T, 3);
+  const h = 40 + L * 4;
+  walls(ctx, T, -1.15, -1.15, 1.05, 0.7, 4, h, C.brick);
+  panes(ctx, 'R', -1.0, 0.55, 1.05, 12, h - 8, 3, 2, 2);
+  panes(ctx, 'L', -1.05, -0.62, 0.7, 12, h - 8, 1, 2, 1);
+  panes(ctx, 'L', 0.62, 0.98, 0.7, 12, h - 8, 1, 2, 3);
+  trim(ctx, T, -1.15, -1.15, 1.05, 0.7, h);
+  gable(ctx, -1.22, -1.22, 1.12, 0.78, h, 24, C.roofBlue);
+  // portico: steps, four fat white columns and a cream pediment with the office seal
+  box(ctx, -0.58, 0.7, 0.58, 1.3, 4, 9, C.stone);
+  for (let i = 0; i < 4; i++) {
+    const u = -0.42 + i * 0.28;
+    box(ctx, u - 0.08, 1.06, u + 0.08, 1.2, 9, h - 6, '#f8f6f0');
+  }
+  box(ctx, -0.6, 0.7, 0.6, 1.26, h - 6, h, CREAM);
+  poly(ctx, [P(-0.6, 1.26, h), P(0.6, 1.26, h), P(0, 1.26, h + 16)], CREAM, true, 1.8);
+  const [sx, sy] = P(0, 1.26, h + 6);
+  ctx.beginPath();
+  ctx.arc(sx, sy, 4.2, 0, Math.PI * 2);
+  ctx.fillStyle = L >= 2 ? C.gold : C.red;
+  ctx.fill();
+  ctx.lineWidth = 1.4;
+  ctx.strokeStyle = OUT;
+  ctx.stroke();
+  const [px, py] = P(0, 1.26, h - 3);
+  plaque(ctx, px, py, "DEAN'S OFFICE", 6);
+  // a teetering stack of summons slips on the lawn, taller every level
+  const top = 4 + 6 + L * 5;
+  box(ctx, 0.72, 0.98, 1.0, 1.22, 4, top, '#ffffff', { top: '#ffd1e0' });
+  ctx.strokeStyle = 'rgba(30,27,43,0.3)';
+  ctx.lineWidth = 0.8;
+  for (let z = 7; z < top - 1; z += 2.5) {
+    line(ctx, P(0.72, 1.22, z), P(1.0, 1.22, z));
+    line(ctx, P(1.0, 1.22, z), P(1.0, 0.98, z));
+  }
+  if (L >= 3) {
+    const [fx, fy] = P(-1.05, -1.05, h + 2);
+    flag(ctx, fx, fy, 30, C.gold);
+  }
+}
+
 function presidents(ctx: Ctx, L: number): void {
   pad(ctx, 3, '#d6e8c8');
   const h = 40;
@@ -2181,16 +2281,70 @@ function nest(ctx: Ctx, L: number): void {
   ctx.fill();
 }
 
-const WALL_COLORS = ['#a8713c', '#bf5a3f', '#a34a3a', '#9aa0a8', '#c9a13a', '#2e63b8'];
-const WALL_TOPS = ['#c99a62', '#d97a5f', '#c46a58', '#c4c9cf', '#f5c32c', '#f5c32c'];
+/**
+ * A red pull station on a short post. Lv2 adds a strobe on top; Lv3 a gold rim and a second strobe.
+ */
+function fireAlarm(ctx: Ctx, L: number): void {
+  const [x, y] = P(0, 0, 0);
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath();
+  ctx.ellipse(x, y, 11, 5.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // post
+  box(ctx, -0.06, -0.06, 0.06, 0.06, 0, 14, '#8a8f99');
+  // the red box, its face toward the viewer's right
+  const RED = '#d8322c';
+  box(ctx, -0.17, -0.12, 0.17, 0.12, 14, 34, RED, { top: shade(RED, 0.15) });
+  if (L >= 3) {
+    ctx.strokeStyle = C.gold;
+    ctx.lineWidth = 1.6;
+    const rim = [P(-0.17, 0.12, 14), P(0.17, 0.12, 14), P(0.17, 0.12, 34), P(-0.17, 0.12, 34)];
+    ctx.beginPath();
+    ctx.moveTo(rim[0][0], rim[0][1]);
+    for (const q of rim) ctx.lineTo(q[0], q[1]);
+    ctx.closePath();
+    ctx.stroke();
+  }
+  // white "FIRE" label strip and the pull handle on the front face
+  poly(ctx, [P(-0.13, 0.12, 27), P(0.13, 0.12, 27), P(0.13, 0.12, 32), P(-0.13, 0.12, 32)], '#fff', true, 1);
+  const [lx, ly] = P(0, 0.12, 29.5);
+  ctx.fillStyle = RED;
+  ctx.font = '900 4.6px "Trebuchet MS", system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('FIRE', lx, ly + 0.3);
+  ctx.textBaseline = 'alphabetic';
+  poly(ctx, [P(-0.08, 0.12, 18), P(0.08, 0.12, 18), P(0.08, 0.12, 24), P(-0.08, 0.12, 24)], '#f2f2f2', true, 1.2);
+  const [hx, hy] = P(0, 0.12, 21);
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 1.6;
+  line(ctx, [hx - 3, hy], [hx + 3, hy]);
+  // strobes
+  const strobe = (u: number): void => {
+    box(ctx, u - 0.05, -0.05, u + 0.05, 0.05, 34, 38, '#f6f3ea', { top: '#ffffff' });
+    const [sx, sy] = P(u, 0, 40);
+    ctx.fillStyle = 'rgba(255,90,80,0.55)';
+    ctx.beginPath();
+    ctx.arc(sx, sy, 3.2, 0, Math.PI * 2);
+    ctx.fill();
+  };
+  if (L >= 3) {
+    strobe(-0.09);
+    strobe(0.09);
+  } else if (L >= 2) strobe(0);
+}
+
+const WALL_COLORS = ['#a8713c', '#bf5a3f', '#a34a3a', '#9aa0a8', '#c9a13a', '#2e63b8', '#1c3d7a', '#ece6d8'];
+const WALL_TOPS = ['#c99a62', '#d97a5f', '#c46a58', '#c4c9cf', '#f5c32c', '#f5c32c', '#f5c32c', '#2e63b8'];
 
 /**
  * Walls change shape as well as colour:
  * 1 wooden fence posts, 2 brick, 3 brick with a stone cap, 4 stone block with a cap,
- * 5 gold-capped with a ball, 6 navy with gold battlements.
+ * 5 gold-capped with a ball, 6 navy with gold battlements, 7 deep navy with a gold band,
+ * 8 white marble with a gold band and a gold star.
  */
 function wall(ctx: Ctx, L: number, mask: number): void {
-  const lv = Math.min(L, 6);
+  const lv = Math.min(L, WALL_COLORS.length);
   const col = WALL_COLORS[lv - 1];
   const top = WALL_TOPS[lv - 1];
   const h = 16 + L * 2;
@@ -2241,6 +2395,76 @@ function wall(ctx: Ctx, L: number, mask: number): void {
       [-0.17, 0.17],
       [0.17, 0.17],
     ]) box(ctx, u - 0.09, v - 0.09, u + 0.09, v + 0.09, h + 3, h + 8, C.gold);
+  }
+  if (lv >= 7) {
+    // gold band around the middle
+    ctx.strokeStyle = C.gold;
+    ctx.lineWidth = 2;
+    line(ctx, P(-s, s, h * 0.5), P(s, s, h * 0.5));
+    line(ctx, P(s, s, h * 0.5), P(s, -s, h * 0.5));
+  }
+  if (lv >= 8) {
+    const [x, y] = P(0, 0, h + 16);
+    star5(ctx, x, y, 5.5, C.gold);
+  }
+}
+
+/**
+ * Parking Gate Arm. `variant`: bit 1/2 = wall to the +u/+v side (as for walls), bit 4 = arm raised
+ * (it has already swung). The arm runs along the wall line: along v when the only neighbour is +v.
+ * Housing: grey at Lv1, navy at Lv2, navy and gold at Lv3.
+ */
+function gate(ctx: Ctx, L: number, variant: number): void {
+  const mask = variant & 3;
+  const raised = (variant & 4) !== 0;
+  const alongV = (mask & 2) !== 0 && (mask & 1) === 0;
+  // map (along, across) to (u, v)
+  const Pa = (a: number, c: number, z: number): [number, number] => (alongV ? P(c, a, z) : P(a, c, z));
+  const curb = '#c9cdd3';
+  // low curbs that meet neighbouring walls
+  if (mask & 2) box(ctx, -0.16, 0.2, 0.16, 1 - 0.2, 0, 6, curb);
+  if (mask & 1) box(ctx, 0.2, -0.16, 1 - 0.2, 0.16, 0, 6, curb);
+  box(ctx, -0.42, -0.42, 0.42, 0.42, 0, 3, curb);
+  // the housing at the back end of the arm
+  const body = L >= 2 ? C.navy : '#8a8f99';
+  if (alongV) box(ctx, -0.16, -0.42, 0.16, -0.12, 3, 24, body, { top: L >= 3 ? C.gold : shade(body, 0.2) });
+  else box(ctx, -0.42, -0.16, -0.12, 0.16, 3, 24, body, { top: L >= 3 ? C.gold : shade(body, 0.2) });
+  // a little red/green lamp on top
+  const [lx, ly] = Pa(-0.27, 0, 27);
+  ctx.beginPath();
+  ctx.arc(lx, ly, 2.4, 0, Math.PI * 2);
+  ctx.fillStyle = raised ? '#5fd06a' : '#ff4a3d';
+  ctx.fill();
+  ctx.lineWidth = 1.2;
+  ctx.strokeStyle = OUT;
+  ctx.stroke();
+  // the striped boom arm
+  const a0 = Pa(-0.27, 0, 19);
+  const a1 = raised ? Pa(-0.2, 0, 54) : Pa(0.5, 0, 17); // raised stays inside the 1-tile sprite's headroom
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 6;
+  line(ctx, a0, a1);
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 3.6;
+  line(ctx, a0, a1);
+  ctx.strokeStyle = '#e0312b';
+  ctx.setLineDash([4, 4]);
+  line(ctx, a0, a1);
+  ctx.setLineDash([]);
+  ctx.lineCap = 'butt';
+  // a tiny permit sign on the housing
+  if (L >= 2) {
+    const [sx, sy] = alongV ? P(0.16, -0.27, 14) : P(-0.27, 0.16, 14);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(sx - 4, sy - 3, 8, 6);
+    ctx.strokeStyle = OUT;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(sx - 4, sy - 3, 8, 6);
+    ctx.fillStyle = C.navy;
+    ctx.font = '900 4.5px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('P', sx, sy + 1.8);
   }
 }
 

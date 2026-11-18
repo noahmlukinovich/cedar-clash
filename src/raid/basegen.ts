@@ -55,7 +55,7 @@ export function rivalStateU(): BaseLayout {
   };
 }
 
-const BASE_LOOT = [0, 1500, 3500, 7000, 14000, 26000, 45000];
+const BASE_LOOT = [0, 1500, 3500, 7000, 14000, 26000, 45000, 70000, 100000];
 
 export function generateBase(dmc: number, seed: number): BaseLayout {
   const rng = new Rng(seed);
@@ -109,9 +109,9 @@ export function generateBase(dmc: number, seed: number): BaseLayout {
   const core: BuildingType[] = [];
   for (const t of ['registrar', 'rinnova'] as BuildingType[]) for (let i = 0; i < count(t); i++) core.push(t);
   const defs: BuildingType[] = [];
-  for (const t of ['ratower', 'safetycart', 'sprayer', 'bibleprof', 'stinger', 'catapult', 'hive'] as BuildingType[]) for (let i = 0; i < count(t); i++) defs.push(t);
+  for (const t of ['ratower', 'safetycart', 'sprayer', 'bibleprof', 'stinger', 'catapult', 'deans', 'hive'] as BuildingType[]) for (let i = 0; i < count(t); i++) defs.push(t);
   // splash defenses (sprayer, bible prof), the stinger statue and the catapult (whose blind spot needs cover) love the middle
-  const mid = (t: BuildingType): number => (t === 'sprayer' || t === 'bibleprof' || t === 'stinger' || t === 'catapult' ? -1 : 0);
+  const mid = (t: BuildingType): number => (t === 'sprayer' || t === 'bibleprof' || t === 'stinger' || t === 'catapult' || t === 'deans' ? -1 : 0);
   defs.sort((a, b) => mid(a) - mid(b));
   const innerDefs = defs.slice(0, Math.ceil(defs.length * 0.6));
   const outerDefs = defs.slice(innerDefs.length);
@@ -144,7 +144,19 @@ export function generateBase(dmc: number, seed: number): BaseLayout {
       }
     }
   };
+  const ringStart = pieces.length;
   ring(minX - 1, minY - 1, maxX + 1, maxY + 1, dmc <= 2 ? 0.12 : 0.03);
+  // Parking Gate Arms replace a few evenly spaced tiles of the inner wall ring
+  const gates = count('gate');
+  const ringWalls = pieces.slice(ringStart);
+  if (gates > 0 && ringWalls.length >= gates * 4) {
+    const step = Math.floor(ringWalls.length / gates);
+    for (let i = 0; i < gates; i++) {
+      const pc = ringWalls[i * step + Math.floor(step / 2)];
+      pc.type = 'gate';
+      pc.level = lvl('gate');
+    }
+  }
 
   // Outer ring: remaining defenses, then economy & army buildings
   const R0 = Math.max(maxX - minX, maxY - minY) / 2 + 2;
@@ -162,6 +174,7 @@ export function generateBase(dmc: number, seed: number): BaseLayout {
   }
   // Traps sprinkled around defenses / gaps
   for (let i = 0; i < count('nest'); i++) place('nest', cx, cy, 2, R0 + 3, 100);
+  for (let i = 0; i < count('firealarm'); i++) place('firealarm', cx, cy, 2, R0 + 3, 100);
   // Decorative lakes on the outskirts
   const lakes = rng.int(0, 2);
   for (let i = 0; i < lakes; i++) place('lake', cx, cy, R0 + 4, 16, 60);

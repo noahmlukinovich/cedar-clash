@@ -648,6 +648,7 @@ export class RaidScene implements Scene {
             if (b.type === 'ratower') P2.text(p.x, p.y - 40, 30, 'Quiet hours over!', '#fff', 16);
             if (b.type === 'stinger') P2.text(p.x, p.y - 40, 30, 'Stinger un-stung!', '#9fd4ff', 16);
             if (b.type === 'catapult') P2.text(p.x, p.y - 40, 30, 'Kitchen closed!', '#ffb36b', 16);
+            if (b.type === 'deans') P2.text(p.x, p.y - 40, 30, 'Office hours cancelled!', '#ff8fb8', 16);
           }
           break;
         }
@@ -732,6 +733,10 @@ export class RaidScene implements Scene {
           P2.add({ kind: 'glow', x: p.x + (Math.random() - 0.5) * 16, y: p.y, z: 14, vz: 25, max: 0.8, size: 3, color: 'rgba(255,230,120,0.9)' });
           break;
         }
+        case 'senioritis':
+          this.game.ui.banner('🎓 Graduation is in sight! Seniors go all out!', '#ffe066');
+          sfx('whistle');
+          break;
         case 'wind':
           if (ev.on) {
             this.game.ui.banner(`🌬️ ${pick(WIND_LINES)}`, '#cfe9ff');
@@ -763,6 +768,43 @@ export class RaidScene implements Scene {
           P2.add({ kind: 'text', x: p.x + (Math.random() - 0.5) * 20, y: p.y, z: 40, vz: 35, max: 0.9, text: '♪♫', color: '#ff9fd0', size: 18 });
           break;
         }
+        case 'chain': {
+          // pink paper trail from raider to raider
+          for (let i = 0; i < ev.pts.length; i++) {
+            const p = toWorld(ev.pts[i].x, ev.pts[i].y);
+            P2.burst(p.x, p.y - 14, 10, 5, { kind: 'confetti', color: i ? '#ffd1e0' : '#ff8fb8', size: 6, speed: 60, max: 0.5, gravity: 120 });
+            if (i === 0) continue;
+            const q = toWorld(ev.pts[i - 1].x, ev.pts[i - 1].y);
+            this.beams.push({ x1: q.x, y1: q.y - 14, x2: p.x, y2: p.y - 14, t: 0.3, color: 'rgba(255,143,184,0.85)' });
+          }
+          if (ev.pts.length >= 4) {
+            const p = toWorld(ev.pts[0].x, ev.pts[0].y);
+            P2.text(p.x, p.y - 50, 40, ev.pts.length >= 6 ? 'ALL OF YOU. MY OFFICE.' : pick(['See me in my office.', 'You too.', 'And your friends.']), '#ff8fb8', ev.pts.length >= 6 ? 20 : 16);
+          }
+          sfx('zap');
+          break;
+        }
+        case 'gate': {
+          const p = toWorld(ev.u.x, ev.u.y);
+          P2.burst(p.x, p.y - 10, 14, 10, { kind: 'spark', color: '#fff3b0', size: 4, speed: 90, max: 0.35 });
+          P2.text(p.x, p.y - 45, 40, pick(['BONK!', 'Permit expired!', 'No parking!', 'Gate says no.']), '#ffffff', 18);
+          this.cam.shake(3, 0.15);
+          sfx('cannon');
+          break;
+        }
+        case 'alarm': {
+          const p = toWorld(ev.x, ev.y);
+          // red-and-white strobe rings, then the whole floor files out
+          for (let i = 0; i < 3; i++) {
+            P2.add({ kind: 'ring', x: p.x, y: p.y, z: 0, max: 0.35 + i * 0.2, size: 6, grow: ev.r * 45 * (1.4 + i * 0.4), color: i % 2 ? 'rgba(255,255,255,0.9)' : 'rgba(235,50,40,0.9)' });
+          }
+          P2.burst(p.x, p.y, 20, 12, { kind: 'glow', color: 'rgba(255,90,80,0.9)', size: 5, speed: ev.r * 40, max: 0.5, vz: 80 });
+          P2.text(p.x, p.y - 50, 40, ev.n >= 5 ? 'EVACUATE!' : pick(['FIRE DRILL!', 'Who made popcorn?', 'Everyone outside!']), '#ff6b5e', ev.n >= 5 ? 24 : 18);
+          this.cam.shake(Math.min(5, 1.5 + ev.n * 0.5), 0.25);
+          sfx('whistle');
+          setTimeout(() => sfx('stun'), 250);
+          break;
+        }
         case 'roomcheck': {
           const p = toWorld(ev.u.x, ev.u.y);
           P2.text(p.x, p.y - 50, 40, 'Room check!', '#cfe9ff', 16);
@@ -785,6 +827,7 @@ export class RaidScene implements Scene {
           }
           if (ev.kind === 'allnighter') this.game.ui.banner('⚡ ALL-NIGHTER!', '#ff9fd0');
           if (ev.kind === 'announcement') this.game.ui.banner('📣 "Just a few quick announcements…"', '#ffe58a');
+          if (ev.kind === 'syllabus') this.game.ui.banner('📄 SYLLABUS WEEK! Nothing is due yet.', '#b8f5c8');
           sfx('spell');
           break;
         }
@@ -889,6 +932,7 @@ export class RaidScene implements Scene {
       if (z.kind === 'allnighter') col = `rgba(255,79,163,${0.22 + Math.sin(t * 10) * 0.06})`;
       else if (z.kind === 'snowday') col = 'rgba(160,220,255,0.28)';
       else if (z.kind === 'announcement') col = `rgba(255,216,74,${0.2 + Math.sin(t * 6) * 0.05})`;
+      else if (z.kind === 'syllabus') col = `rgba(94,240,138,${0.2 + Math.sin(t * 4) * 0.05})`;
       else if (z.kind === 'swarm') col = 'rgba(255,200,0,0.12)';
       else if (z.kind === 'quiz') col = `rgba(255,255,255,${0.5 * (1 - life)})`;
       else if (z.kind === 'convo') col = `rgba(245,195,44,${0.4 * (1 - life)})`;
@@ -947,6 +991,7 @@ export class RaidScene implements Scene {
       if (b.isWall) {
         if (walls.has(b.y * GRID + b.x + 1)) variant |= 1;
         if (walls.has((b.y + 1) * GRID + b.x)) variant |= 2;
+        if (b.type === 'gate' && b.charge >= 1) variant |= 4;
       }
       const fill = b.type === 'registrar' ? 1 - b.lootTaken.tuition / Math.max(1, b.loot.tuition) : b.type === 'rinnova' ? 1 - b.lootTaken.coffee / Math.max(1, b.loot.coffee) : b.type === 'admissions' || b.type === 'coffeecart' ? 0.5 : undefined;
       list.push({
@@ -1083,6 +1128,27 @@ export class RaidScene implements Scene {
         ctx.fillStyle = '#7fae3a';
         ctx.fillRect(-4, -7, 2, 2);
         ctx.fillRect(2, -6, 2, 2);
+      } else if (pr.kind === 'summons') {
+        // a folded pink summons slip with a red seal
+        ctx.rotate(pr.t * 9);
+        ctx.fillStyle = '#ffd1e0';
+        ctx.beginPath();
+        ctx.moveTo(-7, -4);
+        ctx.lineTo(7, -4);
+        ctx.lineTo(7, 4);
+        ctx.lineTo(-7, 4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(-7, -4);
+        ctx.lineTo(0, 1);
+        ctx.lineTo(7, -4);
+        ctx.stroke();
+        ctx.fillStyle = C.red;
+        ctx.beginPath();
+        ctx.arc(0, 1, 2, 0, Math.PI * 2);
+        ctx.fill();
       } else if (pr.kind === 'writeup') {
         ctx.fillStyle = '#fff';
         ctx.fillRect(-4, -5, 8, 10);

@@ -168,6 +168,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'allnighter', name: 'Pulled an All-Nighter', desc: 'Cast the All-Nighter spell.', reward: 5 },
   { id: 'dmc3', name: 'Upperclassman', desc: 'Upgrade the DMC to level 3.', reward: 10 },
   { id: 'dmc5', name: 'Senior Status', desc: 'Upgrade the DMC to level 5.', reward: 25 },
+  { id: 'dmc8', name: 'Commencement', desc: 'Upgrade the DMC to level 8. Walk across the stage, shake every hand.', reward: 50 },
   { id: 'popquiz', name: 'Pop Quiz!', desc: "Use the Bible Prof's Pop Quiz.", reward: 5 },
   { id: 'ringbyspring', name: 'Ring by Spring', desc: 'Win a raid during Ring by Spring.', reward: 10 },
   { id: 'windblown', name: 'Ohio Weather Survivor', desc: 'Win a raid during an Ohio wind gust.', reward: 5 },

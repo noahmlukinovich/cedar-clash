@@ -30,7 +30,7 @@ export const TROOPS: Record<TroopType, TroopDef> = {
     prefers: 'any',
     color: '#3a7bd5',
     size: 1,
-    levels: tl([50, 59, 72, 86, 101], [8, 11, 14, 18, 23], [25, 40, 60, 80, 100], [0, 1500, 5000, 15000, 35000], [0, 30, 75, 140, 220], [0, 1, 2, 3, 4]),
+    levels: tl([50, 59, 72, 86, 101, 120, 140], [8, 11, 14, 18, 23, 27, 32], [25, 40, 60, 80, 100, 120, 140], [0, 1500, 5000, 15000, 35000, 56000, 90000], [0, 30, 75, 140, 220, 310, 400], [0, 1, 2, 3, 4, 6, 7]),
   },
   engineer: {
     type: 'engineer',
@@ -49,7 +49,7 @@ export const TROOPS: Record<TroopType, TroopDef> = {
     wallMul: 10,
     color: '#f2a20c',
     size: 1,
-    levels: tl([33, 40, 48, 57, 68], [12, 16, 20, 25, 31], [100, 150, 220, 300, 400], [0, 3000, 9000, 20000, 45000], [0, 45, 100, 170, 260], [0, 1, 2, 3, 4]),
+    levels: tl([33, 40, 48, 57, 68, 78, 90], [12, 16, 20, 25, 31, 37, 44], [100, 150, 220, 300, 400, 480, 580], [0, 3000, 9000, 20000, 45000, 72000, 115000], [0, 45, 100, 170, 260, 350, 440], [0, 1, 2, 3, 4, 6, 7]),
   },
   nurse: {
     type: 'nurse',
@@ -69,7 +69,7 @@ export const TROOPS: Record<TroopType, TroopDef> = {
     healRadius: 2,
     color: '#2bb3a3',
     size: 1.1,
-    levels: tl([330, 374, 429, 484, 550], [28, 34, 41, 49, 58], [800, 1100, 1500, 2000, 2600], [0, 8000, 20000, 40000, 70000], [0, 90, 160, 240, 320], [0, 2, 3, 4, 5]),
+    levels: tl([330, 374, 429, 484, 550, 630, 720], [28, 34, 41, 49, 58, 68, 80], [800, 1100, 1500, 2000, 2600, 3100, 3700], [0, 8000, 20000, 40000, 70000, 112000, 179000], [0, 90, 160, 240, 320, 410, 500], [0, 2, 3, 4, 5, 6, 7]),
   },
   theology: {
     type: 'theology',
@@ -88,7 +88,7 @@ export const TROOPS: Record<TroopType, TroopDef> = {
     aura: { radius: 3, dmg: 0.25, speed: 0.15 },
     color: '#7b3fa0',
     size: 1,
-    levels: tl([99, 116, 134, 154, 176], [10, 13, 16, 20, 24], [300, 400, 550, 700, 900], [0, 5000, 14000, 30000, 55000], [0, 60, 120, 200, 280], [0, 1, 2, 4, 5]),
+    levels: tl([99, 116, 134, 154, 176, 200, 230], [10, 13, 16, 20, 24, 28, 33], [300, 400, 550, 700, 900, 1100, 1300], [0, 5000, 14000, 30000, 55000, 88000, 141000], [0, 60, 120, 200, 280, 370, 460], [0, 1, 2, 4, 5, 6, 7]),
   },
   athlete: {
     type: 'athlete',
@@ -106,7 +106,7 @@ export const TROOPS: Record<TroopType, TroopDef> = {
     prefers: 'defense',
     color: '#e2b007',
     size: 1.35,
-    levels: tl([440, 572, 726, 902, 1100], [12, 16, 20, 25, 31], [250, 350, 500, 650, 850], [0, 4000, 12000, 26000, 50000], [0, 50, 110, 180, 260], [0, 1, 2, 3, 4]),
+    levels: tl([440, 572, 726, 902, 1100, 1300, 1500], [12, 16, 20, 25, 31, 37, 44], [250, 350, 500, 650, 850, 1000, 1200], [0, 4000, 12000, 26000, 50000, 80000, 128000], [0, 50, 110, 180, 260, 350, 440], [0, 1, 2, 3, 4, 6, 7]),
   },
   business: {
     type: 'business',
@@ -125,7 +125,7 @@ export const TROOPS: Record<TroopType, TroopDef> = {
     lootBonus: 0.1,
     color: '#2f6f4f',
     size: 1,
-    levels: tl([40, 48, 58, 69, 82], [14, 18, 23, 28, 35], [60, 90, 130, 180, 240], [0, 2500, 8000, 18000, 40000], [0, 40, 90, 160, 240], [0, 1, 2, 3, 4]),
+    levels: tl([40, 48, 58, 69, 82, 94, 110], [14, 18, 23, 28, 35, 41, 48], [60, 90, 130, 180, 240, 290, 350], [0, 2500, 8000, 18000, 40000, 64000, 102000], [0, 40, 90, 160, 240, 330, 420], [0, 1, 2, 3, 4, 6, 7]),
   },
   music: {
     type: 'music',
@@ -145,7 +145,7 @@ export const TROOPS: Record<TroopType, TroopDef> = {
     chorus: { every: 4, mul: 2 },
     color: '#b23a6f',
     size: 1,
-    levels: tl([45, 54, 65, 78, 92], [16, 21, 26, 32, 40], [150, 220, 300, 400, 520], [0, 5000, 14000, 30000, 55000], [0, 60, 120, 200, 280], [0, 2, 3, 4, 5]),
+    levels: tl([45, 54, 65, 78, 92, 110, 130], [16, 21, 26, 32, 40, 47, 55], [150, 220, 300, 400, 520, 620, 740], [0, 5000, 14000, 30000, 55000, 88000, 141000], [0, 60, 120, 200, 280, 370, 460], [0, 2, 3, 4, 5, 6, 7]),
   },
   runner: {
     type: 'runner',
@@ -165,7 +165,7 @@ export const TROOPS: Record<TroopType, TroopDef> = {
     jumps: { maxRun: 3, speed: 0.2, dmg: 0.5 },
     color: '#e86a17',
     size: 1,
-    levels: tl([160, 195, 235, 280, 330], [20, 26, 32, 40, 49], [220, 320, 440, 580, 750], [0, 6000, 16000, 32000, 60000], [0, 70, 130, 210, 290], [0, 2, 3, 4, 5]),
+    levels: tl([160, 195, 235, 280, 330, 380, 440], [20, 26, 32, 40, 49, 58, 68], [220, 320, 440, 580, 750, 900, 1100], [0, 6000, 16000, 32000, 60000, 96000, 154000], [0, 70, 130, 210, 290, 380, 470], [0, 2, 3, 4, 5, 6, 7]),
   },
   ra: {
     type: 'ra',
@@ -184,7 +184,7 @@ export const TROOPS: Record<TroopType, TroopDef> = {
     taunt: { trapRange: 2, trapDmg: 0.4 },
     color: '#1c3d7a',
     size: 1.3,
-    levels: tl([900, 1150, 1450, 1800, 2200], [8, 10, 13, 16, 20], [500, 700, 950, 1250, 1600], [0, 7000, 18000, 36000, 65000], [0, 80, 150, 230, 310], [0, 2, 3, 4, 5]),
+    levels: tl([900, 1150, 1450, 1800, 2200, 2500, 2900], [8, 10, 13, 16, 20, 24, 28], [500, 700, 950, 1250, 1600, 1900, 2300], [0, 7000, 18000, 36000, 65000, 104000, 166000], [0, 80, 150, 230, 310, 400, 490], [0, 2, 3, 4, 5, 6, 7]),
   },
   goteam: {
     type: 'goteam',
@@ -204,7 +204,7 @@ export const TROOPS: Record<TroopType, TroopDef> = {
     unload: { count: 5, life: 15 },
     color: '#f4efe4',
     size: 1.15,
-    levels: tl([350, 420, 500, 590, 700], [0, 0, 0, 0, 0], [600, 850, 1150, 1500, 1900], [0, 8000, 20000, 40000, 70000], [0, 90, 160, 240, 320], [0, 3, 4, 5, 5]),
+    levels: tl([350, 420, 500, 590, 700, 800, 920], [0, 0, 0, 0, 0, 0, 0], [600, 850, 1150, 1500, 1900, 2300, 2800], [0, 8000, 20000, 40000, 70000, 112000, 179000], [0, 90, 160, 240, 320, 410, 500], [0, 3, 4, 5, 5, 6, 7]),
   },
   rock: {
     type: 'rock',
@@ -221,11 +221,31 @@ export const TROOPS: Record<TroopType, TroopDef> = {
     range: 0.9,
     attackRate: 2,
     prefers: 'defense',
-    crumble: { count: 2, radius: 1.5, dmg: [150, 190, 240, 300, 370] },
+    crumble: { count: 2, radius: 1.5, dmg: [150, 190, 240, 300, 370, 450, 540] },
     heavy: true,
     color: '#8a8478',
     size: 1.6,
-    levels: tl([3000, 3600, 4300, 5100, 6000], [15, 19, 24, 29, 35], [2000, 2600, 3300, 4100, 5000], [0, 12000, 28000, 52000, 85000], [0, 120, 200, 280, 360], [0, 3, 4, 5, 5]),
+    levels: tl([3000, 3600, 4300, 5100, 6000, 6900, 7900], [15, 19, 24, 29, 35, 41, 48], [2000, 2600, 3300, 4100, 5000, 6000, 7200], [0, 12000, 28000, 52000, 85000, 136000, 218000], [0, 120, 200, 280, 360, 450, 540], [0, 3, 4, 5, 5, 6, 7]),
+  },
+  senior: {
+    type: 'senior',
+    name: 'Senior',
+    short: 'Senior',
+    desc: 'Tough and slow, with a bad case of senioritis: barely trying when the raid starts, but the closer it gets to the end, the harder and faster they go. Up to +80% damage and +50% speed two minutes in. Goes for the nearest building.',
+    flavor: 'Has not opened the syllabus since September. Has, however, already bought the cap and gown.',
+    housing: 12,
+    res: 'coffee',
+    trainTime: 30,
+    barracks: 'biblical',
+    barracksLevel: 4,
+    speed: 1.3,
+    range: 0.8,
+    attackRate: 1.3,
+    prefers: 'any',
+    senioritis: { full: 120, dmg: 0.8, speed: 0.5 },
+    color: '#2a2f5a',
+    size: 1.2,
+    levels: tl([1400, 1650, 1950, 2300, 2700, 3100, 3600], [40, 48, 57, 67, 79, 92, 107], [900, 1150, 1450, 1800, 2200, 2650, 3150], [0, 30000, 50000, 80000, 120000, 160000, 220000], [0, 150, 230, 310, 390, 470, 550], [0, 4, 5, 5, 6, 6, 7]),
   },
 };
 
@@ -246,7 +266,7 @@ export const PEBBLE_DEF: TroopDef = {
   prefers: 'defense',
   color: '#8a8478',
   size: 0.9,
-  levels: tl([600, 720, 860, 1020, 1200], [8, 10, 12, 15, 18], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]),
+  levels: tl([600, 720, 860, 1020, 1200, 1400, 1600], [8, 10, 12, 15, 18, 21, 25], [0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0]),
 };
 
 /** What a GO Team van unloads. Level follows the van's research level. */
@@ -266,7 +286,7 @@ export const GO_MEMBER_DEF: TroopDef = {
   prefers: 'any',
   color: '#e4572e',
   size: 0.95,
-  levels: tl([45, 54, 65, 78, 92], [12, 15, 19, 24, 30], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]),
+  levels: tl([45, 54, 65, 78, 92, 110, 130], [12, 15, 19, 24, 30, 35, 41], [0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0]),
 };
 
 export const FAN_DEF: TroopDef = {
@@ -285,7 +305,7 @@ export const FAN_DEF: TroopDef = {
   prefers: 'any',
   color: '#ffd23f',
   size: 1,
-  levels: tl([80, 100, 125, 150], [10, 13, 16, 20], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]),
+  levels: tl([80, 100, 125, 150, 170, 200], [10, 13, 16, 20, 24, 28], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0]),
 };
 
 /** Applies the shared timer curve to a hero's upgrade times. */
@@ -313,6 +333,8 @@ export const HEROES: Record<HeroType, HeroDef> = {
       { hp: 1220, dps: 60, upgradeCost: 60, upgradeTime: 120, dmc: 4 },
       { hp: 1400, dps: 70, upgradeCost: 100, upgradeTime: 180, dmc: 5 },
       { hp: 1600, dps: 82, upgradeCost: 160, upgradeTime: 240, dmc: 6 },
+      { hp: 1830, dps: 95, upgradeCost: 240, upgradeTime: 320, dmc: 7 },
+      { hp: 2080, dps: 110, upgradeCost: 340, upgradeTime: 400, dmc: 8 },
     ]),
   },
   president: {
@@ -330,8 +352,10 @@ export const HEROES: Record<HeroType, HeroDef> = {
       { hp: 2200, dps: 70, upgradeCost: 0, upgradeTime: 0, dmc: 5 },
       { hp: 2500, dps: 80, upgradeCost: 120, upgradeTime: 180, dmc: 5 },
       { hp: 2850, dps: 92, upgradeCost: 220, upgradeTime: 300, dmc: 6 },
+      { hp: 3250, dps: 106, upgradeCost: 320, upgradeTime: 400, dmc: 7 },
+      { hp: 3700, dps: 122, upgradeCost: 450, upgradeTime: 500, dmc: 8 },
     ]),
   },
 };
 
-export const TROOP_ORDER: TroopType[] = ['freshman', 'athlete', 'engineer', 'theology', 'nurse', 'business', 'music', 'runner', 'ra', 'goteam', 'rock'];
+export const TROOP_ORDER: TroopType[] = ['freshman', 'athlete', 'engineer', 'theology', 'nurse', 'business', 'music', 'runner', 'ra', 'goteam', 'rock', 'senior'];

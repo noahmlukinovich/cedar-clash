@@ -59,6 +59,7 @@ const OUTFIT: Record<UnitType, { body: string; legs: string; hair: string }> = {
   gomember: { body: '#e4572e', legs: '#4a6a8a', hair: '#5a3a1e' },
   rock: { body: '#8a8478', legs: '#5a554c', hair: '#5a554c' },
   pebble: { body: '#8a8478', legs: '#5a554c', hair: '#5a554c' },
+  senior: { body: '#23264a', legs: '#23264a', hair: '#4a3020' },
 };
 
 function dot(ctx: CanvasRenderingContext2D, x: number, y: number, r: number): void {
@@ -632,6 +633,26 @@ function gear(ctx: CanvasRenderingContext2D, type: UnitType, lv: number): void {
     ctx.fillRect(-w / 2, y, w, h);
   };
   switch (type) {
+    case 'senior':
+      if (lv >= 2) {
+        // gold stole
+        ctx.fillStyle = C.gold;
+        ctx.fillRect(-5, -21, 2, 13);
+        ctx.fillRect(3, -21, 2, 13);
+      }
+      if (lv >= 4) {
+        // honor cords, gold and white
+        ctx.strokeStyle = '#fff6d6';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-2, -21);
+        ctx.lineTo(-1, -9);
+        ctx.moveTo(1, -21);
+        ctx.lineTo(1.5, -9);
+        ctx.stroke();
+        ctx.strokeStyle = OUT;
+      }
+      break;
     case 'freshman':
       if (lv >= 3 && lv < 5) {
         // letterman jacket
@@ -858,6 +879,27 @@ function drawHeld(ctx: CanvasRenderingContext2D, type: UnitType, lv = 1): void {
   ctx.lineWidth = 1.4;
   ctx.strokeStyle = OUT;
   switch (type) {
+    case 'senior':
+      if (lv >= 5) {
+        // the diploma, finally
+        ctx.fillStyle = '#fff6d6';
+        ctx.fillRect(-1, 4, 4, 12);
+        ctx.strokeRect(-1, 4, 4, 12);
+        ctx.fillStyle = C.navy;
+        ctx.fillRect(-1, 9, 4, 2);
+      } else {
+        // a large iced coffee: the only thing keeping them going
+        ctx.fillStyle = '#d9b48a';
+        ctx.fillRect(-1, 5, 6, 10);
+        ctx.strokeRect(-1, 5, 6, 10);
+        ctx.strokeStyle = '#fff';
+        ctx.beginPath();
+        ctx.moveTo(3, 5);
+        ctx.lineTo(4.5, 1);
+        ctx.stroke();
+        ctx.strokeStyle = OUT;
+      }
+      break;
     case 'freshman':
       if (lv >= 5) {
         // diploma
@@ -1080,6 +1122,32 @@ function drawHead(ctx: CanvasRenderingContext2D, type: UnitType, hy: number, hai
   ctx.lineWidth = 1.6;
   ctx.strokeStyle = OUT;
   switch (type) {
+    case 'senior': {
+      // mortarboard: skull cap, a flat board, and a tassel (gold from Lv3)
+      ctx.fillStyle = '#1a1c33';
+      ctx.beginPath();
+      ctx.arc(0, hy - 3, 7, Math.PI, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-11, hy - 8);
+      ctx.lineTo(0, hy - 12.5);
+      ctx.lineTo(11, hy - 8);
+      ctx.lineTo(0, hy - 3.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = lv >= 3 ? C.gold : '#9aa3ad';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(0, hy - 8);
+      ctx.lineTo(8, hy - 6);
+      ctx.lineTo(8, hy + 1);
+      ctx.stroke();
+      ctx.strokeStyle = OUT;
+      break;
+    }
     case 'engineer':
       // hard hat (white for the senior engineers)
       ctx.fillStyle = lv >= 4 ? '#f4f7f8' : C.gold;

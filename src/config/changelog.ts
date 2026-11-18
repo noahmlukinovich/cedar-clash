@@ -10,6 +10,71 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 27,
+    date: 'Nov 18, 2026',
+    title: 'New spell: Syllabus Week',
+    items: [
+      'The Student Center Brew Lab can go to Lv4 at DMC 8. It brews Syllabus Week and holds one more spell.',
+      'Syllabus Week is the first healing spell: your troops inside the zone heal 6% of their health every second for 8 seconds. Nothing is due yet, so everyone gets some rest.',
+      'A Snow Day now also freezes Parking Gate Arms, so you can sneak past one without a bonk.',
+    ],
+  },
+  {
+    v: 26,
+    date: 'Nov 18, 2026',
+    title: 'New troop: the Senior',
+    items: [
+      'Biblical Studies can now go to Lv4 at DMC 7, where it trains Seniors (12 housing, Coffee).',
+      'Seniors are tough and slow, with a bad case of senioritis: they barely try when the raid starts, then hit harder and move faster every second. Two minutes in they are at +80% damage and +50% speed, and the whole campus hears about it.',
+      'Research them up to level 7 in the Library. They pick up a gold stole, honor cords and, at last, a diploma.',
+      "Fixed: The Rock's crash damage now keeps growing at research levels 6 and 7.",
+    ],
+  },
+  {
+    v: 25,
+    date: 'Nov 18, 2026',
+    title: 'Parking Gate Arm',
+    items: [
+      'New at DMC 8: the Parking Gate Arm, four per campus. It is a wall tile that fits into your wall lines and joins up with the walls next to it.',
+      'The first raider to walk up to it gets the striped arm swung down on their head (400 to 700 damage by level) and is knocked back up to 2 tiles. Heroes fly half as far; The Rock does not budge.',
+      'After its one swing the arm stays up, and it is just a very sturdy wall. A Snow Day freezes it, so raiders can sneak past without a bonk.',
+    ],
+  },
+  {
+    v: 24,
+    date: 'Nov 17, 2026',
+    title: "Dean's Office",
+    items: [
+      "New DMC 8 defense: the Dean's Office. One per campus.",
+      'It sends a pink summons at the nearest raider, then the paperwork jumps on to the next raider within 3 tiles, and the next: 3, 4 or 5 jumps depending on level.',
+      'Each jump hits for 75% of the one before, and nobody gets summoned twice by the same slip. Swarms beware.',
+    ],
+  },
+  {
+    v: 23,
+    date: 'Nov 17, 2026',
+    title: 'Fire Alarm trap',
+    items: [
+      'New hidden trap at DMC 7: the Fire Alarm. Two at DMC 7, three at DMC 8.',
+      'When a raider gets close, the alarm goes off. Every raider nearby files out a tile or so and stands around outside for 2 to 3 seconds, depending on level.',
+      'Heroes only stay out half as long, RAs know the drill and head back sooner, and The Rock is too heavy to file anywhere (it still stops).',
+      'A Chapel Announcement drowns it out, the same as other traps.',
+    ],
+  },
+  {
+    v: 22,
+    date: 'Nov 17, 2026',
+    title: 'DMC 7 and 8: Commencement',
+    items: [
+      'The DMC can now be upgraded to level 7 and level 8. Reaching DMC 8 earns the new "Commencement" achievement.',
+      'New top levels: Admissions, Coffee Cart, Registrar, Rinnova, RA Tower, Campus Safety Cart and Brick Walls go to Lv8; Residence Halls and the Library to Lv7; The Hive, Bible Prof Tower and the Casserole Catapult to Lv6; the Stinger Statue and Cedar Sprayer to Lv5; Yellow Jacket Nests to Lv4.',
+      'Build more: an extra RA Tower, Safety Cart, Residence Hall, Facilities Crew shed, storage, collector, splash defenses, nests, lakes and 50 more walls across the two new levels.',
+      'Every troop can be researched to level 7 (Library 6 and 7). The Bible Prof goes to level 7 and The President to level 5.',
+      'The DMC itself stores more, and rival campuses now show up at DMC 7 and 8 with bigger loot.',
+      'New looks: a clock tower and Commencement banners on the DMC, navy and white-marble walls, and navy trim and gold bollards around every top-level building.',
+    ],
+  },
+  {
     v: 21,
     date: 'Nov 17, 2026',
     title: 'Stinger Statue buff',
