@@ -334,8 +334,8 @@ function drawDynamic(ctx: Ctx, a: BuildingDrawArgs, size: number): void {
       const f = a.fill ?? 0;
       const h = 30 + L * 4;
       const th = h + 22 + L * 3;
-      const [x, y] = P(0.1, -0.9, 4);
-      const rx = 0.62 * 45;
+      const [x, y] = P(0.85, -0.85, 4);
+      const rx = 0.5 * 45;
       ctx.save();
       ctx.beginPath();
       ctx.rect(x - rx * 0.35, y - th + 6, rx * 0.7, th - 10);
@@ -491,7 +491,7 @@ function drawDynamic(ctx: Ctx, a: BuildingDrawArgs, size: number): void {
       break;
     }
     case 'bibleprof': {
-      const h = 48 + L * 6;
+      const h = 84 + L * 6; // matches the taller visual platform; combat stats are unchanged
       const [x, y] = P(0, 0, h);
       const pr = a.praying ?? 0;
       if (pr > 0) {
@@ -503,7 +503,7 @@ function drawDynamic(ctx: Ctx, a: BuildingDrawArgs, size: number): void {
         ctx.arc(x, y - 20, 40, 0, Math.PI * 2);
         ctx.fill();
       }
-      drawMiniPerson(ctx, x, y, '#4a2f6b', 0, a.t, 0, 'pray', a.stunned, pr);
+      drawMiniPerson(ctx, x, y, '#233f61', 0, a.t, 0, 'pray', a.stunned, pr);
       break;
     }
     case 'dmc':

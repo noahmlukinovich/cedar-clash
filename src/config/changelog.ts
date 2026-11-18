@@ -10,6 +10,21 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 33,
+    date: 'Nov 18, 2026',
+    title: 'Closer campus reference details',
+    items: [
+      'Fourteen campus landmarks receive more reference-inspired glazing, masonry, roof shapes, cafe furniture, sculpture and vehicle detail.',
+      'The Bible Prof platform and Rinnova tank gauge follow their refined artwork. Hit points, tile footprints, abilities, costs and gameplay are unchanged.',
+    ],
+  },
+  {
+    v: 32,
+    date: 'Nov 18, 2026',
+    title: 'More character in the campus troops',
+    items: ['Refined troop portraits with rounded faces, swept hair, shaded hats, detailed uniforms and shoes. Gameplay is unchanged.'],
+  },
+  {
     v: 31,
     date: 'Nov 18, 2026',
     title: 'Campus colors for the troop roster',
