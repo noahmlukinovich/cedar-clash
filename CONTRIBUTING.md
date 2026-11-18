@@ -52,11 +52,10 @@ Change these freely:
 Everything else (game rules, raids, economy, balance numbers, networking, the
 server, tests, CI, dependencies) is the **core zone** and needs Noah's review.
 
-UI code is allowed to *call* core code (read game state, call existing
-actions). It just can't *change* how core code works without review. If a UI
-idea needs something new from the core (a new stat, a new action, different
-numbers), open a GitHub issue with the `needs-core` label describing what you
-need, and build the UI once it lands.
+You can still change core code. The PR just waits for Noah's review before it
+can merge. If a UI idea needs something new from core (a new stat, a new
+action, different numbers), either make the change in its own small PR so the
+UI work isn't held up, or open a GitHub issue labeled `needs-core`.
 
 ## Screen map: where to find things in `src/ui/ui.ts` and `src/style.css`
 

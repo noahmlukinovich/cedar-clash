@@ -1,7 +1,7 @@
 # AGENTS.md: working on Cedarville Clash
 
 Instructions for any AI coding agent (Claude Code, Codex, Cursor, Copilot and
-others) working in this repo. Read all of it before you change anything.
+others) working in this repo.
 
 ## The project
 
@@ -9,17 +9,40 @@ Cedarville Clash is an affectionate, joke-heavy parody base-builder/raid game
 that runs in the browser. It's TypeScript + Vite with canvas rendering and an
 optional Node game server for online play. Two people work on it:
 
-- **noahmlukinovich** (repo owner): everything, especially core game code.
-- **The UI collaborator**: menus, HUD, styling, art and jokes.
+- **Noah** (GitHub `noahmlukinovich`, repo owner): everything.
+- **The UI collaborator**: mostly menus, HUD, styling, art and jokes.
 
-**If you are working for the UI collaborator, you work only in the UI zone
-below.** That's a team rule, and GitHub enforces it: `.github/CODEOWNERS`
-means any PR that touches a file outside the UI zone can't merge without
-Noah's approval.
+## Who you're working for
+
+Work this out yourself at the start. Only ask if you can't tell.
+
+1. Check which GitHub account the session is signed in as (the GitHub MCP
+   `get_me` tool, or `gh api user --jq .login`). If you can't, use
+   `git config user.email` and whatever other context you have.
+2. **`noahmlukinovich` / Noah:** there are no zone limits. Change anything,
+   core included, and don't mention zones at all.
+3. **Anyone else:** follow "Zones" below.
+4. **Can't tell:** treat the person as the collaborator, but don't open with
+   a warning. It only comes up if a change touches core.
 
 ## Zones
 
-### UI zone (change freely)
+GitHub enforces the zones, so you don't have to: `.github/CODEOWNERS` makes
+any PR that touches a core file wait for Noah's review before it can merge.
+Nothing reaches `main` by accident, so don't police the rules in conversation.
+
+For the collaborator:
+
+- **UI-zone work:** just do it. Skip the caveats and rule reminders.
+- **Work that needs core changes:** say it in one line ("this touches
+  `src/game/economy.ts`, so the PR will need Noah's review") and then do the
+  work anyway. When you can, put the core part in its own small PR so the UI
+  part can merge without waiting. Don't refuse, don't repeat the warning, and
+  don't copy game logic into UI code to get around the review.
+- If the person doesn't want to wait for a review, offer to write up a GitHub
+  issue labeled `needs-core` instead.
+
+### UI zone (merges without review once tests pass)
 
 | Path | What's in it |
 | --- | --- |
@@ -35,7 +58,7 @@ Noah's approval.
 | `src/config/changelog.ts` | Player-facing "What's new" entries |
 | `index.html` | Page shell |
 
-### Core zone (do not edit when working for the UI collaborator)
+### Core zone (needs Noah's review to merge)
 
 Everything else, including:
 
@@ -48,28 +71,10 @@ Everything else, including:
   `tsconfig.json`, `vite.config.ts`
 - The docs that hold the rules: `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `README.md`
 
-**Reading** core code is fine and often necessary. **Calling** existing core
-functions and exports from UI code is fine too. **Changing** core files is
-not.
-
-### When a request needs core changes
-
-Don't make the change, and don't work around it by duplicating game logic in
-UI code. Instead:
-
-1. Tell the person which core change is needed and why.
-2. Offer to draft a GitHub issue labeled `needs-core`, with:
-   - **What the UI needs** (for example: "the Army screen needs each troop's
-     win rate").
-   - **Suggested core change** (which file or function, and what it should
-     expose).
-   - **The UI work it unblocks.**
-3. Build any part of the UI that doesn't depend on it, if that makes sense.
-
-Examples that need core: new stats or numbers the game doesn't track yet,
-changing costs, timers, damage or other balance, new player actions, anything
-about saves, the server, login or online play, new npm packages, raid screen
-markup or behavior (`src/raid/raidScene.ts`).
+Typical core changes: new stats or numbers the game doesn't track yet, costs,
+timers, damage or other balance, new player actions, saves, the server, login
+or online play, new npm packages, and raid screen markup or behavior
+(`src/raid/raidScene.ts`).
 
 ## Hard rules
 
@@ -82,8 +87,8 @@ markup or behavior (`src/raid/raidScene.ts`).
    string.
 4. **No third-party assets.** All art is drawn procedurally in code. Don't add
    images, sprite sheets, logos, icon packs or web fonts.
-5. **No new dependencies.** `package.json` is core. If you think a library is
-   needed, raise it as a `needs-core` issue.
+5. **Avoid new dependencies.** Use what's already there when you can. Adding a
+   package changes `package.json`, so it needs Noah's review.
 6. **Keep the tone affectionate.** It's a good-natured parody. Rival schools
    are fictional. Jokes shouldn't target real individuals or be mean-spirited.
 
@@ -103,8 +108,8 @@ npm run build          # type-check plus full build
 3. Run `npm test` and `npm run build`.
 4. Commit, push the branch and open a PR into `main`. Say what changed and
    which screens it affects; screenshots help.
-5. Once `tests` passes, a UI-only PR can be merged by the collaborator.
-   Anything that touches core waits for Noah.
+5. Once `tests` passes, the collaborator can merge a UI-only PR. Anything that
+   touches core waits for Noah's review. Noah can merge his own PRs.
 
 Keep PRs small and focused. Pull `main` often: `ui.ts` and `style.css` are big
 shared files, and small PRs avoid painful conflicts.
@@ -138,12 +143,12 @@ Helpers to use instead of reinventing:
 **Changing game state:** UI code never edits `this.state` directly. It calls
 `this.game.act({ k: '<action>', ... })`, which returns `{ err }`. Check `err`,
 show it with `this.toast(err, 'bad')` and `sfx('error')`, and otherwise
-refresh the view. If the action you need doesn't exist, that's a `needs-core`
-issue.
+refresh the view. If the action you need doesn't exist, add it in core (see
+"Zones").
 
 **Reacting to the game:** the game emits events on `bus` (from `core/bus`):
 `'changed'`, `'selection'`, `'mode'`, `'buildingDone'`, `'toast'`. Listen with
-`bus.on(...)` in the UI. Don't add new event emits in core.
+`bus.on(...)` in the UI. A new event emit is a core change.
 
 ### `src/style.css`
 
@@ -187,4 +192,4 @@ Sections are marked `/* ---------- Name ---------- */` and mostly match the
   includes what you changed.
 - The raid HUD and results screen are built in `src/raid/raidScene.ts` (core).
   You can restyle them in `style.css` (Raid HUD and Results sections), but
-  changing their markup or behavior needs a `needs-core` issue.
+  changing their markup or behavior is a core change.

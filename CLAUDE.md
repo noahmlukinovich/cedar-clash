@@ -1,8 +1,8 @@
 # Cedarville Clash: notes for Claude
 
 Browser base-builder parody game (TypeScript + Vite, canvas rendering) with an
-optional Node game server in `server/`. **Read `AGENTS.md` first**: it has the
-full rules, the UI/core zones and notes on how the UI code works. See also
+optional Node game server in `server/`. `AGENTS.md` has the zones, the
+"who you're working for" check and notes on how the UI code works. See also
 `README.md` and `CONTRIBUTING.md`.
 
 ## Commands
@@ -17,17 +17,11 @@ Run `npm test` and `npm run build` before every commit you push.
 
 - Never push to `main`. It deploys straight to the live site and game server.
   Work on a branch and open a pull request.
-- Know which zone you're working in (full list in `CONTRIBUTING.md`):
-  - **UI zone**: `src/ui/`, `src/render/`, `src/style.css`,
-    `src/config/humor.ts`, `src/config/changelog.ts`, `index.html`.
-  - **Core zone**: everything else, including `src/game/`, `src/raid/`,
-    `src/net/`, `src/core/`, balance and data in `src/config/`, `server/`,
-    `test/`, `.github/`, `deploy/` and `package.json`.
-- **When the person you're working with is the UI collaborator (not
-  noahmlukinovich), stay in the UI zone.** If a request needs a core-zone
-  change, don't make it. Explain what would be needed and offer to draft a
-  GitHub issue labeled `needs-core` instead. Calling existing core functions
-  from UI code is fine.
+- Find out who you're working for by checking the signed-in GitHub account
+  (`get_me`). If it's `noahmlukinovich` (Noah, the owner), there are no zone
+  limits and no zone warnings. For anyone else, follow "Zones" in `AGENTS.md`:
+  do UI work freely. If something touches core, mention once that the PR will
+  need Noah's review, then do it anyway.
 - Keep raid simulation deterministic: replays and the server's checks depend on it.
 - All art is drawn procedurally in code. Don't add third-party game assets,
   logos or fonts.
