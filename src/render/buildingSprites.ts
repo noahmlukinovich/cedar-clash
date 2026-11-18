@@ -752,26 +752,53 @@ function column(ctx: Ctx, p: number, d: number, z0: number, z1: number): void {
  * The Dixon Ministry Center, facing the viewer: a wide, low entrance under a long name band and
  * a brick gable, a cluster of flat-roofed brick blocks of different heights behind it, and a
  * square brick tower in the middle with a slate cap, a mast and a white ball.
- * Its core reference architecture stays visible at all levels; the surrounding site and tower
- * retain subtle level variation without changing any upgrade statistics.
+ * It begins as a small hall, gains its tower at level 3, rear hall at 4 and terraces at 5.
+ * All changes are visual; the four-tile lot and upgrade statistics never change.
  */
+/** Early campus construction: a modest hall grows before receiving its full reference facade.
+ * Only the drawn mass changes. The site, selection, collision and build area stay the same. */
+function starterHall(ctx: Ctx, L: number, label: string, accent: string, size = 3): void {
+  site(ctx, L, size);
+  const w = L === 1 ? 0.72 : 1.02;
+  const h = L === 1 ? 25 : 40;
+  walls(ctx, L, -w, -w * 0.7, w, w * 0.8, 4, h, CAMPUS_BRICK);
+  windowsL(ctx, -w + 0.12, -0.25, w * 0.8, 10, h - 5, L === 1 ? 1 : 2, L);
+  windowsR(ctx, -w * 0.7 + 0.1, w * 0.7, w, 10, h - 5, L === 1 ? 2 : 3, L);
+  door(ctx, 0.27, w * 0.8, 0.3, 15, C.woodDark);
+  gable(ctx, -w - 0.06, -w * 0.7 - 0.06, w + 0.06, w * 0.8 + 0.06, h, 10, L === 1 ? SLATE : accent);
+  if (L >= 2) {
+    box(ctx, -w, w * 0.8, w, w * 0.8 + 0.04, h - 4, h, CREAM);
+    shrub(ctx, -1.15, 1.1, false);
+  }
+  const [x, y] = P(0, w * 0.8 + 0.04, h - 7);
+  plaque(ctx, x, y, label, 5);
+}
+
 function dmc(ctx: Ctx, L: number): void {
-  // The reference is a broad brick complex, not a stack of isolated small blocks.
+  if (L <= 2) {
+    starterHall(ctx, L, 'DIXON MINISTRY CENTER', C.navy, 4);
+    return;
+  }
+  // The full complex is earned in stages, rather than appearing at level one.
   site(ctx, L, 4);
   const brick = '#c87952';
   const wing: PD[] = [[-1.58, 0.14], [-1.1, 0.62], [1.1, 0.62], [1.58, 0.14], [1.14, -0.68], [-1.14, -0.68]];
   block45(ctx, 2, wing, 4, 37, brick);
+  if (L >= 4) {
   // Upper rear hall with its large, dark gridded glass wall.
   block45(ctx, 2, rectPD(-0.87, 0.86, -0.72, -0.12), 37, 80, brick);
   frontGlass(ctx, -0.48, 0.42, -0.105, 48, 76, 6, 3);
+  }
   // Broad lower roof terraces flank the centre; cream coping outlines every roof.
+  if (L >= 5) {
   block45(ctx, 2, rectPD(-1.31, -0.52, -0.43, 0.19), 37, 55, brick);
   block45(ctx, 2, rectPD(0.59, 1.29, -0.43, 0.19), 37, 53, brick);
   frontWindows(ctx, -1.21, -0.6, 0.2, 41, 48, 5, 1, 0, true);
   frontWindows(ctx, 0.68, 1.2, 0.2, 40, 47, 4, 1, 0, true);
+  }
   // The brick bell tower sits right of centre, with a glazed triangular cap.
   const u0 = -0.03, u1 = 0.63, v0 = -0.41, v1 = 0.25;
-  const th = 92 + Math.min(L, 8);
+  const th = L === 3 ? 62 : L === 4 ? 80 : 92 + Math.min(L, 8);
   walls(ctx, 2, u0, v0, u1, v1, 39, th, brick);
   poly(ctx, [P(u0, v1, th), P(u1, v1, th), P(u1, v1, th - 19)], '#26394e', true, 1.5);
   poly(ctx, [P(u1, v1, th), P(u1, v0, th), P(u1, v1, th - 19)], '#1f2d40', true, 1.5);
@@ -785,7 +812,7 @@ function dmc(ctx: Ctx, L: number): void {
   ctx.strokeStyle = CREAM_LIGHT; ctx.lineWidth = 1.2;
   line(ctx, [tx, ty - 2], [tx, ty - 27]);
   ctx.beginPath(); ctx.arc(tx, ty - 15, 7, 0, Math.PI * 2);
-  ctx.fillStyle = '#e6e3dc'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = L >= 6 ? C.gold : '#e6e3dc'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 2; ctx.stroke();
   ctx.beginPath(); ctx.arc(tx - 1.7, ty - 17, 4.4, 0, Math.PI * 2); ctx.fillStyle = '#fffdf6'; ctx.fill();
   // Front hall and continuous glazing beneath a long stone entrance band.
   const front: PD[] = [[-1.15, 0.65], [-0.86, 0.91], [0.86, 0.91], [1.15, 0.65], [1.02, 0.4], [-1.02, 0.4]];
@@ -803,7 +830,7 @@ function dmc(ctx: Ctx, L: number): void {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('DIXON MINISTRY CENTER', nx, ny);
   ctx.textBaseline = 'alphabetic';
   poly(ctx, [Q(-0.83, 1.06, 42), Q(0.83, 1.06, 42), Q(0.05, 0.81, 46)], brick, true, 1.3);
-  for (const side of [-1, 1]) {
+  if (L >= 4) for (const side of [-1, 1]) {
     for (const [pp, dd] of [[1.35, 0.28], [1.2, 0.45], [1.06, 0.64]]) shrub(ctx, dd + pp * side, dd - pp * side, false);
     const [lu, lv] = [0.55 + side * 1.35, 0.55 - side * 1.35];
     lamp(ctx, lu, lv, true);
@@ -923,6 +950,7 @@ function academicPlanters(ctx:Ctx,L:number):void {
 }
 
 function businessCenter(ctx: Ctx, L: number): void {
+  if (L === 1) { starterHall(ctx, L, 'BUSINESS', C.navy); return; }
   site(ctx, L, 3);
   const h = 39 + Math.min(L, 4) * 2;
   academicBlock(ctx, -1.22, -0.72, 1.15, 0.91, h);
@@ -951,6 +979,7 @@ function businessCenter(ctx: Ctx, L: number): void {
 }
 
 function healthCenter(ctx: Ctx, L: number): void {
+  if (L === 1) { starterHall(ctx, L, 'HEALTH SCIENCES', C.navy); return; }
   site(ctx, L, 3);
   const h = 61 + Math.min(L, 3) * 3;
   academicBlock(ctx, -1.2, -1.15, 1.15, 0.88, h);
@@ -978,6 +1007,7 @@ function healthCenter(ctx: Ctx, L: number): void {
 }
 
 function library(ctx: Ctx, L: number): void {
+  if (L <= 2) { starterHall(ctx, L, 'LIBRARY', C.navy); return; }
   site(ctx, L, 3);
   const h = 48 + Math.min(L, 8) * 3;
   academicBlock(ctx, -1.2, -0.72, 1.12, 0.75, h);
@@ -1013,6 +1043,7 @@ function library(ctx: Ctx, L: number): void {
 }
 
 function biblicalCenter(ctx: Ctx, L: number): void {
+  if (L <= 2) { starterHall(ctx, L, 'BIBLICAL STUDIES', C.navy); return; }
   site(ctx, L, 3);
   const h = 46 + Math.min(L, 4) * 3;
   academicBlock(ctx, -1.2, -0.76, 1.15, 0.91, h);
@@ -1062,7 +1093,7 @@ function hive(ctx: Ctx, L: number): void {
       ctx.strokeStyle = '#263446'; ctx.lineWidth = 2;
       if (h > 25) line(ctx, [xa, ya - h * 0.48], [xb, yb - h * 0.48]);
       // Warm café silhouettes sit behind the glass rather than flat yellow rectangles.
-      if (i !== 6 && i % 2 === 0) {
+      if (L >= 3 && i !== 6 && i % 2 === 0) {
         const cx = (xa + xb) / 2, cy = (ya + yb) / 2;
         ctx.fillStyle = '#e9ba4a'; ctx.fillRect(cx - 1.5, cy - 12, 3, 5);
         ctx.fillStyle = '#ffe6a0'; ctx.beginPath(); ctx.arc(cx, cy - 14, 1.8, 0, Math.PI * 2); ctx.fill();
@@ -1072,23 +1103,28 @@ function hive(ctx: Ctx, L: number): void {
     const lowerY = y - base - h, upperY = lowerY - 9;
     for (let i = 0; i < 24; i++) {
       const a = i * Math.PI * 2 / 24, b = (i + 1) * Math.PI * 2 / 24;
-      poly(ctx, [[x + Math.cos(a) * (r + 4), lowerY + Math.sin(a) * (ry + 2)], [x + Math.cos(b) * (r + 4), lowerY + Math.sin(b) * (ry + 2)], [x + Math.cos(b) * (r - 6), upperY + Math.sin(b) * (ry - 4)], [x + Math.cos(a) * (r - 6), upperY + Math.sin(a) * (ry - 4)]], i < 12 ? i % 4 === 0 ? '#ffe36a' : '#f4c52d' : '#cca11f', false);
+      poly(ctx, [[x + Math.cos(a) * (r + 4), lowerY + Math.sin(a) * (ry + 2)], [x + Math.cos(b) * (r + 4), lowerY + Math.sin(b) * (ry + 2)], [x + Math.cos(b) * (r - 6), upperY + Math.sin(b) * (ry - 4)], [x + Math.cos(a) * (r - 6), upperY + Math.sin(a) * (ry - 4)]], L === 1 ? SLATE : i < 12 ? i % 4 === 0 ? '#ffe36a' : '#f4c52d' : '#cca11f', false);
     }
-    ctx.beginPath(); ctx.ellipse(x, upperY, r - 6, ry - 4, 0, 0, Math.PI * 2); ctx.fillStyle = '#eac031'; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x, upperY, r - 6, ry - 4, 0, 0, Math.PI * 2); ctx.fillStyle = L === 1 ? SLATE : '#eac031'; ctx.fill();
     ctx.strokeStyle = OUT; ctx.lineWidth = 1.8; ctx.stroke();
     ctx.beginPath(); ctx.ellipse(x, lowerY, r + 4, ry + 2, 0, 0, Math.PI); ctx.stroke();
   };
-  tier(57, 0, 38); tier(41, 48, 24);
+  tier(L === 1 ? 35 : L === 2 ? 46 : 57, 0, L === 1 ? 25 : 38);
+  if (L >= 3) tier(41, 48, 24);
+  if (L >= 3) {
   // Oval rooftop sign is part of the silhouette in the reference.
   ctx.beginPath(); ctx.ellipse(x, y - 94, 29, 10, 0, 0, Math.PI * 2); ctx.fillStyle = '#1d304a'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 2; ctx.stroke();
   ctx.fillStyle = '#ffd452'; ctx.font = '900 11px "Trebuchet MS", system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('THE HIVE', x, y - 94); ctx.textBaseline = 'alphabetic';
-  tree(ctx, 1.26, -0.4, 0.88);
-  for (const u of [-0.7, -0.3, 0.1, 0.5, 0.9]) shrub(ctx, u, 1.35, false);
-  shrub(ctx, -1.15, 0.9, false); lamp(ctx, -1.2, 0.8, false);
+  }
+  if (L >= 4) tree(ctx, 1.26, -0.4, 0.88);
+  if (L >= 3) for (const u of [-0.7, -0.3, 0.1, 0.5, 0.9]) shrub(ctx, u, 1.35, false);
+  if (L >= 2) shrub(ctx, -1.15, 0.9, false);
+  if (L >= 4) lamp(ctx, -1.2, 0.8, false);
 }
 
 /** Reference-inspired brick admissions hall, with a four-column pedimented entrance. */
 function admissions(ctx: Ctx, L: number): void {
+  if (L <= 2) { starterHall(ctx, L, 'ADMISSIONS', C.navy); return; }
   site(ctx, L, 3);
   // Retain the isometric front and side walls of the reference.
   tree(ctx, -1.2, 0.35, 0.78);
@@ -1160,8 +1196,8 @@ function cafeHedge(ctx: Ctx, u: number, v: number, length: number): void {
 
 function coffeeCart(ctx: Ctx, L: number): void {
   site(ctx, L, 3, '#a5a7a8');
-  tree(ctx,1.15,-0.9,0.65);
-  shrub(ctx,-1.15,0.2,false);
+  if (L >= 4) tree(ctx,1.15,-0.9,0.65);
+  if (L >= 3) shrub(ctx,-1.15,0.2,false);
   // cart body
   box(ctx, -0.8, -0.5, 0.8, 0.6, 12, 34, '#c89d70');
   poly(ctx, [P(-0.8, 0.6, 14), P(0.8, 0.6, 14), P(0.8, 0.6, 30), P(-0.8, 0.6, 30)], '#d5b187', true);
@@ -1203,7 +1239,7 @@ function coffeeCart(ctx: Ctx, L: number): void {
     poly(ctx,[[ux,uy-70],[ux+Math.cos(a)*61,edgeY+Math.sin(a)*14],[ux+Math.cos(b)*61,edgeY+Math.sin(b)*14]],i%2?'#d5a93b':'#345f9a',true,1.3);
   }
   // Two sagging strings beneath the front eave, with multicolored bulbs.
-  for(const side of [-1,1]){
+  if (L >= 3) for(const side of [-1,1]){
     ctx.strokeStyle='#323335';ctx.lineWidth=0.8;
     ctx.beginPath();ctx.moveTo(ux,edgeY+2);ctx.quadraticCurveTo(ux+side*30,edgeY+24,ux+side*60,edgeY+1);ctx.stroke();
     for(let i=1;i<7;i++){
@@ -1235,10 +1271,10 @@ function coffeeCart(ctx: Ctx, L: number): void {
     ctx.lineWidth = 1;
     for (const dy of [-15, -11, -7]) line(ctx, [mx - 3, my + dy], [mx + 3, my + dy]);
   }
-  cafePatio(ctx,1.04,0.2,12);
-  cafePatio(ctx,0.9,1.12,13);
-  cafeHedge(ctx,-1.25,1.15,0.55);
-  cafeHedge(ctx,0.15,1.38,0.48);
+  if (L >= 2) cafePatio(ctx,1.04,0.2,12);
+  if (L >= 4) cafePatio(ctx,0.9,1.12,13);
+  if (L >= 3) cafeHedge(ctx,-1.25,1.15,0.55);
+  if (L >= 4) cafeHedge(ctx,0.15,1.38,0.48);
 }
 
 /** Registrar: the Tuition vault. The roof is an open coin bin (filled in by the live overlay). */
@@ -1302,7 +1338,7 @@ function rinnova(ctx: Ctx, L: number): void {
   const h=40+L*4;
   cylinder(ctx,-0.72,-0.95,0.4,4,tankH+10+L*3,'#c8ccd2','#9aa0a8');
   cylinder(ctx,0.85,-0.85,0.5,4,tankH+22+L*3,'#c8ccd2','#9aa0a8');
-  cafeHedge(ctx,-1.2,-0.05,0.12);
+  if (L >= 3) cafeHedge(ctx,-1.2,-0.05,0.12);
   campusBlock(ctx,-1.1,-0.35,1.05,0.85,h);
   // Large uninterrupted amber shopfront with dark steel mullions.
   for(let i=0;i<5;i++){
@@ -1327,18 +1363,18 @@ function rinnova(ctx: Ctx, L: number): void {
   const [vx,vy]=P(0.55,0.1,h+10);
   ctx.fillStyle='rgba(255,255,255,0.75)';
   for(const [dx,dy,r] of [[0,-2,3],[3,-8,4],[1,-15,4]]) {ctx.beginPath();ctx.arc(vx+dx,vy+dy,r,0,Math.PI*2);ctx.fill();}
-  cafeHedge(ctx,1.12,-0.1,0.15);
-  cafePatio(ctx,0.46,1.27,15);
+  if (L >= 3) cafeHedge(ctx,1.12,-0.1,0.15);
+  if (L >= 2) cafePatio(ctx,0.46,1.27,15);
 }
 
 /** Residence hall: a long slate-roofed hall with gabled bays on the front, taller with each upgrade. */
 function reshall(ctx: Ctx, L: number): void {
   site(ctx, L, 4);
-  tree(ctx,-1.72,1.1,0.7);
-  const floors = 3 + (L >= 5 ? 1 : 0);
+  if (L >= 3) tree(ctx,-1.72,1.1,0.7);
+  const floors = L <= 1 ? 1 : L <= 2 ? 2 : L >= 5 ? 4 : 3;
   const h = 14 + floors * 15;
   walls(ctx, 2, -1.7, -1.4, 1.6, 1.2, 4, h, C.brick);
-  if (L >= 1) {
+  if (L >= 3) {
     panes(ctx, 'L', -0.55, 0.45, 1.2, 8, h - 4, 2, floors);
     panes(ctx, 'R', -1.3, 1.1, 1.6, 8, h - 4, 4, floors);
   } else {
@@ -1348,7 +1384,7 @@ function reshall(ctx: Ctx, L: number): void {
   trim(ctx, L, -1.7, -1.4, 1.6, 1.2, h);
   gable(ctx, -1.8, -1.5, 1.7, 1.3, h, 22, SLATE);
   box(ctx,-0.1,-0.2,0.2,0.1,h+16,h+25,CREAM);
-  if (L >= 1) {
+  if (L >= 3) {
     // gabled bays standing proud of the front
     for (const [a, b] of [
       [-1.55, -0.65],
@@ -1369,7 +1405,7 @@ function reshall(ctx: Ctx, L: number): void {
     }
   }
   entry(ctx, L, -0.05, 1.2, 0.5, 16, C.navy);
-  if (L >= 1) {
+  if (L >= 3) {
     // bike rack out front
     const [bx, by] = P(-0.35, 1.8, 4);
     ctx.strokeStyle = OUT;
@@ -1382,8 +1418,8 @@ function reshall(ctx: Ctx, L: number): void {
   }
   levelFlags(ctx, L, 1.55, 1.15, h);
   grounds(ctx, L, 4);
-  tree(ctx,1.75,0.4,0.65);
-  shrub(ctx,0.8,1.72,false);
+  if (L >= 4) tree(ctx,1.75,0.4,0.65);
+  if (L >= 3) shrub(ctx,0.8,1.72,false);
 }
 
 function academic(ctx: Ctx, L: number, wallColor: string, accent: string, label: string, icon: 'book' | 'plus' | 'coin' | 'note'): void {

@@ -10,6 +10,12 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 36,
+    date: 'Nov 18, 2026',
+    title: 'A campus that grows with its buildings',
+    items: ['Early campus buildings begin smaller and plainer, then gain floors, glazing, landscaping and navy-and-gold accents as they upgrade. The level 1 DMC is now a modest hall. All footprints, stats and gameplay remain unchanged.'],
+  },
+  {
     v: 35,
     date: 'Nov 18, 2026',
     title: 'Original Stinger Statue restored',
