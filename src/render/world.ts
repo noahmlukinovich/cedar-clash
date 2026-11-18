@@ -359,11 +359,11 @@ function drawDynamic(ctx: Ctx, a: BuildingDrawArgs, size: number): void {
     case 'safetycart': {
       const blink = Math.floor(a.t * 4) % 2;
       const [x, y] = P(-0.1, 0, 56);
-      ctx.fillStyle = blink ? '#ff3b3b' : '#4a7dff';
+      ctx.fillStyle = blink ? '#d8efff' : '#4a7dff';
       ctx.beginPath();
       ctx.arc(x - 5, y, 3, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = blink ? '#4a7dff' : '#ff3b3b';
+      ctx.fillStyle = blink ? '#4a7dff' : '#d8efff';
       ctx.beginPath();
       ctx.arc(x + 5, y, 3, 0, Math.PI * 2);
       ctx.fill();

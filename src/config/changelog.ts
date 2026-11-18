@@ -10,6 +10,33 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 31,
+    date: 'Nov 18, 2026',
+    title: 'Campus colors for the troop roster',
+    items: ['Ten familiar troops wear refreshed navy-and-gold campus uniforms, with a Cedarville-style GO Team van. Their stats, abilities and costs are unchanged.'],
+  },
+  {
+    v: 30,
+    date: 'Nov 18, 2026',
+    title: 'Familiar campus landmarks',
+    items: [
+      'Business, Health Sciences, Centennial Library and Bible now have reference-inspired brick, glass and flat-roof designs.',
+      'Dixon Ministry Center, Admissions, the Hive and Cedar Sprayer also receive reference-inspired visual updates.',
+      'The Stinger Statue now has a polished chrome sculpture and a silver-lettered campus banner.',
+      'Rinnova now has a brick cafe exterior, cream trim, warm windows and a navy-and-gold patio umbrella.',
+      'The coffee cart receives wood slats, espresso equipment, a gold badge, patio tables and colorful canopy lights.',
+      'Residence halls have twin glazed stair bays, cream-edged gables and red-brick facades.',
+      'Bible Prof Tower gains square stone battlements, a faceted glowing inset, a ladder and a rooftop lectern.',
+      'This is an appearance-only refresh: hit points, occupied tiles, costs, training and every other gameplay stat stay the same.',
+    ],
+  },
+  {
+    v: 29,
+    date: 'Nov 18, 2026',
+    title: 'Campus Safety gets an SUV',
+    items: ['The Campus Safety Cart now sports a black security SUV, blue light bar, enclosed cabin and silver wheels. Same parking-ticket power, new look.'],
+  },
+  {
     v: 28,
     date: 'Nov 18, 2026',
     title: 'New troop: the Thesis Defender',

@@ -493,17 +493,17 @@ export function drawBuilding(ctx: Ctx, type: BuildingType, level: number, varian
     case 'reshall':
       return reshall(ctx, L);
     case 'biblical':
-      return academic(ctx, L, C.brick, '#4a2f6b', 'BIBLE', 'book');
+      return biblicalCenter(ctx, L);
     case 'callan':
       return callan(ctx, L);
     case 'business':
-      return academic(ctx, L, '#d9cdb8', '#2f6f4f', 'BUSINESS', 'coin');
+      return businessCenter(ctx, L);
     case 'music':
       return academic(ctx, L, C.brick, '#b23a6f', 'MUSIC', 'note');
     case 'ens':
       return ens(ctx, L);
     case 'health':
-      return academic(ctx, L, '#eef0f2', C.teal, 'HEALTH', 'plus');
+      return healthCenter(ctx, L);
     case 'ssc':
       return ssc(ctx, L);
     case 'faculty':
@@ -757,20 +757,20 @@ function column(ctx: Ctx, p: number, d: number, z0: number, z1: number): void {
  */
 function dmc(ctx: Ctx, L: number): void {
   site(ctx, L, 4);
-  const hh = L <= 1 ? 26 : 40; // entrance hall wall height
-  const roof = hh + (L <= 1 ? 3 : 4);
+  const hh = 40; // entrance hall wall height
+  const roof = hh + 4;
   const fd = 0.8; // depth of the hall's front wall
 
   // 1-2. blocks behind the hall
-  if (L >= 3) {
+  if (L >= 1) {
     block45(ctx, L, rectPD(-1.0, -0.12, -0.92, -0.3), 4, 90, C.brick);
     frontGlass(ctx, -0.9, -0.24, -0.3, 52, 84, 4, 3);
-    if (L >= 4) {
+    if (L >= 1) {
       const [fx, fy] = Q(-0.9, -0.82, 94);
       flag(ctx, fx, fy, 16, L >= 6 ? C.gold : C.roofBlue);
     }
   }
-  if (L >= 5) {
+  if (L >= 1) {
     block45(ctx, L, rectPD(0.24, 1.02, -0.88, -0.3), 4, 76, C.brick);
     frontWindows(ctx, 0.34, 0.92, -0.3, 58, 70, 3, 1, 2, true);
   }
@@ -786,7 +786,7 @@ function dmc(ctx: Ctx, L: number): void {
   ];
   block45(ctx, L, hall, 4, hh, C.brick);
   // windows on the angled ends (these are ordinary tile-aligned walls)
-  if (L >= 2) {
+  if (L >= 1) {
     panes(ctx, 'L', -1.36, 0.0, 1.56, 9, hh - 5, 3, 1, 2);
     panes(ctx, 'R', -1.36, 0.0, 1.56, 9, hh - 5, 3, 1, 3);
   } else {
@@ -795,7 +795,7 @@ function dmc(ctx: Ctx, L: number): void {
   }
 
   // 4. stepped blocks standing on the hall roof
-  if (L >= 4) {
+  if (L >= 1) {
     block45(ctx, L, rectPD(-1.14, -0.46, -0.2, 0.34), roof, roof + 21, C.brick);
     frontWindows(ctx, -1.06, -0.54, 0.34, roof + 6, roof + 16, 4, 1, 0, true);
     block45(ctx, L, rectPD(0.46, 1.14, -0.2, 0.3), roof, roof + 15, C.brick);
@@ -803,13 +803,13 @@ function dmc(ctx: Ctx, L: number): void {
   }
 
   // 3. the tower: a square brick shaft with its corner toward the viewer
-  {
-    const th = L <= 1 ? roof + 18 : 100 + L * 4;
+  if (L >= 1) {
+    const th = 100 + L * 2;
     const u0 = -0.36;
     const u1 = 0.36;
     const v0 = -0.46;
     const v1 = 0.26;
-    if (L <= 1) {
+    if (L < 1) {
       box(ctx, u0 + 0.06, v0 + 0.06, u1 - 0.06, v1 - 0.06, roof, th, WOOD);
       pyramid(ctx, u0, v0, u1, v1, th, 14, C.roofBlue);
     } else {
@@ -842,15 +842,15 @@ function dmc(ctx: Ctx, L: number): void {
         face((a) => P(uc + Math.cos(a) * 0.17, v1, zc + Math.sin(a) * 8));
       }
     }
-    const [x, y] = P((u0 + u1) / 2, (v0 + v1) / 2, th + (L <= 1 ? 14 : 18));
-    const mast = L <= 1 ? 7 : 17;
+    const [x, y] = P((u0 + u1) / 2, (v0 + v1) / 2, th + 18);
+    const mast = 17;
     ctx.strokeStyle = OUT;
     ctx.lineWidth = 2.4;
     line(ctx, [x, y + 2], [x, y - mast - 6]);
     if (L >= 8) star5(ctx, x, y - mast, 9, C.gold);
     else {
       ctx.beginPath();
-      ctx.arc(x, y - mast, L <= 1 ? 3.5 : 7.5, 0, Math.PI * 2);
+      ctx.arc(x, y - mast, 7.5, 0, Math.PI * 2);
       ctx.fillStyle = L >= 6 ? C.gold : '#f7f8f5';
       ctx.fill();
       ctx.lineWidth = 2;
@@ -866,13 +866,13 @@ function dmc(ctx: Ctx, L: number): void {
   }
 
   // a small lit block stepping down at the right front
-  if (L >= 5) {
+  if (L >= 1) {
     block45(ctx, L, rectPD(0.52, 1.02, 0.3, 0.5), roof, roof + 8, C.brick);
     frontWindows(ctx, 0.58, 0.96, 0.5, roof + 1.5, roof + 6.5, 3, 1, 1, true);
   }
 
   // doors across the front of the hall
-  if (L >= 2) frontGlass(ctx, -0.68, 0.68, fd, 5, hh - 19, 9, 1, 3);
+  if (L >= 1) frontGlass(ctx, -0.68, 0.68, fd, 5, hh - 19, 9, 1, 3);
   else {
     const a = Q(-0.12, fd, 4);
     ctx.fillStyle = '#3a3346';
@@ -886,7 +886,7 @@ function dmc(ctx: Ctx, L: number): void {
 
   // 6-7. the entrance: columns, the name band, and the brick gable over the middle
   const od = fd + 0.28; // outer line of the porch
-  if (L >= 3) {
+  if (L >= 1) {
     const porch: PD[] = [
       [-0.86, od],
       [0.86, od],
@@ -899,7 +899,7 @@ function dmc(ctx: Ctx, L: number): void {
     ];
     prism(ctx, porch, 4, 6, C.stone);
     const colTop = hh - 18;
-    const n = L >= 5 ? 6 : 5;
+    const n = 6;
     column(ctx, 1.06, od - 0.3, 6, colTop);
     column(ctx, -1.06, od - 0.3, 6, colTop);
     for (let i = 0; i < n; i++) column(ctx, -0.78 + (1.56 * i) / (n - 1), od - 0.07, 6, colTop);
@@ -915,7 +915,7 @@ function dmc(ctx: Ctx, L: number): void {
     // brick gable with a cream edge
     const g0 = Q(-0.7, od, colTop + 12);
     const g1 = Q(0.7, od, colTop + 12);
-    const gt = Q(0, od, colTop + 12 + 21);
+    const gt = Q(0, od, colTop + 12 + 9);
     poly(ctx, [g0, g1, gt], C.brick, true, 2);
     ctx.strokeStyle = CREAM;
     ctx.lineWidth = 2.2;
@@ -929,13 +929,13 @@ function dmc(ctx: Ctx, L: number): void {
 
   // forecourt: round bushes at the ends of the wings, lamp posts by the entrance
   const at = (pp: number, dd: number): [number, number] => [dd + pp, dd - pp];
-  if (L >= 2) {
+  if (L >= 1) {
     for (const s of [-1, 1]) {
       const [bu, bv] = at(s * 1.66, 0.14);
       shrub(ctx, bu, bv, L >= 3);
     }
   }
-  if (L >= 3) {
+  if (L >= 1) {
     for (const s of [-1, 1]) {
       for (const [pp, dd] of [
         [1.42, 0.42],
@@ -946,7 +946,7 @@ function dmc(ctx: Ctx, L: number): void {
       }
     }
   }
-  if (L >= 4) {
+  if (L >= 1) {
     for (const s of [-1, 1]) {
       const [lu, lv] = at(s * 1.0, 0.92);
       lamp(ctx, lu, lv, true);
@@ -995,182 +995,230 @@ function shed(ctx: Ctx): void {
   ctx.stroke();
 }
 
+// Reference-inspired campus buildings. All geometry stays inside the existing 3×3 lot;
+// only rendering changes, never the footprint or any building stats.
+const CAMPUS_BRICK = '#ce8050';
+function campusBlock(ctx: Ctx, u0: number, v0: number, u1: number, v1: number, h: number, color = CAMPUS_BRICK): void {
+  box(ctx, u0, v0, u1, v1, 4, h, color);
+  ctx.strokeStyle = 'rgba(75,40,20,0.15)';
+  ctx.lineWidth = 0.6;
+  for (let z = 10; z < h - 3; z += 6) {
+    line(ctx, P(u0, v1, z), P(u1, v1, z));
+    line(ctx, P(u1, v1, z), P(u1, v0, z));
+  }
+  // Flat slate roof inside pale coping, characteristic of all four references.
+  box(ctx, u0 - 0.025, v0 - 0.025, u1 + 0.025, v1 + 0.025, h, h + 3, CREAM_LIGHT);
+  poly(ctx, [P(u0 + 0.06, v0 + 0.06, h + 3.1), P(u1 - 0.06, v0 + 0.06, h + 3.1),
+    P(u1 - 0.06, v1 - 0.06, h + 3.1), P(u0 + 0.06, v1 - 0.06, h + 3.1)], SLATE, false);
+}
+function campusSteps(ctx: Ctx, u0: number, u1: number, v: number): void {
+  for (let i = 0; i < 3; i++) box(ctx, u0, v - i * 0.09, u1, v + 0.27 - i * 0.09, 4, 5 + i * 2, CREAM);
+}
+function rooftopUnit(ctx: Ctx, u: number, v: number, h: number): void {
+  box(ctx, u, v, u + 0.31, v + 0.25, h + 3, h + 9, '#b6b9bd');
+  ctx.strokeStyle = '#565c66'; ctx.lineWidth = 0.7;
+  for (let z = h + 5; z < h + 9; z += 1.4) line(ctx, P(u + 0.04, v + 0.25, z), P(u + 0.27, v + 0.25, z));
+}
+function campusGarden(ctx: Ctx, L: number): void {
+  shrub(ctx, -1.22, 1.28, L >= 2);
+  shrub(ctx, 1.28, 0.85, L >= 2);
+  if (L >= 2) lamp(ctx, 1.3, 1.3, true);
+}
+
+function businessCenter(ctx: Ctx, L: number): void {
+  site(ctx, L, 3);
+  const h = 43 + Math.min(L, 4) * 3;
+  campusBlock(ctx, -1.22, -1.08, 1.15, 0.91, h);
+  // Long two-storey glazed facade between brick end wings.
+  glassWall(ctx, 'L', -0.76, 0.73, 0.923, 10, h - 3, 8, 4);
+  glassWall(ctx, 'R', -0.81, 0.55, 1.163, 12, h - 6, 5, 4);
+  box(ctx, -0.8, 0.90, 0.78, 1.0, h - 1, h + 3, '#343b49');
+  windowsL(ctx, -1.17, -0.83, 0.925, 12, h - 5, 2, 1);
+  // Projecting glass entrance and a small roof terrace with dark railing.
+  box(ctx, 0.12, 0.92, 0.91, 1.18, 5, 23, '#344554');
+  glassWall(ctx, 'L', 0.17, 0.87, 1.193, 8, 22, 4, 2);
+  box(ctx, 0.08, 0.88, 0.96, 1.23, 23, 26, '#454b59');
+  ctx.strokeStyle = OUT; ctx.lineWidth = 1;
+  line(ctx, P(0.1, 1.21, 32), P(0.94, 1.21, 32));
+  for (let u = 0.1; u <= 0.95; u += 0.14) line(ctx, P(u, 1.21, 26), P(u, 1.21, 32));
+  campusSteps(ctx, -0.65, -0.18, 1.05);
+  door(ctx, -0.42, 0.94, 0.3, 15, C.navy);
+  rooftopUnit(ctx, -0.6, -0.55, h);
+  if (L >= 2) rooftopUnit(ctx, 0.45, -0.6, h);
+  campusGarden(ctx, L);
+  const [x, y] = P(-0.15, 0.94, h - 8);
+  plaque(ctx, x, y, 'BUSINESS', 5.5);
+}
+
+function healthCenter(ctx: Ctx, L: number): void {
+  site(ctx, L, 3);
+  const h = 61 + Math.min(L, 3) * 3;
+  campusBlock(ctx, -1.2, -1.15, 1.15, 0.88, h);
+  panes(ctx, 'L', -1.09, -0.22, 0.9, 11, h - 5, 3, 3);
+  panes(ctx, 'R', -1.02, 0.76, 1.17, 11, h - 6, 4, 3);
+  // Pale projecting wing, with its three-storey glass corner and tall stairwell.
+  campusBlock(ctx, -0.10, 0.28, 1.0, 1.12, h - 4, '#e9d8bb');
+  glassWall(ctx, 'L', 0.04, 0.91, 1.133, 12, h - 10, 5, 6);
+  glassWall(ctx, 'R', 0.35, 1.05, 1.013, 12, h - 10, 3, 6);
+  campusBlock(ctx, -0.4, 0.65, -0.13, 0.98, h + 5, CREAM);
+  glassWall(ctx, 'L', -0.36, -0.17, 0.994, 9, h + 2, 1, 8);
+  // Broad stone spandrel above the sheltered doors.
+  box(ctx, 0.01, 1.10, 0.95, 1.15, 24, 30, '#dfccb0');
+  door(ctx, 0.52, 1.17, 0.32, 14, C.navy);
+  campusSteps(ctx, 0.24, 0.80, 1.16);
+  rooftopUnit(ctx, -0.65, -0.7, h);
+  if (L >= 2) rooftopUnit(ctx, 0.25, -0.7, h);
+  campusGarden(ctx, L);
+  const [x, y] = P(0.5, 1.17, 27);
+  plaque(ctx, x, y, 'HEALTH', 5.5);
+}
+
 function library(ctx: Ctx, L: number): void {
   site(ctx, L, 3);
-  const h = 34 + L * 5;
-  walls(ctx, L, -1.2, -1.2, 1.2, 1.1, 4, h, C.brick);
-  if (L >= 2) panes(ctx, 'R', -1.0, 0.9, 1.2, 10, h - 6, 3, 2);
-  else windowsR(ctx, -1.0, 0.9, 1.2, 10, h - 6, 3, 2);
-  // columns porch on left face
-  box(ctx, -1.1, 1.1, 1.1, 1.35, 4, 8, C.white);
-  for (let i = 0; i < 5; i++) {
-    const u = -0.95 + i * 0.47;
-    box(ctx, u - 0.07, 1.15, u + 0.07, 1.29, 8, h - 4, C.white, { stroke: true });
-  }
-  poly(ctx, [P(-1.15, 1.35, h - 4), P(1.15, 1.35, h - 4), P(0, 1.35, h + 12)], C.white);
-  trim(ctx, L, -1.2, -1.2, 1.2, 1.1, h);
-  pyramid(ctx, -1.25, -1.25, 1.25, 1.15, h, 18 + L * 2, C.roofBlue);
-  // book sign
-  const [x, y] = P(0, 1.35, h + 2);
-  ctx.fillStyle = C.gold;
-  ctx.strokeStyle = OUT;
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(x - 10, y - 4);
-  ctx.quadraticCurveTo(x - 5, y - 8, x, y - 4);
-  ctx.quadraticCurveTo(x + 5, y - 8, x + 10, y - 4);
-  ctx.lineTo(x + 10, y + 3);
-  ctx.quadraticCurveTo(x + 5, y - 1, x, y + 3);
-  ctx.quadraticCurveTo(x - 5, y - 1, x - 10, y + 3);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-  if (L >= 4) {
-    // a clock on the roof, facing front
-    const [cx2, cy2] = P(0.55, 0.55, h + 14);
-    ctx.beginPath();
-    ctx.arc(cx2, cy2, 7, 0, Math.PI * 2);
-    ctx.fillStyle = '#fbf7ea';
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = OUT;
-    ctx.stroke();
-    ctx.lineWidth = 1.5;
-    line(ctx, [cx2, cy2], [cx2, cy2 - 4.5]);
-    line(ctx, [cx2, cy2], [cx2 + 3.2, cy2 + 1.5]);
-  }
-  if (L >= 3) finial(ctx, 0, -0.05, h + 18 + L * 2, L >= 5 ? 6 : 5);
-  levelFlags(ctx, L, 1.1, 1.0, h);
-  grounds(ctx, L, 3);
-  if (L >= 2) {
-    const [sx, sy] = P(0, 1.35, 13);
-    plaque(ctx, sx, sy, 'LIBRARY', 7);
-  }
-}
-
-function hive(ctx: Ctx, L: number): void {
-  site(ctx, L, 3, '#3b3b4a');
-  const layers = 4 + Math.min(2, Math.floor(L / 2));
-  const [x, y0] = P(0, 0, 4);
-  for (let i = 0; i < layers; i++) {
-    const r = 44 - i * (30 / layers);
-    const y = y0 - i * 12;
-    ctx.beginPath();
-    ctx.ellipse(x, y - 6, r, r * 0.55, 0, 0, Math.PI * 2);
-    ctx.fillStyle = i % 2 ? C.black : C.gold;
-    ctx.fill();
-    ctx.lineWidth = 2.2;
-    ctx.strokeStyle = OUT;
-    ctx.stroke();
-  }
-  if (L >= 2) {
-    // a band of lit windows round the second tier
-    const r = 44 - 30 / layers;
-    for (let i = 0; i < 9; i++) {
-      const a = Math.PI * (0.12 + (i * 0.76) / 8);
-      const wx = x + Math.cos(a) * r * 0.93;
-      const wy = y0 - 12 - 6 + Math.sin(a) * r * 0.55 * 0.93 - 2;
-      ctx.fillStyle = i % 3 === 1 ? '#7cc4ea' : LIT;
-      ctx.strokeStyle = OUT;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.rect(wx - 2.6, wy - 3.5, 5.2, 6);
-      ctx.fill();
-      ctx.stroke();
+  const h = 48 + Math.min(L, 8) * 3;
+  campusBlock(ctx, -1.2, -1.15, 1.12, 0.75, h);
+  // Centennial's tall recessed glass entrance, framed by a broad brick lintel.
+  glassWall(ctx, 'L', -0.91, 0.12, 0.766, 9, h - 8, 5, 5);
+  box(ctx, -1.08, 0.70, -0.92, 0.96, 4, h - 5, CAMPUS_BRICK);
+  box(ctx, 0.13, 0.70, 0.29, 0.96, 4, h - 5, CAMPUS_BRICK);
+  box(ctx, -1.09, 0.70, 0.30, 0.98, h - 9, h - 3, CAMPUS_BRICK);
+  // Low right-hand reading wing with ribbon windows.
+  campusBlock(ctx, 0.31, 0.35, 1.2, 1.11, h * 0.64);
+  glassWall(ctx, 'L', 0.41, 1.1, 1.123, 13, 25, 5, 2);
+  glassWall(ctx, 'R', 0.48, 1.01, 1.213, 13, 25, 3, 2);
+  // Tiny books visible behind the glazed entrance, rather than a generic classical roof.
+  for (let row = 0; row < 2; row++) {
+    const z = 18 + row * 12;
+    ctx.strokeStyle = CREAM; ctx.lineWidth = 1.4;
+    line(ctx, P(-0.86, 0.78, z), P(-0.04, 0.78, z));
+    for (let j = 0; j < 11; j++) {
+      ctx.strokeStyle = ['#f5c32c', '#ce8050', '#355d7e'][j % 3]; ctx.lineWidth = 1.7;
+      line(ctx, P(-0.84 + j * 0.073, 0.78, z + 1), P(-0.84 + j * 0.073, 0.78, z + 6));
     }
   }
-  // door hole
-  ctx.fillStyle = '#1a1420';
-  ctx.beginPath();
-  ctx.ellipse(x - 4, y0 - 6, 9, 11, 0, 0, Math.PI * 2);
-  ctx.fill();
-  // name on top
-  plaque(ctx, x, y0 - layers * 12 - 18, 'THE HIVE', 9);
-  // foam finger
-  ctx.save();
-  ctx.translate(x + 34, y0 - 20);
-  ctx.rotate(0.3);
-  ctx.fillStyle = C.gold;
-  ctx.strokeStyle = OUT;
-  ctx.lineWidth = 1.6;
-  ctx.fillRect(-5, -22, 10, 26);
-  ctx.strokeRect(-5, -22, 10, 26);
-  ctx.fillRect(-2, -34, 5, 14);
-  ctx.strokeRect(-2, -34, 5, 14);
-  ctx.restore();
-  if (L >= 2) {
-    // pennants strung off the top, more with each level
-    for (let i = 0; i < Math.min(4, L); i++) {
-      const px = x - 30 - i * 9;
-      const py = y0 - layers * 12 + 14 + i * 9;
-      ctx.beginPath();
-      ctx.moveTo(px, py);
-      ctx.lineTo(px + 8, py + 1);
-      ctx.lineTo(px + 3, py + 9);
-      ctx.closePath();
-      ctx.fillStyle = i % 2 ? C.navy : C.gold;
-      ctx.fill();
-      ctx.strokeStyle = OUT;
-      ctx.lineWidth = 1.2;
-      ctx.stroke();
-    }
-  }
+  door(ctx, -0.2, 0.99, 0.28, 17, C.navy);
+  campusSteps(ctx, -0.55, 0.08, 1.10);
+  rooftopUnit(ctx, -0.25, -0.7, h);
+  campusGarden(ctx, L);
+  if (L >= 4) lamp(ctx, -1.25, 1.21, true);
+  const [x, y] = P(0.77, 1.13, h * 0.64 - 8);
+  plaque(ctx, x, y, 'LIBRARY', 5.5);
 }
 
-/** Admissions: a welcome office with a columned, pedimented front that gets grander by level. */
-function admissions(ctx: Ctx, L: number): void {
+function biblicalCenter(ctx: Ctx, L: number): void {
   site(ctx, L, 3);
-  const h = 28 + L * 4;
-  walls(ctx, L, -1.1, -1.1, 0.9, 0.85, 4, h, C.brick);
-  if (L >= 2) {
-    panes(ctx, 'L', -1.02, -0.5, 0.85, 9, h - 6, 1, L >= 4 ? 2 : 1, 2);
-    panes(ctx, 'L', 0.3, 0.82, 0.85, 9, h - 6, 1, L >= 4 ? 2 : 1, 2);
-    panes(ctx, 'R', -1.0, 0.75, 0.9, 9, h - 6, 3, L >= 4 ? 2 : 1);
-  } else {
-    windowsL(ctx, -1.0, 0.8, 0.85, 8, h - 6, 3, 1);
-    windowsR(ctx, -1.0, 0.8, 0.9, 8, h - 6, 2, 1);
-  }
-  trim(ctx, L, -1.1, -1.1, 0.9, 0.85, h);
-  flatRoof(ctx, L, -1.1, -1.1, 0.9, 0.85, h);
-  const ph = Math.min(h - 6, 24);
-  entry(ctx, L, -0.1, 0.85, 0.42, ph - 6, C.navy);
-  if (L >= 2) {
-    colonnade(ctx, -0.5, 0.3, 0.85, 0.38, ph, L >= 4 ? 4 : 2);
-    // pediment over the columns
-    poly(ctx, [P(-0.6, 1.23, ph + 5), P(0.4, 1.23, ph + 5), P(-0.1, 1.23, ph + 19)], CREAM, true, 1.8);
-    if (L >= 4) {
-      const [gx, gy] = P(-0.1, 1.23, ph + 10);
-      star5(ctx, gx, gy, 4, C.gold);
+  const h = 46 + Math.min(L, 4) * 3;
+  campusBlock(ctx, -1.2, -1.13, 1.15, 0.91, h);
+  panes(ctx, 'L', -1.10, -0.63, 0.93, 12, h - 7, 2, 2);
+  panes(ctx, 'R', -1.03, 0.79, 1.17, 12, h - 7, 4, 2);
+  // Two-storey glazed portico and slim pale columns, like the BTS reference.
+  glassWall(ctx, 'L', -0.52, 0.90, 0.94, 9, h - 3, 6, 4);
+  campusSteps(ctx, -0.56, 0.93, 1.10);
+  for (let u = -0.55; u < 1; u += 0.47) box(ctx, u - 0.035, 1.09, u + 0.035, 1.17, 9, h, '#d8d3c9');
+  box(ctx, -0.63, 0.66, 0.99, 1.24, h, h + 5, '#e7ddce', { top: SLATE });
+  door(ctx, 0.31, 0.96, 0.34, 17, C.navy);
+  // Tall narrow stair glazing and rooftop lantern.
+  campusBlock(ctx, -1.17, 0.61, -0.94, 0.99, h + 9, '#c1c1bf');
+  glassWall(ctx, 'L', -1.13, -0.98, 1.003, 9, h + 5, 1, 8);
+  box(ctx, -0.27, -0.58, 0.26, -0.08, h + 3, h + 13, CREAM);
+  glassWall(ctx, 'L', -0.23, 0.22, -0.067, h + 5, h + 11, 3, 1);
+  glassWall(ctx, 'R', -0.53, -0.12, 0.273, h + 5, h + 11, 2, 1);
+  // A small reflecting strip inside the lot (not an extra occupied tile).
+  poly(ctx, [P(-0.60, 1.36, 4.2), P(0.76, 1.36, 4.2), P(0.76, 1.45, 4.2), P(-0.60, 1.45, 4.2)], C.water, false);
+  campusGarden(ctx, L);
+  const [x, y] = P(-0.12, 1.25, h + 2);
+  plaque(ctx, x, y, 'BIBLE', 5.5);
+}
+
+/** Two glazed circular floors under the Hive's broad yellow eaves. */
+function hive(ctx: Ctx, L: number): void {
+  site(ctx, L, 3, C.stone);
+  const [x, y] = P(0, 0, 4);
+  const tier = (r: number, base: number, h: number): void => {
+    const ry = r * 0.48;
+    ctx.fillStyle = '#263749'; ctx.strokeStyle = OUT; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(x, y - base, r, ry, 0, 0, Math.PI);
+    ctx.lineTo(x - r, y - base - h);
+    ctx.ellipse(x, y - base - h, r, ry, 0, Math.PI, Math.PI * 2);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // Curved panes follow the facade; narrower at the sides.
+    for (let i = 0; i < 12; i++) {
+      const a = Math.PI * i / 12, b = Math.PI * (i + 1) / 12;
+      const xa = x + Math.cos(a) * r, xb = x + Math.cos(b) * r;
+      const ya = y - base + Math.sin(a) * ry, yb = y - base + Math.sin(b) * ry;
+      poly(ctx, [[xa-1,ya-4],[xb+1,yb-4],[xb+1,yb-h+4],[xa-1,ya-h+4]], i === 6 ? '#263749' : i % 3 === 0 ? '#edac31' : '#ffc84f', true, 1.2);
+      ctx.strokeStyle = '#354357'; ctx.lineWidth = 2;
+      line(ctx,[xa,ya-h/2],[xb,yb-h/2]);
     }
-  }
-  levelFlags(ctx, L, 0.85, 0.8, h + 5);
-  grounds(ctx, L, 3);
-  const [x, y] = P(-0.1, L >= 2 ? 1.23 : 0.85, L >= 2 ? ph + 1 : h - 6);
-  plaque(ctx, x, y + (L >= 2 ? 4 : 0), 'ADMISSIONS', 7, L >= 2);
+    ctx.beginPath();ctx.ellipse(x,y-base-h,r+4,ry+2,0,0,Math.PI*2);
+    ctx.fillStyle = '#ffd339';ctx.fill();ctx.strokeStyle=OUT;ctx.lineWidth=2;ctx.stroke();
+    ctx.beginPath();ctx.ellipse(x,y-base-h-5,r-4,ry-3,0,0,Math.PI*2);
+    ctx.fillStyle='#ffe46c';ctx.fill();ctx.stroke();
+  };
+  tier(57,0,37);
+  tier(41,43,24);
+  plaque(ctx,x,y-91,'THE HIVE',11);
+  for (const u of [-0.8,-0.35,0.1,0.55]) shrub(ctx,u,1.25,false);
+  tree(ctx,-1.22,0.35,0.65); tree(ctx,1.2,-0.35,0.65);
+  if (L >= 2) lamp(ctx,-1.2,0.95,true);
+}
+
+/** Reference-inspired brick admissions hall, with a four-column pedimented entrance. */
+function admissions(ctx: Ctx, L: number): void {
+  site(ctx,L,3);
+  tree(ctx,-1.23,0.35,0.66);tree(ctx,1.2,-0.45,0.65);
+  const h=55;
+  campusBlock(ctx,-1.05,-1.05,1.05,0.78,h);
+  panes(ctx,'L',-0.95,0.95,0.79,31,47,4,1,0);
+  panes(ctx,'R',-0.9,0.65,1.06,12,47,3,2,0);
+  entry(ctx,2,0,0.8,0.5,25,C.navy);
+  campusSteps(ctx,-0.73,0.73,1.05);
+  colonnade(ctx,-0.7,0.7,0.8,0.42,35,4);
+  box(ctx,-0.8,1.15,0.8,1.28,35,48,CREAM);
+  poly(ctx,[P(-0.84,1.29,48),P(0.84,1.29,48),P(0,1.29,66)],CREAM,true,2);
+  poly(ctx,[P(-0.62,1.3,50),P(0.62,1.3,50),P(0,1.3,62)],'#d7a373',true,1);
+  const [x,y]=P(0,1.3,41);
+  plaque(ctx,x,y,'ADMISSIONS',7,true);
+  shrub(ctx,1.15,0.9,false);
+  if(L>=2) lamp(ctx,-1.12,1.1,true);
 }
 
 function coffeeCart(ctx: Ctx, L: number): void {
-  site(ctx, L, 3, '#c8a77e');
+  site(ctx, L, 3, '#a5a7a8');
+  tree(ctx,1.15,-0.9,0.65);
+  shrub(ctx,-1.15,0.2,false);
   // cart body
-  box(ctx, -0.8, -0.5, 0.8, 0.6, 12, 34, '#5a3a24');
-  poly(ctx, [P(-0.8, 0.6, 14), P(0.8, 0.6, 14), P(0.8, 0.6, 30), P(-0.8, 0.6, 30)], '#7b4d2c', true);
+  box(ctx, -0.8, -0.5, 0.8, 0.6, 12, 34, '#c89d70');
+  poly(ctx, [P(-0.8, 0.6, 14), P(0.8, 0.6, 14), P(0.8, 0.6, 30), P(-0.8, 0.6, 30)], '#d5b187', true);
+  // Narrow wooden slats and a dark espresso counter wrap both visible sides.
+  ctx.strokeStyle='#76583e';ctx.lineWidth=0.8;
+  for(let i=0;i<18;i++){const u=-0.76+i*1.52/17;line(ctx,P(u,0.61,14),P(u,0.61,32));}
+  for(let i=0;i<12;i++){const v=-0.46+i*1.02/11;line(ctx,P(0.81,v,14),P(0.81,v,32));}
+  box(ctx,-0.84,-0.54,0.84,0.64,33,36,'#292c30');
+  box(ctx,-0.83,0.6,0.83,0.65,12,15,'#e4c39b');
   // wheels
   for (const u of [-0.5, 0.5]) {
     const [x, y] = P(u, 0.62, 10);
     ctx.beginPath();
-    ctx.arc(x, y, 8, 0, Math.PI * 2);
-    ctx.fillStyle = '#333';
+    ctx.arc(x, y, 4.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#883d51';
     ctx.fill();
     ctx.strokeStyle = OUT;
     ctx.lineWidth = 2;
     ctx.stroke();
     ctx.fillStyle = '#aaa';
     ctx.beginPath();
-    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.arc(x, y, 1.8, 0, Math.PI * 2);
     ctx.fill();
   }
   // espresso machine
-  box(ctx, -0.3, -0.3, 0.3, 0.2, 34, 48, '#c0c6cc');
+  box(ctx,-0.6,-0.3,-0.08,0.12,36,49,'#c0c6cc');
+  box(ctx,0.25,-0.23,0.66,0.15,36,45,'#c7ccd0');
+  // Machine display, dispensing heads and stacked takeaway cups.
+  poly(ctx,[P(-0.53,0.13,44),P(-0.2,0.13,44),P(-0.2,0.13,47),P(-0.53,0.13,47)],'#35494d',true,0.8);
+  for(const u of [-0.48,-0.26]) cylinder(ctx,u,0.25,0.055,36,4,'#f5e7ce','#6c4730');
+  for(const u of [0.18,0.68]) cylinder(ctx,u,0.39,0.055,36,7,'#e9d8be','#fff2de');
   // umbrella
   const [ux, uy] = P(0, 0, 48);
   ctx.strokeStyle = OUT;
@@ -1179,7 +1227,7 @@ function coffeeCart(ctx: Ctx, L: number): void {
   ctx.moveTo(ux, uy);
   ctx.lineTo(ux, uy - 30);
   ctx.stroke();
-  const ur = 52 + L * 3;
+  const ur = 58;
   for (let i = 0; i < 6; i++) {
     const a0 = Math.PI + (i * Math.PI) / 6;
     const a1 = Math.PI + ((i + 1) * Math.PI) / 6;
@@ -1193,22 +1241,13 @@ function coffeeCart(ctx: Ctx, L: number): void {
     ctx.lineWidth = 1.8;
     ctx.stroke();
   }
-  // cup sign
-  const [cx, cy] = P(-0.2, 0.6, 26);
-  ctx.fillStyle = C.white;
-  ctx.strokeStyle = OUT;
-  ctx.lineWidth = 1.6;
-  ctx.beginPath();
-  ctx.moveTo(cx - 6, cy - 8);
-  ctx.lineTo(cx + 6, cy - 8);
-  ctx.lineTo(cx + 4, cy + 6);
-  ctx.lineTo(cx - 4, cy + 6);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-  ctx.fillStyle = C.coffee;
-  ctx.fillRect(cx - 5, cy - 3, 10, 3);
-  if (L >= 2) {
+  // Round gold Rinnova badge on the wood-slat face.
+  const [cx,cy]=P(-0.2,0.62,24);
+  ctx.beginPath();ctx.ellipse(cx,cy,12,10,0.45,0,Math.PI*2);
+  ctx.fillStyle='#e7ad31';ctx.fill();ctx.strokeStyle='#fff1b2';ctx.lineWidth=1.6;ctx.stroke();
+  ctx.save();ctx.translate(cx,cy);ctx.transform(1,0.5,0,1,0,0);
+  ctx.fillStyle='#fff4c8';ctx.font='700 4.8px system-ui,sans-serif';ctx.textAlign='center';ctx.fillText('RINNOVA',0,1);ctx.restore();
+  if (L >= 1) {
     // chalk menu board
     const [mx, my] = P(-1.15, 1.2, 4);
     ctx.fillStyle = '#2d4a3a';
@@ -1226,7 +1265,7 @@ function coffeeCart(ctx: Ctx, L: number): void {
     ctx.lineWidth = 1;
     for (const dy of [-15, -11, -7]) line(ctx, [mx - 3, my + dy], [mx + 3, my + dy]);
   }
-  if (L >= 3) {
+  if (L >= 1) {
     // bistro table and stools
     const [tx, ty] = P(1.05, 1.05, 4);
     ctx.strokeStyle = OUT;
@@ -1265,7 +1304,7 @@ function coffeeCart(ctx: Ctx, L: number): void {
       }
     };
     brolly(tx, ty, C.gold, C.roofBlue);
-    if (L >= 5) {
+    if (L >= 1) {
       const [t2x, t2y] = P(0.15, 1.2, 4);
       line(ctx, [t2x, t2y], [t2x, t2y - 10]);
       ctx.beginPath();
@@ -1277,7 +1316,7 @@ function coffeeCart(ctx: Ctx, L: number): void {
       brolly(t2x, t2y, C.roofBlue, C.gold);
     }
   }
-  if (L >= 4) {
+  if (L >= 1) {
     // string lights from the umbrella pole
     const [lx, ly] = P(0, 0, 48);
     ctx.strokeStyle = OUT;
@@ -1351,55 +1390,58 @@ function registrar(ctx: Ctx, L: number): void {
   grounds(ctx, L, 3);
 }
 
+/** Brick cafe, cream cornice, warm shopfront and navy/gold patio umbrella. */
 function rinnova(ctx: Ctx, L: number): void {
-  site(ctx, L, 3);
-  const h = 30 + L * 4;
-  // coffee tank in back (fill drawn dynamically)
-  if (L >= 3) cylinder(ctx, -0.72, -0.95, 0.4, 4, h + 10 + L * 3, '#c8ccd2', '#9aa0a8'); // second silo
-  cylinder(ctx, 0.1, -0.9, 0.62, 4, h + 22 + L * 3, '#c8ccd2', '#9aa0a8');
-  walls(ctx, L, -1.15, -0.4, 1.1, 1.05, 4, h, L >= 2 ? C.brick : '#3d3a44');
-  if (L >= 2) {
-    // lit shop windows either side of the door
-    glassWall(ctx, 'L', -1.0, -0.3, 1.05, 6, h - 14, 3, 1);
-    glassWall(ctx, 'L', 0.3, 0.98, 1.05, 6, h - 14, 3, 1);
-    door(ctx, 0, 1.05, 0.4, h - 14, '#2a2830');
-    panes(ctx, 'R', -0.3, 0.95, 1.1, 8, h - 6, 2, 1, 2);
-  } else windowsL(ctx, -1.05, 1.0, 1.05, 6, h - 4, 4, 1, '#ffd890');
-  // awning
-  poly(ctx, [P(-1.15, 1.05, h - 2), P(1.1, 1.05, h - 2), P(1.1, 1.35, h - 12), P(-1.15, 1.35, h - 12)], '#e4572e');
-  for (let i = 0; i < 6; i++) {
-    const u = -1.15 + (i + 0.5) * 0.375;
-    poly(ctx, [P(u - 0.09, 1.05, h - 2), P(u + 0.09, 1.05, h - 2), P(u + 0.09, 1.35, h - 12), P(u - 0.09, 1.35, h - 12)], C.white, false);
+  site(ctx,L,3);
+  // Keep this main tank's position and height in sync with the existing live fill gauge.
+  const h=30+L*4;
+  cylinder(ctx,-0.72,-0.95,0.4,4,h+10+L*3,'#c8ccd2','#9aa0a8');
+  cylinder(ctx,0.1,-0.9,0.62,4,h+22+L*3,'#c8ccd2','#9aa0a8');
+  shrub(ctx,-1.2,0.25,false);
+  campusBlock(ctx,-1.1,-0.35,1.05,0.85,h);
+  // Tall amber shop windows, with a double glass door in the middle.
+  panes(ctx,'L',-0.98,0.93,0.86,6,h-5,5,1,1);
+  for(const u of [-0.04,0.15]) {
+    poly(ctx,[P(u,0.88,7),P(u+0.14,0.88,7),P(u+0.14,0.88,h-12),P(u,0.88,h-12)],'#ffd477',true,1.3);
   }
-  if (L >= 2) flatRoof(ctx, L, -1.15, -0.4, 1.1, 1.05, h, false);
-  else box(ctx, -1.15, -0.4, 1.1, 1.05, h, h + 4, '#2a2830');
-  if (L >= 4) {
-    // steam off the roaster
-    const [px, py] = P(-0.7, 0.3, h + 4);
-    ctx.fillStyle = 'rgba(255,255,255,0.75)';
-    for (const [dx, dy, r] of [
-      [0, -6, 4],
-      [4, -13, 5],
-      [-1, -21, 6],
-    ]) {
-      ctx.beginPath();
-      ctx.arc(px + dx, py + dy, r, 0, Math.PI * 2);
-      ctx.fill();
-    }
+  ctx.strokeStyle='#dce2e5';ctx.lineWidth=1.6;
+  for(const u of [0.08,0.17]) line(ctx,P(u,0.9,12),P(u,0.9,19));
+  panes(ctx,'R',-0.18,0.65,1.06,10,h-9,2,2,1);
+  for(const [u,v] of [[-1.1,0.8],[0.96,0.8],[0.96,-0.35]]) box(ctx,u,v,u+0.1,v+0.1,4,h,CREAM);
+  // Dark fascia replaces the old red-striped awning.
+  box(ctx,-1.06,0.9,1,1.01,h-1,h+12,'#353e47');
+  const [sx,sy]=P(0,1.02,h+5);
+  ctx.fillStyle='#d5b85d';ctx.font='700 9px "Trebuchet MS",system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.save();ctx.translate(sx,sy);ctx.transform(1,0.5,0,1,0,0);ctx.fillText('RINNOVA',0,0);ctx.restore();ctx.textBaseline='alphabetic';
+  // Vent and restrained steam, kept within the original sprite bounds.
+  cylinder(ctx,0.55,0.1,0.1,h+4,5,'#bbc1c7','#40434a');
+  const [vx,vy]=P(0.55,0.1,h+10);
+  ctx.fillStyle='rgba(255,255,255,0.75)';
+  for(const [dx,dy,r] of [[0,-2,3],[3,-8,4],[1,-15,4]]) {ctx.beginPath();ctx.arc(vx+dx,vy+dy,r,0,Math.PI*2);ctx.fill();}
+  shrub(ctx,1.2,0.15,false);
+  // Small bistro setting sits inside the existing three-tile lot.
+  const [tx,ty]=P(0.45,1.3,4);
+  ctx.strokeStyle=OUT;ctx.lineWidth=2;
+  line(ctx,[tx,ty],[tx,ty-25]);
+  ctx.beginPath();ctx.ellipse(tx,ty-6,9,4,0,0,Math.PI*2);ctx.fillStyle='#a58b62';ctx.fill();ctx.stroke();
+  for(const dx of [-12,12]){
+    ctx.fillStyle='#8e7150';ctx.fillRect(tx+dx-3,ty-11,6,7);ctx.strokeRect(tx+dx-3,ty-11,6,7);
+    line(ctx,[tx+dx-3,ty-4],[tx+dx-3,ty+3]);line(ctx,[tx+dx+3,ty-4],[tx+dx+3,ty+3]);
   }
-  levelFlags(ctx, L, 1.05, 1.0, h + 4);
-  grounds(ctx, L, 3);
-  const [sx, sy] = P(0, 1.2, h + 12);
-  plaque(ctx, sx, sy, 'RINNOVA', 8);
+  for(let i=0;i<6;i++){
+    const a=i*Math.PI/3,b=(i+1)*Math.PI/3;
+    poly(ctx,[[tx,ty-30],[tx+Math.cos(a)*15,ty-21+Math.sin(a)*6],[tx+Math.cos(b)*15,ty-21+Math.sin(b)*6]],i%2?'#e6bb58':'#27567e',true,1.2);
+  }
 }
 
 /** Residence hall: a long slate-roofed hall with gabled bays on the front, taller with each upgrade. */
 function reshall(ctx: Ctx, L: number): void {
   site(ctx, L, 4);
-  const floors = 2 + Math.min(3, Math.floor((L + 1) / 2));
+  tree(ctx,-1.72,1.1,0.7);
+  const floors = 3 + (L >= 5 ? 1 : 0);
   const h = 14 + floors * 15;
-  walls(ctx, L, -1.7, -1.4, 1.6, 1.2, 4, h, C.brick);
-  if (L >= 2) {
+  walls(ctx, 2, -1.7, -1.4, 1.6, 1.2, 4, h, C.brick);
+  if (L >= 1) {
     panes(ctx, 'L', -0.55, 0.45, 1.2, 8, h - 4, 2, floors);
     panes(ctx, 'R', -1.3, 1.1, 1.6, 8, h - 4, 4, floors);
   } else {
@@ -1408,31 +1450,25 @@ function reshall(ctx: Ctx, L: number): void {
   }
   trim(ctx, L, -1.7, -1.4, 1.6, 1.2, h);
   gable(ctx, -1.8, -1.5, 1.7, 1.3, h, 22, SLATE);
-  roofTop(ctx, L, 0.0, -0.1, h + 22);
-  if (L >= 2) {
+  box(ctx,-0.1,-0.2,0.2,0.1,h+16,h+25,CREAM);
+  if (L >= 1) {
     // gabled bays standing proud of the front
     for (const [a, b] of [
       [-1.55, -0.65],
       [0.55, 1.45],
     ]) {
-      walls(ctx, L, a, 1.2, b, 1.42, 4, h, C.brick);
-      panes(ctx, 'L', a + 0.06, b - 0.06, 1.42, 8, h - 4, 2, floors, 4);
+      walls(ctx, 2, a, 1.2, b, 1.42, 4, h, C.brick);
+      glassWall(ctx, 'L', a + 0.13, b - 0.13, 1.43, 7, h - 2, 2, floors * 2);
+      box(ctx,a+0.09,1.44,a+0.14,1.46,5,h,CREAM);
+      box(ctx,b-0.14,1.44,b-0.09,1.46,5,h,CREAM);
       gable(ctx, a - 0.07, 1.0, b + 0.07, 1.48, h, 17, SLATE, 'v');
       poly(ctx, [P(a - 0.07, 1.48, h), P(b + 0.07, 1.48, h), P((a + b) / 2, 1.48, h + 17)], CREAM, true, 1.8);
-      if (L >= 4) {
-        const [ox, oy] = P((a + b) / 2, 1.48, h + 6);
-        ctx.beginPath();
-        ctx.arc(ox, oy, 3, 0, Math.PI * 2);
-        ctx.fillStyle = L >= 5 ? C.gold : C.glass;
-        ctx.fill();
-        ctx.lineWidth = 1.3;
-        ctx.strokeStyle = OUT;
-        ctx.stroke();
-      }
+      poly(ctx,[P(a+0.12,1.49,h+3),P(b-0.12,1.49,h+3),P((a+b)/2,1.49,h+13)],'#3b4350',true,1);
+
     }
   }
   entry(ctx, L, -0.05, 1.2, 0.5, 16, C.navy);
-  if (L >= 2) {
+  if (L >= 1) {
     // bike rack out front
     const [bx, by] = P(-0.35, 1.8, 4);
     ctx.strokeStyle = OUT;
@@ -1445,6 +1481,8 @@ function reshall(ctx: Ctx, L: number): void {
   }
   levelFlags(ctx, L, 1.55, 1.15, h);
   grounds(ctx, L, 4);
+  tree(ctx,1.75,0.4,0.65);
+  shrub(ctx,0.8,1.72,false);
 }
 
 function academic(ctx: Ctx, L: number, wallColor: string, accent: string, label: string, icon: 'book' | 'plus' | 'coin' | 'note'): void {
@@ -1891,169 +1929,149 @@ function safetyCart(ctx: Ctx, L: number): void {
     ctx.lineTo(b[0], b[1]);
     ctx.stroke();
   }
-  // cart body
-  box(ctx, -0.8, -0.45, 0.8, 0.45, 10, 24, C.white);
-  poly(ctx, [P(-0.8, 0.45, 14), P(0.8, 0.45, 14), P(0.8, 0.45, 19), P(-0.8, 0.45, 19)], C.roofBlue, true, 1.4);
-  // roof posts
-  ctx.strokeStyle = OUT;
-  ctx.lineWidth = 2;
-  for (const [u, v] of [
-    [-0.7, 0.4],
-    [0.4, 0.4],
-    [0.4, -0.4],
-  ] as [number, number][]) {
-    const a = P(u, v, 24);
-    const b = P(u, v, 46);
-    ctx.beginPath();
-    ctx.moveTo(a[0], a[1]);
-    ctx.lineTo(b[0], b[1]);
-    ctx.stroke();
+  // Enclosed campus-security SUV. Keep the original footprint and light-bar
+  // anchor so thumbnails, village art and raid effects share the same vehicle.
+  const body = '#272d39';
+  const trim = '#aab3c1';
+  box(ctx, -1.02, -0.48, 1.02, 0.48, 12, 29, body);
+  // Sloping windshield, tall cabin and short hood (front is +u).
+  poly(ctx, [P(-0.98, 0.48, 29), P(0.5, 0.48, 29), P(0.2, 0.42, 49), P(-0.82, 0.42, 49)], body);
+  poly(ctx, [P(0.5, -0.48, 29), P(0.5, 0.48, 29), P(0.2, 0.42, 49), P(0.2, -0.42, 49)], '#18354c');
+  poly(ctx, [P(-0.82, -0.42, 49), P(0.2, -0.42, 49), P(0.2, 0.42, 49), P(-0.82, 0.42, 49)], '#3b4352');
+  // Window openings and thick pillars read clearly at the normal game scale.
+  for (const [u0, u1] of [[-0.83, -0.48], [-0.42, -0.07], [-0.01, 0.27]]) {
+    poly(ctx, [P(u0, 0.485, 32), P(u1, 0.485, 32), P(Math.min(u1, 0.16), 0.43, 46), P(u0 + 0.05, 0.43, 46)], '#20445e', true, 1.4);
   }
-  box(ctx, -0.85, -0.5, 0.5, 0.5, 46, 50, C.white);
-  // light bar
-  box(ctx, -0.3, -0.25, 0.1, 0.25, 50, 55, '#ddd');
-  if (L >= 2) {
-    // red and blue lights
-    box(ctx, -0.3, 0.02, 0.1, 0.25, 55, 59, C.red);
-    box(ctx, -0.3, -0.25, 0.1, -0.02, 55, 59, C.roofBlue);
+  poly(ctx, [P(0.47, -0.38, 32), P(0.47, 0.38, 32), P(0.23, 0.34, 45), P(0.23, -0.34, 45)], '#295672', true, 1.2);
+  poly(ctx, [P(0.46, -0.3, 33), P(0.46, -0.12, 33), P(0.24, 0.2, 44), P(0.24, 0.03, 44)], 'rgba(154,210,237,0.22)', false);
+  // White side sweep, door seams and handles.
+  poly(ctx, [P(-0.98, 0.5, 29), P(0.48, 0.5, 29), P(0.76, 0.5, 25), P(-0.98, 0.5, 25)], C.white, false);
+  ctx.strokeStyle = '#697585'; ctx.lineWidth = 0.8;
+  for (const u of [-0.44, 0.01, 0.46]) line(ctx, P(u, 0.505, 14), P(u, 0.505, 30));
+  ctx.strokeStyle = trim; ctx.lineWidth = 1.5;
+  for (const u of [-0.36, 0.1]) line(ctx, P(u, 0.515, 28), P(u + 0.12, 0.515, 28));
+  // Side lettering follows the body perspective; no external logo assets.
+  const [tx, ty] = P(-0.84, 0.52, 21);
+  ctx.save(); ctx.translate(tx, ty); ctx.transform(1, 0.5, 0, 1, 0, 0);
+  ctx.fillStyle = C.white; ctx.font = 'bold 5px sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('SECURITY', 0, 0);
+  ctx.font = 'bold 2.6px sans-serif'; ctx.fillText('CEDARVILLE', 0, 4);
+  ctx.restore();
+  const [bx, by] = P(0.29, 0.52, 21);
+  poly(ctx, [[bx - 3, by - 5], [bx + 3, by - 2], [bx + 3, by + 3], [bx, by + 5], [bx - 3, by + 1]], C.navy, true, 0.8);
+  star5(ctx, bx, by, 2.2, C.gold);
+  // Wide front grille, bright headlights and a protective push bar.
+  poly(ctx, [P(1.035, -0.29, 17), P(1.035, 0.29, 17), P(1.035, 0.29, 26), P(1.035, -0.29, 26)], '#111722', true, 1);
+  ctx.strokeStyle = trim; ctx.lineWidth = 1;
+  for (const z of [19, 22, 25]) line(ctx, P(1.04, -0.25, z), P(1.04, 0.25, z));
+  for (const v of [-0.47, 0.31]) {
+    poly(ctx, [P(1.04, v, 22), P(1.04, v + 0.16, 22), P(1.04, v + 0.16, 28), P(1.04, v, 28)], '#f7f0c8', true, 1);
   }
+  ctx.strokeStyle = '#0f1620'; ctx.lineWidth = 3;
+  for (const v of [-0.25, 0.25]) line(ctx, P(1.09, v, 12), P(1.09, v, 26));
+  line(ctx, P(1.09, -0.32, 16), P(1.09, 0.32, 16));
+  // Red rear lamp, side mirror and silver roof rails.
+  poly(ctx, [P(-0.99, 0.51, 21), P(-0.87, 0.51, 21), P(-0.87, 0.51, 31), P(-0.99, 0.51, 31)], C.red, true, 0.8);
+  box(ctx, 0.3, 0.47, 0.46, 0.65, 31, 35, body);
+  ctx.strokeStyle = trim; ctx.lineWidth = 1.5;
+  for (const v of [-0.35, 0.35]) line(ctx, P(-0.76, v, 51), P(0.14, v, 51));
+  // Two chunky tires with silver hubs and five spokes.
+  for (const u of [-0.68, 0.68]) {
+    const [x, y] = P(u, 0.52, 12);
+    ctx.save(); ctx.translate(x, y); ctx.transform(1, 0.5, 0, 1, 0, 0);
+    ctx.beginPath(); ctx.ellipse(0, 0, 7.5, 10, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#141923'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(0, 0, 4.7, 6.8, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#697585'; ctx.fill(); ctx.strokeStyle = trim; ctx.lineWidth = 1.4; ctx.stroke();
+    for (let i = 0; i < 5; i++) {
+      const t = i * Math.PI * 2 / 5;
+      line(ctx, [0, 0], [Math.cos(t) * 4, Math.sin(t) * 6]);
+    }
+    ctx.restore();
+  }
+  box(ctx, -0.3, -0.25, 0.1, 0.25, 50, 54, '#151e2b');
+  box(ctx, -0.28, -0.24, 0.08, -0.04, 54, 58, C.roofBlue);
+  box(ctx, -0.28, 0.04, 0.08, 0.24, 54, 58, '#5799ee');
   if (L >= 3) {
-    // whip antenna with a pennant
-    const [ax, ay] = P(0.42, -0.42, 50);
-    ctx.strokeStyle = OUT;
-    ctx.lineWidth = 1.5;
-    line(ctx, [ax, ay], [ax + 2, ay - 26]);
-    ctx.fillStyle = L >= 5 ? C.gold : C.orange;
-    ctx.beginPath();
-    ctx.moveTo(ax + 2, ay - 26);
-    ctx.lineTo(ax + 12, ay - 22);
-    ctx.lineTo(ax + 2, ay - 18);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
+    ctx.strokeStyle = OUT; ctx.lineWidth = 1;
+    line(ctx, P(-0.68, -0.28, 50), P(-0.68, -0.28, 58));
   }
-  if (L >= 4) {
-    // traffic cones by the parking lines
-    for (const u of [-1.15, 1.15]) {
-      const [cx2, cy2] = P(u, 1.0, 4);
-      ctx.beginPath();
-      ctx.moveTo(cx2 - 4, cy2);
-      ctx.lineTo(cx2, cy2 - 11);
-      ctx.lineTo(cx2 + 4, cy2);
-      ctx.closePath();
-      ctx.fillStyle = C.orange;
-      ctx.fill();
-      ctx.strokeStyle = OUT;
-      ctx.lineWidth = 1.3;
-      ctx.stroke();
-    }
-  }
-  // wheels
-  for (const u of [-0.55, 0.55]) {
-    const [x, y] = P(u, 0.47, 9);
-    ctx.beginPath();
-    ctx.ellipse(x, y, 6, 7, 0, 0, Math.PI * 2);
-    ctx.fillStyle = '#222';
-    ctx.fill();
-    ctx.strokeStyle = OUT;
-    ctx.stroke();
-  }
-  // L5+ gets a gold badge
-  const [bx, by] = P(0, 0.45, 18);
-  star5(ctx, bx, by, L >= 4 ? 7 : 5, L >= 4 ? C.gold : '#c9cdd3');
+
 }
 
+/** Cedar Sprayer: a circular stone basin with jets; existing defense logic is untouched. */
 function sprayer(ctx: Ctx, L: number): void {
-  site(ctx, L, 3, C.stone);
-  cylinder(ctx, 0, 0, 1.05, 4, 14, L <= 1 ? WOOD : L >= 5 ? C.white : L >= 3 ? '#d9cfb8' : C.stoneDark, '#3fa8e0');
-  // water surface ripple
-  const [x, y] = P(0, 0, 18);
-  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.ellipse(x, y, 25, 12, 0, 0, Math.PI * 2);
-  ctx.stroke();
-  // sprinkler post
-  if (L >= 2) {
-    // a raised second basin, as on a tiered fountain
-    cylinder(ctx, 0, 0, 0.46, 18, 9, L >= 5 ? C.white : L >= 3 ? '#d9cfb8' : C.stoneDark, '#5cc4f2');
+  site(ctx,L,3,CREAM);
+  cylinder(ctx,0,0,1.08,4,14,'#bcb6b0',CREAM_LIGHT);
+  const [x,y]=P(0,0,18);
+  ctx.beginPath();ctx.ellipse(x,y,40,20,0,0,Math.PI*2);
+  ctx.fillStyle='#158aca';ctx.fill();ctx.strokeStyle=OUT;ctx.lineWidth=2;ctx.stroke();
+  ctx.beginPath();ctx.ellipse(x,y+1,35,16,0,0,Math.PI*2);
+  ctx.fillStyle='#21c5f5';ctx.fill();
+  ctx.strokeStyle='rgba(235,253,255,0.9)';ctx.lineWidth=1.7;
+  for(const r of [12,20,28]) {
+    ctx.beginPath();ctx.ellipse(x,y+1,r,r*0.46,0,0,Math.PI*2);ctx.stroke();
   }
-  cylinder(ctx, 0, 0, 0.18, 14, 22 + L * 3, L >= 3 ? '#cfc6b0' : '#7b8a95', '#9fb0bd');
-  cylinder(ctx, 0, 0, 0.32, 36 + L * 3, 8, L >= 3 ? C.gold : '#2e63b8');
-  if (L >= 2) {
-    // spray arcs: more nozzles at higher levels
-    const [nx, ny] = P(0, 0, 44 + L * 3);
-    ctx.strokeStyle = 'rgba(190,235,255,0.9)';
-    ctx.lineWidth = 1.8;
-    const arcs = Math.min(4, L);
-    for (let i = 0; i < arcs; i++) {
-      const dir = i % 2 ? 1 : -1;
-      const reach = 18 + Math.floor(i / 2) * 12;
-      ctx.beginPath();
-      ctx.moveTo(nx, ny - 4);
-      ctx.quadraticCurveTo(nx + dir * reach * 0.6, ny - 18, nx + dir * reach, ny + 6);
-      ctx.stroke();
-    }
+  // A cluster of luminous vertical jets replaces the old mechanical sprinkler.
+  for(const [dx,hh] of [[-8,30],[8,33],[-4,43],[4,45],[0,51]]) {
+    ctx.beginPath();ctx.moveTo(x+dx,y-2);ctx.quadraticCurveTo(x+dx*0.8,y-hh,x+dx*0.6,y-hh);
+    ctx.strokeStyle='#64ddff';ctx.lineWidth=5;ctx.lineCap='round';ctx.stroke();
+    ctx.strokeStyle='#efffff';ctx.lineWidth=2;ctx.stroke();
+  }
+  ctx.lineCap='butt';
+  for(const [dx,dy,r] of [[0,-50,4],[-3,-45,3],[4,-42,3]]) {
+    ctx.beginPath();ctx.arc(x+dx,y+dy,r,0,Math.PI*2);ctx.fillStyle='#f3ffff';ctx.fill();
   }
 }
 
+/** Stone Bible professor tower; the live professor stays at the original platform height. */
 function bibleProf(ctx: Ctx, L: number): void {
-  site(ctx, L, 3, C.stone);
-  const h = 48 + L * 6;
-  cylinder(ctx, 0, 0, 0.85, 4, h, C.stone, shade(C.stone, 0.15));
-  // stone bands
-  for (let i = 1; i < 4; i++) {
-    const [x, y] = P(0, 0, 4 + (h * i) / 4);
-    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.ellipse(x, y, 38, 19, 0, 0, Math.PI);
-    ctx.stroke();
+  site(ctx,L,3,'#a0a4a6');
+  const h=48+L*6; // world.ts positions the praying professor at exactly this height
+  walls(ctx,3,-0.68,-0.68,0.68,0.68,4,h,'#94948c');
+  // Broad, staggered masonry courses on both faces.
+  ctx.strokeStyle='#555650';ctx.lineWidth=1;
+  for(let z=10,row=0;z<h-4;z+=7,row++) {
+    line(ctx,P(-0.68,0.69,z),P(0.68,0.69,z));line(ctx,P(0.69,-0.68,z),P(0.69,0.68,z));
+    const k=row%2?0.28:-0.28;
+    line(ctx,P(k,0.69,z),P(k,0.69,z+7));line(ctx,P(0.69,k,z),P(0.69,k,z+7));
   }
-  // crenellations
-  for (let i = 0; i < 8; i++) {
-    const a = (i / 8) * Math.PI * 2;
-    const u = Math.cos(a) * 0.75;
-    const v = Math.sin(a) * 0.75;
-    if (u + v < -0.3) continue;
-    box(ctx, u - 0.1, v - 0.1, u + 0.1, v + 0.1, h, h + 8, C.stone);
+  // Wooden rooftop deck and pale square battlements.
+  box(ctx,-0.8,-0.8,0.8,0.8,h-3,h,'#8a7050');
+  for(const k of [-0.67,-0.22,0.23,0.68]) {
+    box(ctx,k-0.1,-0.8,k+0.1,-0.62,h,h+7,'#b6b6ad');
+    box(ctx,-0.8,k-0.1,-0.62,k+0.1,h,h+7,'#b6b6ad');
   }
-  const [wx, wy] = P(0, 0.85, h * 0.5);
-  ctx.fillStyle = L >= 3 ? '#ffe9a8' : '#4a3f5c';
-  ctx.strokeStyle = OUT;
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(wx - 6, wy + 10);
-  ctx.lineTo(wx - 6, wy - 4);
-  ctx.arc(wx, wy - 4, 6, Math.PI, 0);
-  ctx.lineTo(wx + 6, wy + 10);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-  if (L >= 2) {
-    const [bx, by] = P(0, 0.85, h * 0.2);
-    plaque(ctx, bx, by, 'BIBLE', 7);
+  // Faceted inset crystal, like the large angular stone in the supplied tower.
+  const [x,y]=P(0,0.7,h*0.63);
+  const outer:[number,number][]=[[x-17,y-11],[x-4,y-21],[x+14,y-14],[x+11,y+7],[x+3,y+21],[x-9,y+5]];
+  poly(ctx,outer,'#525b6c',true,1.8);
+  const inner:[number,number][]=[[x-8,y-7],[x+1,y-12],[x+8,y-7],[x+6,y+4],[x-2,y+7],[x-8,y+1]];
+  for(let i=0;i<6;i++) poly(ctx,[outer[i],outer[(i+1)%6],inner[(i+1)%6],inner[i]],['#7f8b9e','#adb6c1','#737e91','#9da9bc','#637086','#bbc3ce'][i],true,0.8);
+  poly(ctx,inner,'#7b795f',true,1);
+  ctx.fillStyle='#fff4af';
+  for(const [dx,dy] of [[-3,-5],[2,-3],[-2,2],[4,3]]) {ctx.beginPath();ctx.arc(x+dx,y+dy,1.1,0,Math.PI*2);ctx.fill();}
+  // Recessed riveted door and small cream arch.
+  const [dx,dy]=P(-0.18,0.71,5);
+  ctx.fillStyle='#45454c';ctx.strokeStyle=OUT;ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(dx-5,dy);ctx.lineTo(dx-5,dy-10);ctx.arc(dx,dy-10,5,Math.PI,0);ctx.lineTo(dx+5,dy);ctx.closePath();ctx.fill();ctx.stroke();
+  ctx.strokeStyle='#b8b7aa';ctx.lineWidth=2;ctx.beginPath();ctx.arc(dx,dy-10,6,Math.PI,0);ctx.stroke();
+  ctx.fillStyle='#a8a9a7';for(const xx of [-3,2])for(const yy of [-3,-7,-11])ctx.fillRect(dx+xx,dy+yy,1,1);
+  // Ladder on the side leads onto the same active platform.
+  ctx.strokeStyle='#373b3e';ctx.lineWidth=1.5;
+  for(const v of [-0.4,-0.18]) line(ctx,P(0.72,v,h-20),P(0.72,v,h));
+  for(let z=h-19;z<h;z+=3)line(ctx,P(0.73,-0.4,z),P(0.73,-0.18,z));
+  for(const k of [-0.67,-0.22,0.23,0.68]) {
+    box(ctx,k-0.1,0.62,k+0.1,0.8,h,h+7,'#b6b6ad');
+    box(ctx,0.62,k-0.1,0.8,k+0.1,h,h+7,'#b6b6ad');
   }
-  if (L >= 4) {
-    // banner down the front
-    const [nx, ny] = P(0.5, 0.7, h * 0.78);
-    ctx.fillStyle = '#4a2f6b';
-    ctx.strokeStyle = OUT;
-    ctx.lineWidth = 1.4;
-    ctx.beginPath();
-    ctx.moveTo(nx - 5, ny);
-    ctx.lineTo(nx + 5, ny);
-    ctx.lineTo(nx + 5, ny + 20);
-    ctx.lineTo(nx, ny + 15);
-    ctx.lineTo(nx - 5, ny + 20);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-  }
-  if (L >= 5) {
-    const [x, y] = P(0, 0, h + 8);
-    cross(ctx, x, y, 16);
-  }
+  // Lectern/open book offset beside the existing animated professor.
+  box(ctx,-0.4,0.2,-0.28,0.32,h,h+8,'#705337');
+  poly(ctx,[P(-0.55,0.15,h+9),P(-0.12,0.15,h+9),P(-0.12,0.4,h+10),P(-0.55,0.4,h+10)],CREAM,true,0.8);
+  shrub(ctx,-0.6,1.02,true);shrub(ctx,0.55,1.05,true);
+  const [bx,by]=P(-1,0.8,4);
+  flag(ctx,bx,by,28,C.navy);
+  plaque(ctx,bx+7,by-17,'BIBLE',4,true);
 }
 
 /** Height (px above the footprint centre) of the Casserole Catapult's axle: its throwing arm pivots here. */
@@ -2119,140 +2137,67 @@ function catapult(ctx: Ctx, L: number): void {
 /** Height (px above the footprint centre) of the Stinger Statue's raised stinger tip: where its beam starts. */
 export const STINGER_TIP_Z = 92;
 
+/** Chrome campus sculpture, with the existing beam origin and two-tile lot retained. */
 function stinger(ctx: Ctx, L: number): void {
-  pad(ctx, 2, C.stone);
-  // dark granite plinth with a polished cap
-  const s = 0.42;
-  box(ctx, -s, -s, s, s, 4, 34, '#3b3e48');
-  box(ctx, -s - 0.08, -s - 0.08, s + 0.08, s + 0.08, 34, 37, '#aab1ba');
-  // donor plaque on the front-left face
-  {
-    const a = P(-0.22, s, 26);
-    const b = P(0.22, s, 26);
-    const c = P(0.22, s, 15);
-    const d = P(-0.22, s, 15);
-    poly(ctx, [a, b, c, d], '#15161c', true, 1.2);
-    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo((a[0] + d[0]) / 2 + 3, (a[1] + d[1]) / 2 + 1.5);
-    ctx.lineTo((b[0] + c[0]) / 2 - 3, (b[1] + c[1]) / 2 - 1.5);
-    ctx.stroke();
-  }
-  // sign struts
-  ctx.strokeStyle = OUT;
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(-8, -37);
-  ctx.lineTo(-20, -46);
-  ctx.moveTo(8, -37);
-  ctx.lineTo(20, -46);
-  ctx.stroke();
-  // arched black CEDARVILLE sign
-  ctx.beginPath();
-  ctx.moveTo(-44, -44);
-  ctx.quadraticCurveTo(0, -52, 44, -44);
-  ctx.lineTo(41, -59);
-  ctx.quadraticCurveTo(0, -68, -41, -59);
-  ctx.closePath();
-  ctx.fillStyle = '#17181f';
-  ctx.fill();
-  ctx.lineWidth = 2.2;
-  ctx.strokeStyle = L >= 2 ? C.gold : '#dfe6ec';
-  ctx.stroke();
-  ctx.fillStyle = '#fff';
-  ctx.font = '900 10px "Trebuchet MS", system-ui, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  const word = 'CEDARVILLE';
-  for (let i = 0; i < word.length; i++) {
-    const k = (i - (word.length - 1) / 2) / ((word.length - 1) / 2); // -1..1
-    ctx.fillText(word[i], k * 33, -54.5 + k * k * 3.6);
-  }
-
-  // chrome yellow jacket perched on the sign, facing the viewer, stinger raised
-  const chrome = (y0: number, y1: number): CanvasGradient => {
-    const g = ctx.createLinearGradient(0, y0, 0, y1);
-    g.addColorStop(0, '#f7fbfd');
-    g.addColorStop(0.45, '#a9b8c4');
-    g.addColorStop(0.6, '#5f6d7a');
-    g.addColorStop(1, '#cfd9e0');
-    return g;
+  pad(ctx,2,'#999b9e');
+  const chrome=(y0:number,y1:number):CanvasGradient=>{
+    const g=ctx.createLinearGradient(0,y0,0,y1);
+    g.addColorStop(0,'#f6fbff');g.addColorStop(0.35,'#c4cdd5');
+    g.addColorStop(0.52,'#707a85');g.addColorStop(0.65,'#e3eaf0');g.addColorStop(1,'#a1abb5');return g;
   };
-  const blob = (x: number, y: number, rx: number, ry: number, rot = 0): void => {
-    ctx.beginPath();
-    ctx.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2);
-    ctx.fillStyle = chrome(y - ry, y + ry);
-    ctx.fill();
-    ctx.lineWidth = 1.8;
-    ctx.strokeStyle = OUT;
-    ctx.stroke();
-  };
-  // wings
-  for (const sx of [-1, 1]) {
-    ctx.beginPath();
-    ctx.ellipse(sx * 15, -84, 12, 4.5, sx * -0.75, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(226,238,246,0.9)';
-    ctx.fill();
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = OUT;
-    ctx.stroke();
+  const metal=(pts:[number,number][]):void=>poly(ctx,pts,chrome(-108,-38),true,1.6);
+  box(ctx,-0.42,-0.42,0.42,0.42,4,32,'#282c32');
+  box(ctx,-0.49,-0.49,0.49,0.49,32,36,'#aab3bd');
+  poly(ctx,[P(-0.18,0.43,23),P(0.18,0.43,23),P(0.18,0.43,15),P(-0.18,0.43,15)],'#d1dae3',true,1.3);
+  // Dark diagonal supports, beneath the sign rather than through the insect.
+  poly(ctx,[[-11,-34],[-30,-53],[-24,-55],[-7,-36]],'#282d33',true,1.5);
+  poly(ctx,[[11,-34],[30,-53],[24,-55],[7,-36]],'#282d33',true,1.5);
+  // Segmented abdomen curls beneath the banner.
+  ctx.strokeStyle=OUT;ctx.lineWidth=12;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(-10,-57);ctx.bezierCurveTo(-13,-35,8,-33,14,-47);ctx.stroke();
+  ctx.strokeStyle=chrome(-57,-34);ctx.lineWidth=9;ctx.stroke();
+  ctx.strokeStyle='#626c75';ctx.lineWidth=1;
+  for(const [x,y] of [[-9,-47],[-5,-41],[3,-40]]) {ctx.beginPath();ctx.moveTo(x-2,y-3);ctx.lineTo(x+2,y+3);ctx.stroke();}
+  // Swept angular wings and their polished facets.
+  metal([[5,-78],[25,-99],[43,-110],[39,-97],[15,-79]]);
+  poly(ctx,[[11,-81],[39,-103],[37,-99],[18,-83]],'#788590',false);
+  metal([[9,-76],[41,-94],[37,-83],[15,-73]]);
+  poly(ctx,[[14,-77],[36,-88],[31,-83],[18,-76]],'#8996a0',false);
+  metal([[-5,-80],[-9,-110],[-3,-99],[0,-82]]);
+  // Body shell is deliberately angular like the supplied metal sculpture.
+  metal([[-7,-83],[5,-84],[15,-74],[11,-65],[-2,-64],[-12,-72]]);
+  poly(ctx,[[5,-82],[13,-74],[10,-67],[3,-72]],'#6b7680',false);
+  metal([[-13,-86],[-2,-87],[5,-80],[1,-70],[-9,-65],[-17,-75]]);
+  poly(ctx,[[-12,-83],[-8,-70],[-1,-81]],'#f5f8fa',false);
+  poly(ctx,[[-8,-70],[-1,-81],[0,-72],[-9,-66]],'#6c7780',false);
+  // Fixed raised tip: do not move, as raid beams use STINGER_TIP_Z.
+  metal([[-3,-86],[0,-STINGER_TIP_Z],[3,-86]]);
+  // Curved black plaque with silver lettering.
+  ctx.beginPath();ctx.moveTo(-44,-48);ctx.quadraticCurveTo(0,-59,44,-48);
+  ctx.lineTo(44,-64);ctx.quadraticCurveTo(0,-77,-44,-64);ctx.closePath();
+  ctx.fillStyle='#22272d';ctx.fill();ctx.strokeStyle=OUT;ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle='#e4ebef';ctx.font='900 10px "Trebuchet MS",system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  const word='CEDARVILLE';
+  for(let i=0;i<word.length;i++){const k=(i-(word.length-1)/2)/((word.length-1)/2);ctx.fillText(word[i],k*34,-62+k*k*4);}
+  ctx.beginPath();ctx.moveTo(-32,-49);ctx.quadraticCurveTo(0,-56,32,-49);
+  ctx.lineTo(32,-43);ctx.quadraticCurveTo(0,-49,-32,-43);ctx.closePath();
+  ctx.fillStyle=chrome(-56,-42);ctx.fill();ctx.strokeStyle=OUT;ctx.lineWidth=1.3;ctx.stroke();
+  ctx.fillStyle='#232830';ctx.font='900 4.8px "Trebuchet MS",system-ui,sans-serif';
+  const sub='YELLOW JACKETS';
+  for(let i=0;i<sub.length;i++){const k=(i-(sub.length-1)/2)/((sub.length-1)/2);ctx.fillText(sub[i],k*27,-49+k*k*3);}
+  // Jointed legs overlap the upper rim; chrome highlights preserve their silhouette.
+  const legs=[[-12,-80,-23,-74,-31,-62],[-7,-78,-19,-70,-22,-64],[10,-77,22,-73,29,-62],[12,-74,27,-69,35,-61]];
+  for(const [sx,sy,kx,ky,ex,ey] of legs){
+    ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(kx,ky);ctx.lineTo(ex,ey);
+    ctx.strokeStyle=OUT;ctx.lineWidth=4;ctx.stroke();ctx.strokeStyle='#cbd5dd';ctx.lineWidth=2;ctx.stroke();
   }
-  // raised abdomen + stinger spike
-  blob(0, -80, 6.5, 8.5);
-  if (L >= 2) {
-    ctx.strokeStyle = C.gold;
-    ctx.lineWidth = 2;
-    for (const yy of [-83, -79]) {
-      ctx.beginPath();
-      ctx.moveTo(-5, yy);
-      ctx.quadraticCurveTo(0, yy + 2, 5, yy);
-      ctx.stroke();
-    }
+  // Two swept antennae and a subtle level-dependent highlight at the emitter.
+  for(const pts of [[-12,-83,-15,-96,-22,-92],[-3,-85,1,-97,-6,-93]]){
+    ctx.beginPath();ctx.moveTo(pts[0],pts[1]);ctx.lineTo(pts[2],pts[3]);ctx.lineTo(pts[4],pts[5]);
+    ctx.strokeStyle=OUT;ctx.lineWidth=3.5;ctx.stroke();ctx.strokeStyle='#dce5ec';ctx.lineWidth=1.7;ctx.stroke();
   }
-  poly(ctx, [[-2.5, -87], [0, -STINGER_TIP_Z - 3], [2.5, -87]], L >= 3 ? '#8fd0ff' : '#e6edf2', true, 1.5);
-  // legs gripping the sign
-  ctx.strokeStyle = OUT;
-  ctx.lineWidth = 3.4;
-  const legs: [number, number, number, number][] = [
-    [9, -72, 22, -62],
-    [11, -70, 30, -60],
-    [7, -74, 14, -63],
-  ];
-  const drawLegs = (): void => {
-    ctx.beginPath();
-    for (const sx of [-1, 1]) {
-      for (const [kx, ky, fx, fy] of legs) {
-        ctx.moveTo(sx * 5, -70);
-        ctx.lineTo(sx * kx * 1.5, ky - 6);
-        ctx.lineTo(sx * fx, fy);
-      }
-    }
-    ctx.stroke();
-  };
-  drawLegs();
-  ctx.strokeStyle = '#c3ced7';
-  ctx.lineWidth = 1.6;
-  drawLegs();
-  // thorax + head
-  blob(0, -72, 9, 7.5);
-  blob(0, -65, 7.5, 6);
-  // antennae
-  ctx.strokeStyle = OUT;
-  ctx.lineWidth = 1.6;
-  ctx.beginPath();
-  ctx.moveTo(-3, -70);
-  ctx.quadraticCurveTo(-9, -78, -13, -73);
-  ctx.moveTo(3, -70);
-  ctx.quadraticCurveTo(9, -78, 13, -73);
-  ctx.stroke();
-  // angry eyes
-  ctx.fillStyle = L >= 3 ? '#4aa8ff' : '#20222b';
-  for (const sx of [-1, 1]) {
-    ctx.beginPath();
-    ctx.ellipse(sx * 3.6, -65.5, 2.4, 1.6, sx * 0.5, 0, Math.PI * 2);
-    ctx.fill();
-  }
+  if(L>=3){ctx.beginPath();ctx.arc(0,-STINGER_TIP_Z,1.5,0,Math.PI*2);ctx.fillStyle='#9bdcff';ctx.fill();}
+  ctx.lineCap='butt';ctx.textBaseline='alphabetic';
 }
 
 function nest(ctx: Ctx, L: number): void {
