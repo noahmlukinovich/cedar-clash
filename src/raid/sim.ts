@@ -94,6 +94,9 @@ export interface RU {
   def?: TroopDef;
   /** Hits landed (Music Major chorus). */
   hits: number;
+  /** Thesis Defender: the building it has been hitting, and how many Citation Needed stacks it has built on it. */
+  citeB: RB | null;
+  cite: number;
   /** Seconds of uninterrupted running (Cross Country Runner momentum). */
   runT: number;
   /** GO Team members go home at this time (0 = never). */
@@ -177,6 +180,8 @@ export type SimEvent =
   /** The Rock cracks: it crashes onto buildings within `r` tiles and breaks into Pebbles. */
   | { e: 'crumble'; x: number; y: number; r: number }
   | { e: 'chorus'; x: number; y: number }
+  /** A Thesis Defender hit with `n` Citation Needed stacks (1..max). */
+  | { e: 'citation'; x: number; y: number; n: number }
   | { e: 'roomcheck'; u: RU }
   /** The Bible Prof's crossbow: letter `n` of the Hebrew alphabet flies from (fx, fy) to (tx, ty). Visual only. */
   | { e: 'bolt'; fx: number; fy: number; tx: number; ty: number; n: number; big: boolean };
@@ -458,6 +463,8 @@ export class RaidSim {
       abilityUsed: false,
       idleT: 0,
       hits: 0,
+      citeB: null,
+      cite: 0,
       runT: 0,
       expireAt: 0,
       kbVx: 0,
@@ -1386,6 +1393,15 @@ export class RaidSim {
     if (ch && u.hits % ch.every === 0) {
       dmg *= ch.mul;
       this.events.push({ e: 'chorus', x: b.cx, y: b.cy });
+    }
+    const cn = u.def?.citation;
+    if (cn) {
+      u.cite = u.citeB === b ? Math.min(u.cite + 1, cn.maxStacks) : 0;
+      u.citeB = b;
+      if (u.cite > 0) {
+        dmg *= 1 + u.cite * cn.perHit;
+        this.events.push({ e: 'citation', x: b.cx, y: b.cy, n: u.cite });
+      }
     }
     if (u.hero === 'prof') {
       dmg *= this.letterShot(u, b.cx, b.cy);

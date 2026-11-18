@@ -247,6 +247,26 @@ export const TROOPS: Record<TroopType, TroopDef> = {
     size: 1.2,
     levels: tl([1400, 1650, 1950, 2300, 2700, 3100, 3600], [40, 48, 57, 67, 79, 92, 107], [900, 1150, 1450, 1800, 2200, 2650, 3150], [0, 30000, 50000, 80000, 120000, 160000, 220000], [0, 150, 230, 310, 390, 470, 550], [0, 4, 5, 5, 6, 6, 7]),
   },
+  thesis: {
+    type: 'thesis',
+    name: 'Thesis Defender',
+    short: 'Thesis',
+    desc: 'Huge, slow, and swings a 400-page bound thesis. Every hit in a row on the same building lands harder ("Citation Needed": +15% a hit, up to +60%). A new target resets the stacks, so it wastes its effort on small stuff. Goes for the nearest building.',
+    flavor: 'Seventh-year grad student. Has defended this thesis to three committees and one very confused Campus Safety officer. The bibliography alone is load-bearing.',
+    housing: 25,
+    res: 'coffee',
+    trainTime: 45,
+    barracks: 'dmc',
+    barracksLevel: 8,
+    speed: 1.2,
+    range: 0.8,
+    attackRate: 2.2,
+    prefers: 'any',
+    citation: { perHit: 0.15, maxStacks: 4 },
+    color: '#6b2f3a',
+    size: 1.5,
+    levels: tl([2600, 3000, 3450, 3950, 4500, 5100, 5800], [90, 105, 120, 138, 158, 180, 205], [2200, 2800, 3500, 4300, 5200, 6200, 7400], [0, 60000, 90000, 130000, 170000, 220000, 280000], [0, 240, 320, 400, 480, 560, 640], [0, 6, 6, 6, 7, 7, 7]),
+  },
 };
 
 /** What The Rock breaks into. Level follows the Rock's research level; about a fifth of its health each. */
@@ -358,4 +378,4 @@ export const HEROES: Record<HeroType, HeroDef> = {
   },
 };
 
-export const TROOP_ORDER: TroopType[] = ['freshman', 'athlete', 'engineer', 'theology', 'nurse', 'business', 'music', 'runner', 'ra', 'goteam', 'rock', 'senior'];
+export const TROOP_ORDER: TroopType[] = ['freshman', 'athlete', 'engineer', 'theology', 'nurse', 'business', 'music', 'runner', 'ra', 'goteam', 'rock', 'senior', 'thesis'];

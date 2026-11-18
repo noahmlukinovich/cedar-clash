@@ -28,7 +28,7 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
     desc: 'The heart of campus. Its level gates how big and how many of everything else you can build. Lose it in a raid and the enemy gets a star.',
     flavor: 'Seats thousands. Somehow still standing-room-only on the one day you overslept.',
     counts: [0, 1, 1, 1, 1, 1, 1, 1, 1],
-    trains: ['goteam'],
+    trains: ['goteam', 'thesis'],
     levels: mk(
       8,
       'tuition',

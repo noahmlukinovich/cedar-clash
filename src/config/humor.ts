@@ -18,6 +18,7 @@ export const LOADING_TIPS: string[] = [
   'Pro tip: If the training queue stalls, your troops are waiting in line at Chuck\'s.',
   'Pro tip: Campus Safety will ticket idle troops. Keep them raiding.',
   'Pro tip: Coffee production doubles during Finals Week. So does crying in the library.',
+  'Pro tip: the Thesis Defender hits harder the longer it argues with one building. Do not waste it on a Coffee Cart.',
   'Pro tip: Rinnova stores Coffee. Also stores 40% of all group-project procrastination.',
   'Pro tip: The President\'s Convocation buff stacks with All-Nighter. Do not tell the Dean.',
   'Pro tip: The Bible Prof\'s Pop Quiz stuns everything nearby. Like a real pop quiz.',

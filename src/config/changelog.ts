@@ -10,6 +10,16 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 28,
+    date: 'Nov 18, 2026',
+    title: 'New troop: the Thesis Defender',
+    items: [
+      'A DMC at Lv8 now trains the Thesis Defender (25 housing, Coffee): a huge, slow grad student who swings a 400-page bound thesis.',
+      'Citation Needed: every hit in a row on the same building lands 15% harder, up to +60%. Switch targets and the argument starts over, so point it at something big.',
+      'Research it up to level 7 in the Library. The thesis picks up sticky-note tabs, a gold spine and, at last, an APPROVED stamp.',
+    ],
+  },
+  {
     v: 27,
     date: 'Nov 18, 2026',
     title: 'New spell: Syllabus Week',

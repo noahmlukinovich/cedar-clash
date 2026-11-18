@@ -768,6 +768,14 @@ export class RaidScene implements Scene {
           P2.add({ kind: 'text', x: p.x + (Math.random() - 0.5) * 20, y: p.y, z: 40, vz: 35, max: 0.9, text: '♪♫', color: '#ff9fd0', size: 18 });
           break;
         }
+        case 'citation': {
+          // "[citation]" stamps, bigger and redder with each stack
+          const p = toWorld(ev.x, ev.y);
+          const max = TROOPS.thesis.citation!.maxStacks;
+          const full = ev.n >= max;
+          P2.add({ kind: 'text', x: p.x + (Math.random() - 0.5) * 18, y: p.y, z: 36 + ev.n * 4, vz: 30, max: 0.9, text: full ? '[CITATION NEEDED]' : '[citation]', color: full ? '#ff6b6b' : '#fff6d6', size: 9 + ev.n * 2 });
+          break;
+        }
         case 'chain': {
           // pink paper trail from raider to raider
           for (let i = 0; i < ev.pts.length; i++) {
