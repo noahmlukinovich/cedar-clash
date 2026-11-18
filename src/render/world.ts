@@ -3,7 +3,7 @@ import { GRID } from '../config/balance';
 import type { BuildingType } from '../config/types';
 import { hash2 } from '../core/rng';
 import { toWorld } from '../core/iso';
-import { CATAPULT_AXLE_Z, STINGER_TIP_Z, getBuildingSprite, type Sprite } from './buildingSprites';
+import { CATAPULT_AXLE_Z, STINGER_TIP_Z, buildingThemeContext, buildingThemeTier, getBuildingSprite, type Sprite } from './buildingSprites';
 import { C, OUT, P, box, poly, roundRect, shade } from './draw';
 import { drawBuilder } from './unitSprites';
 
@@ -288,6 +288,7 @@ export function drawBuildingAt(ctx: Ctx, a: BuildingDrawArgs): void {
 }
 
 function drawDynamic(ctx: Ctx, a: BuildingDrawArgs, size: number): void {
+  ctx = buildingThemeContext(ctx, a.type, a.level);
   const L = a.level;
   switch (a.type) {
     case 'admissions':
@@ -353,7 +354,7 @@ function drawDynamic(ctx: Ctx, a: BuildingDrawArgs, size: number): void {
     case 'ratower': {
       const h = 42 + L * 5 + 6;
       const [x, y] = P(0, 0, h);
-      drawMiniPerson(ctx, x, y, C.navy, a.aim ?? 0, a.t, a.firing ?? 0, 'clipboard', a.stunned);
+      drawMiniPerson(ctx, x, y, buildingThemeTier(a.type, L) === 8 ? '#262c35' : C.navy, a.aim ?? 0, a.t, a.firing ?? 0, 'clipboard', a.stunned);
       break;
     }
     case 'safetycart': {

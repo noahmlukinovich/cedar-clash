@@ -10,6 +10,12 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 39,
+    date: 'Nov 18, 2026',
+    title: 'DMC-themed upgrade artwork',
+    items: ['Updated building and troop upgrade artwork with DMC-themed colors. Gameplay, stats and upgrade requirements are unchanged.'],
+  },
+  {
     v: 38,
     date: 'Nov 18, 2026',
     title: 'Fresh spell and hero artwork',
