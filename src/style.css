@@ -24,6 +24,12 @@ body {
   font-family: var(--font);
   user-select: none;
   -webkit-user-select: none;
+  /* Phones: no pull-to-refresh, no long-press callout, no grey tap flash. */
+  overscroll-behavior: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 canvas#game {
@@ -31,8 +37,11 @@ canvas#game {
   inset: 0;
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   display: block;
   cursor: grab;
+  /* The game handles every touch itself (pan, pinch, deploy). */
+  touch-action: none;
 }
 canvas#game.dragging {
   cursor: grabbing;
@@ -49,7 +58,9 @@ canvas#game.dragging {
 }
 .hud {
   position: absolute;
-  inset: 0;
+  /* Keep the HUD clear of notches, rounded corners and the home bar. */
+  inset: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-left, 0px);
   pointer-events: none;
 }
 .hidden {
@@ -932,6 +943,49 @@ button.up-main:hover {
     opacity: 0;
     transform: translateY(-30px);
   }
+}
+
+/* ---------- Rotate prompt (phones in portrait; the game is landscape-only) ---------- */
+#rotate {
+  display: none;
+}
+@media (orientation: portrait) and (pointer: coarse) {
+  #rotate {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 24px;
+    text-align: center;
+    background: #0b1e4d;
+    color: #fff;
+    pointer-events: auto;
+    touch-action: none;
+  }
+}
+.rotate-phone {
+  transform-origin: 60px 60px;
+  animation: rotatePhone 2.4s ease-in-out infinite;
+}
+@keyframes rotatePhone {
+  0%, 25% { transform: rotate(0deg); }
+  55%, 100% { transform: rotate(-90deg); }
+}
+.rotate-title {
+  font-size: 24px;
+  font-weight: 800;
+}
+.rotate-sub {
+  font-size: 15px;
+  opacity: 0.8;
+  max-width: 280px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rotate-phone { animation: none; transform: rotate(-90deg); }
 }
 
 /* ---------- Loading ---------- */

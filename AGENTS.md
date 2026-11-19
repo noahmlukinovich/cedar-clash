@@ -103,9 +103,11 @@ npm run build          # type-check plus full build
 
 1. Branch from the latest `main`, named something like `ui/<short-topic>`.
 2. Make the change and check it in the running game with `npm run dev`. Offline
-   mode covers almost every screen. Design target: desktop, mouse and
-   keyboard, 1280×800 and larger.
-3. Run `npm test` and `npm run build`.
+   mode covers almost every screen. Design targets: desktop (mouse and
+   keyboard, 1280×800 and larger) and phones and tablets in landscape
+   (touch). Phones in portrait get a "turn your phone" prompt instead.
+3. Run `npm test` and `npm run build`. For layout changes, also run
+   `npm run test:mobile` (see "Mobile layout tests" below).
 4. Commit, push the branch and open a PR into `main`. Say what changed and
    which screens it affects; screenshots help.
 5. Once `tests` passes, the collaborator can merge a UI-only PR. Anything that
@@ -181,6 +183,18 @@ Sections are marked `/* ---------- Name ---------- */` and mostly match the
 - `src/config/changelog.ts`: for a change players will notice, add an entry
   at the **top** with the next `v` number, today's date, a short title and
   plain-language items. Players see it once in the What's New pop-up.
+
+## Mobile layout tests
+
+`npm run test:mobile` runs Playwright (`e2e/`). It opens the main screens on
+landscape iPhone SE, iPhone 13, Pixel 7 and iPad, and checks for controls that
+are off-screen, covered by something else, smaller than 44px, HUD widgets that
+overlap, and dialog buttons that need scrolling to see. Screenshots are
+attached to each test (`npx playwright show-report`).
+
+`e2e/known-issues.ts` lists the problems that exist today. The tests expect
+exactly that list: a new problem fails, and a fixed one fails until you delete
+its line. That keeps the list honest as the mobile work lands.
 
 ## Gotchas
 
