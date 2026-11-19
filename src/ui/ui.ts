@@ -2446,6 +2446,10 @@ export class UI {
         sfx('click');
         void this.game.watchReplay(r.id);
       };
+      if (r.outdated) {
+        go.setAttribute('disabled', '');
+        go.title = 'Recorded before a game update changed the raid rules, so it can no longer be played back';
+      }
       row.lastElementChild!.appendChild(go);
       if (r.revenge) {
         const rv = el('button', 'btn small red', '⚔️ Revenge');

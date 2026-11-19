@@ -219,7 +219,7 @@ export function createApp(db: DB, cfg: ServerConfig, metrics: Metrics = new Metr
     if (method === 'GET' && path === '/api/replay') return replay(db, requireUser(req), url.searchParams.get('id'));
     if (post('/api/rename')) return renameUser(db, requireUser(req), now, body.name);
     if (post('/api/sync')) return sync(db, requireUser(req), now, body.client, body.seq, body.actions);
-    if (post('/api/raid/start')) return startRaid(db, requireUser(req), now, body.kind, body.raidId);
+    if (post('/api/raid/start')) return startRaid(db, requireUser(req), now, body.kind, body.raidId, body.sim);
     if (post('/api/raid/inputs')) {
       raidInputs(db, requireUser(req), body.raidId, body.inputs);
       return { ok: true };

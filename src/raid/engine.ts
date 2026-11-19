@@ -11,9 +11,24 @@ import { type RU, RaidSim } from './sim';
 
 export type RaidKind = 'campaign' | 'random' | 'elephant' | 'player';
 
+/**
+ * Version of the raid rules. Bump it whenever a change could make the same setup and inputs
+ * play out differently: sim or engine code, troop/spell/building stats, balance numbers.
+ * The server only settles a raid with the sim version it was started under, and old replays
+ * stop being watchable. `test/simVersion.test.ts` fails when behavior changes without a bump.
+ */
+export const SIM_VERSION = 1;
+
+/** The sim version a setup was built for. Setups from before versioning count as version 1. */
+export function simVersionOf(setup: Pick<RaidSetup, 'simVersion'>): number {
+  return setup.simVersion ?? 1;
+}
+
 /** Everything needed to (re)play a raid. Built by the client offline, or by the server online. */
 export interface RaidSetup {
   kind: RaidKind;
+  /** SIM_VERSION when the raid was set up. */
+  simVersion?: number;
   base: BaseLayout;
   seed: number;
   wind: boolean;
@@ -24,6 +39,8 @@ export interface RaidSetup {
   heroes: Partial<Record<HeroType, number>>;
   army: Partial<Record<TroopType, number>>;
   spells: Partial<Record<SpellType, number>>;
+  /** Tuition paid to scout this raid (refunded if the raid is voided by a game update). */
+  scoutCost?: number;
   /** Online raids against a real player. */
   defender?: { name: string; trophies: number; revenge?: boolean };
 }

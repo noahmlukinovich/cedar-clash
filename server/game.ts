@@ -6,13 +6,13 @@ import { BUILDINGS } from '../src/config/buildings';
 import { bus } from '../src/core/bus';
 import { type Action, applyAction } from '../src/game/actions';
 import { tickArmy } from '../src/game/army';
-import { dmcLevel, hasEvent, spend, tickEconomy } from '../src/game/economy';
+import { addRes, dmcLevel, hasEvent, spend, tickEconomy } from '../src/game/economy';
 import { checkChapelSkip, tickEvents } from '../src/game/events';
 import { migrate } from '../src/game/save';
 import { type GameState, newGame } from '../src/game/state';
 import { type DefenseEntry, NAME_RE, NAME_RULES, type Note, type RenameResponse, type ReplayResponse, type ReplayRow, type StateMsg, type VisitResponse, validCampusName } from '../src/net/protocol';
 import type { BaseLayout, BasePiece } from '../src/raid/basegen';
-import { MAX_INPUTS, type RaidInput, type RaidResult, type RaidSetup, SCOUT_TIME, replayRaid } from '../src/raid/engine';
+import { MAX_INPUTS, type RaidInput, type RaidResult, type RaidSetup, SCOUT_TIME, SIM_VERSION, replayRaid, simVersionOf } from '../src/raid/engine';
 import { type RaidOutcome, applyRaidOutcome, localSetup, trophyDelta } from '../src/raid/outcome';
 import { HEROES, TROOPS } from '../src/config/troops';
 import { SPELLS } from '../src/config/spells';
@@ -220,8 +220,10 @@ export function baseFromState(s: GameState, name: string, attackerTrophies: numb
   };
 }
 
-export function startRaid(db: DB, userId: number, now: number, kind: unknown, revengeOf?: unknown): { raidId: string; setup: RaidSetup } {
+export function startRaid(db: DB, userId: number, now: number, kind: unknown, revengeOf?: unknown, clientSim?: unknown): { raidId: string; setup: RaidSetup } {
   if (kind !== 'campaign' && kind !== 'random' && kind !== 'elephant' && kind !== 'revenge') throw new GameError('Bad request');
+  // Clients from before versioning don't send it; they run version 1.
+  if ((clientSim ?? 1) !== SIM_VERSION) throw new GameError('Cedarville Clash was updated. Reload the page to raid with the latest rules.', 426);
   takeNotes();
   return db.tx(() => {
     // Only one raid at a time: settle any raid this player left unfinished.
@@ -246,11 +248,12 @@ export function startRaid(db: DB, userId: number, now: number, kind: unknown, re
       setup = { ...local, kind: 'player', base: baseFromState(def.state, def.row.name, s.trophies), defender: { name: def.row.name, trophies: def.state.trophies, revenge: true } };
     } else {
       if (!s.campaignDone) throw new GameError('Beat Rival State U first!');
-      if (!spend(s, 'tuition', SCOUT_COST_PER_DMC * dmcLevel(s))) throw new GameError('Not enough Tuition to scout.');
+      const scoutCost = SCOUT_COST_PER_DMC * dmcLevel(s);
+      if (!spend(s, 'tuition', scoutCost)) throw new GameError('Not enough Tuition to scout.');
       const recent = new Set((db.st.recentDefenders.all(userId, now - HOUR) as { defender: number }[]).map((r) => r.defender));
       const ids = (db.st.candidates.all(userId, now, now, s.trophies) as { id: number }[]).map((r) => r.id).filter((id) => !recent.has(id));
       const pick = ids.slice(0, 5);
-      setup = localSetup(s, 'random', cryptoRand);
+      setup = { ...localSetup(s, 'random', cryptoRand), scoutCost };
       if (pick.length) {
         defenderId = pick[randomInt(0, pick.length)];
         const def = load(db, defenderId, now, true);
@@ -323,6 +326,26 @@ interface SettledResult {
   attackerName: string;
   defenderLost?: { tuition: number; coffee: number };
   defenderTrophies?: number;
+  /** Called off because the raid rules changed between its start and its settlement. */
+  voided?: boolean;
+}
+
+/** What a raid that never deployed anything returns; used to void raids from older rules. */
+function emptyResult(setup: RaidSetup): RaidResult {
+  return {
+    stars: 0,
+    destruction: 0,
+    loot: { tuition: 0, coffee: 0 },
+    usedTroops: {},
+    usedSpells: {},
+    heroHp: Object.fromEntries(Object.entries(setup.heroes).map(([h, hp]) => [h, hp ?? 1])),
+    abilities: [],
+    buildingsDestroyed: 0,
+    wallsByEngineers: 0,
+    windSurvived: false,
+    deployedAny: false,
+    ticks: 0,
+  };
 }
 
 /** POST /api/raid/finish */
@@ -345,10 +368,18 @@ export function finishRaid(db: DB, userId: number, now: number, raidId: unknown,
 /** Replays a raid and applies it to the attacker (and defender, for real players). */
 function settle(db: DB, r: RaidRow, inputs: RaidInput[], now: number): RaidOutcome {
   const setup = JSON.parse(r.setup) as RaidSetup;
-  const result = replayRaid(setup, inputs);
+  // A raid started under other rules can't be replayed faithfully (the player saw it play out
+  // under the old sim), so it's called off as if nothing was deployed and the scouting is refunded.
+  const voided = simVersionOf(setup) !== SIM_VERSION;
+  const result = voided ? emptyResult(setup) : replayRaid(setup, inputs);
   const att = load(db, r.attacker, now);
   const outcome = applyRaidOutcome(att.state, setup, result);
-  const settled: SettledResult = { result, outcome, attackerName: att.row.name };
+  const settled: SettledResult = { result, outcome, attackerName: att.row.name, ...(voided ? { voided } : {}) };
+  if (voided) {
+    const refund = Math.max(0, Math.floor(setup.scoutCost ?? 0));
+    if (refund) addRes(att.state, 'tuition', refund);
+    notes.push({ ev: 'raidVoided', data: { refund } });
+  }
   if (r.defender != null) {
     const def = load(db, r.defender, now, true);
     def.row.locked_until = 0;
@@ -429,14 +460,17 @@ const REPLAY_LIST = 20;
 
 /** GET /api/replays: the player's most recent finished raids, as attacker or defender. */
 export function replayList(db: DB, userId: number): ReplayRow[] {
-  const rows = db.st.replaysOf.all(userId, userId) as unknown as (Pick<RaidRow, 'id' | 'attacker' | 'defender' | 'result' | 'finished' | 'created'> & { target: string | null })[];
+  const rows = db.st.replaysOf.all(userId, userId) as unknown as (Pick<RaidRow, 'id' | 'attacker' | 'defender' | 'result' | 'finished' | 'created'> & {
+    target: string | null;
+    sim: number | null;
+  })[];
   const out: ReplayRow[] = [];
   for (const r of rows) {
     if (out.length >= REPLAY_LIST) break;
     const res = JSON.parse(r.result ?? '{}') as Partial<SettledResult>;
     const o = res.outcome;
     if (!o || o.cancelled) continue;
-    const base = { id: r.id, stars: o.stars, destruction: o.destruction, at: r.finished ?? 0 };
+    const base = { id: r.id, stars: o.stars, destruction: o.destruction, at: r.finished ?? 0, ...((r.sim ?? 1) !== SIM_VERSION ? { outdated: true } : {}) };
     if (r.attacker === userId) out.push({ ...base, role: 'attack', opponent: r.target ?? 'A rival campus', tuition: Math.max(0, o.gotT), coffee: Math.max(0, o.gotC), trophies: o.trophyDelta });
     else
       out.push({
@@ -459,10 +493,12 @@ export function replay(db: DB, userId: number, raidId: unknown): ReplayResponse 
   if (!r || !r.finished || !r.result || (r.attacker !== userId && r.defender !== userId)) throw new GameError('No such raid', 404);
   const res = JSON.parse(r.result) as SettledResult;
   if (res.outcome.cancelled) throw new GameError('No such raid', 404);
+  const setup = JSON.parse(r.setup) as RaidSetup;
+  if (simVersionOf(setup) !== SIM_VERSION) throw new GameError("This raid was recorded before a game update changed the raid rules, so it can't be played back.", 410);
   return {
     id: r.id,
     attacker: res.attackerName,
-    setup: JSON.parse(r.setup) as RaidSetup,
+    setup,
     inputs: JSON.parse(r.inputs) as RaidInput[],
     stars: res.outcome.stars,
     destruction: res.outcome.destruction,
