@@ -2171,14 +2171,12 @@ function stinger(ctx: Ctx, L: number): void {
   ctx.strokeStyle = L >= 2 ? C.gold : '#dfe6ec';
   ctx.stroke();
   ctx.fillStyle = '#fff';
-  ctx.font = '900 10px "Trebuchet MS", system-ui, sans-serif';
+  ctx.font = '900 11px "Trebuchet MS", system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const word = 'CEDARVILLE';
-  for (let i = 0; i < word.length; i++) {
-    const k = (i - (word.length - 1) / 2) / ((word.length - 1) / 2); // -1..1
-    ctx.fillText(word[i], k * 33, -54.5 + k * k * 3.6);
-  }
+  // A single word keeps natural letter spacing and fits inside the dark banner.
+  ctx.fillText(word, 0, -54.5, 79);
 
   // chrome yellow jacket perched on the sign, facing the viewer, stinger raised
   const chrome = (y0: number, y1: number): CanvasGradient => {
@@ -2546,7 +2544,12 @@ const buildingColorCaches = new Map<string, Map<string, string>>();
 export function buildingThemeTier(type: BuildingType, level: number): number {
  const levels = BUILDINGS[type].levels;
  const L = Math.max(1, Math.min(levels.length, Math.floor(level)));
- return type === 'dmc' ? L : Math.max(1, levels[L-1].dmc);
+ if (type === 'dmc') return L;
+ // Match the approved one-card-per-upgrade catalog: use the last DMC tier
+ // where this level is the campus maximum. Intermediate upgrades sharing an
+ // unlock keep that unlock's tier. This changes artwork, never requirements.
+ const lastMaxDmc = levels[L] ? levels[L].dmc - 1 : buildingThemes.length;
+ return Math.max(1, levels[L-1].dmc, lastMaxDmc);
 }
 export function buildingThemeContext(ctx: Ctx, type: BuildingType, level: number): Ctx {
  if (level <= 0 || type === 'ratower') return ctx;
@@ -2563,7 +2566,7 @@ export function buildingThemeContext(ctx: Ctx, type: BuildingType, level: number
   // Leave ink, transparency, vegetation, water/glass, warm lamps and skin readable.
   if(s.toLowerCase()==='#1e1b2b'||hi<42)return s;
   if(g>r*1.13&&g>b*1.05)return s;
-  if(b>r*1.16&&g>r*1.12&&g>b*.66&&hi>130)return tier===8&&type==='ssc'?'#465765':s;
+  if(b>r*1.16&&g>r*1.12&&g>b*.66&&hi>130)return s;
   if(r>225&&g>175&&g<220&&b>135&&b<185)return s;
   if(['#ffd870','#ffe9a8','#ffd877','#ffe6a0'].includes(s.toLowerCase()))return s;
   if(type==='lake'&&(b>r||g>r))return s;
@@ -2581,18 +2584,16 @@ export function buildingThemeContext(ctx: Ctx, type: BuildingType, level: number
    const lum=(r+g+b)/3;result=buildingShaded(lum>205?t.trim:lum>135?t.floor:lum>75?t.body:t.roof,(lum>205?(lum-230)/800:(lum-130)/1000));
   }else if(r>g&&g>b)result=buildingShaded(hi>210?t.trim:t.body,(hi-180)/700);
   else result=tier===8?buildingShaded(t.body,(hi-130)/850):buildingShaded(t.roof,(hi-130)/850);
-  // Softer material treatment: restore some native masonry/wood rather than
-  // globally desaturating every color. Keep stronger tier accents and dark tier 8.
-  if (!['ratower','registrar','admissions','ssc','sprayer'].includes(type)) {
-   const target=buildingRgb(result)!;
-   const strength=role==='trim'?.65:role==='roof'?.52:.40;
-   const base=tier===8?v.map(n=>n*.45):v;
-   result=buildingColorOutput(target.map((n,i)=>n*strength+base[i]*(1-strength)) as BuildingRGB);
-  }
+  // Approved material blend: 60% subtler generally, 45% for Bible Prof Tower.
+  // Walls retain the original full palette; RA Tower uses its full-theme
+  // drawing path above. Even the black tier retains native material detail.
+  const target=buildingRgb(result)!;
+  const strength=type==='wall'?1:type==='bibleprof'?.55:.40;
+  result=buildingColorOutput(target.map((n,i)=>n*strength+v[i]*(1-strength)) as BuildingRGB);
   cache.set(s,result);return result;
  };
  return new Proxy(ctx,{
   set(obj,key,val){(obj as any)[key]=(key==='fillStyle'||key==='strokeStyle')?recolor(val):val;return true;},
-  get(obj,key){if(key==='createLinearGradient'||key==='createRadialGradient')return (...args:any[])=>{const gradient=(obj as any)[key](...args);const add=gradient.addColorStop.bind(gradient);gradient.addColorStop=(p:number,c:string)=>add(p,recolor(c));return gradient;};if(key==='fillText')return (...args:any[])=>{const c=obj.fillStyle; obj.fillStyle=tier===8?'#bcc5d1':(tier===1||tier===4||tier===5)?'#1e1b2b':'#f4efe4';(obj.fillText as any)(...args);obj.fillStyle=c;};const v=(obj as any)[key];return typeof v==='function'?v.bind(obj):v;}
+  get(obj,key){if(key==='createLinearGradient'||key==='createRadialGradient')return (...args:any[])=>{const gradient=(obj as any)[key](...args);const add=gradient.addColorStop.bind(gradient);gradient.addColorStop=(p:number,c:string)=>add(p,recolor(c));return gradient;};if(key==='fillText')return (...args:any[])=>{const c=obj.fillStyle; obj.fillStyle=type==='stinger'?'#ffffff':tier===8?'#bcc5d1':(tier===1||tier===4||tier===5)?'#1e1b2b':'#f4efe4';(obj.fillText as any)(...args);obj.fillStyle=c;};const v=(obj as any)[key];return typeof v==='function'?v.bind(obj):v;}
  });
 }

@@ -10,6 +10,16 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 40,
+    date: 'Nov 18, 2026',
+    title: 'Quieter campus colors, clearer Stinger lettering',
+    items: [
+      'Building colors reveal more of their natural materials, with stronger color retained on the RA Tower and Bible Prof Tower. Walls keep the original tier colors.',
+      'Upgrade artwork now matches the last DMC tier where that building level is campus max, including blue-and-gold level 6 Admissions, Rinnova and Coffee Cart.',
+      'The Stinger Statue has larger, high-contrast CEDARVILLE lettering. Building levels, stats, costs and upgrade requirements are unchanged.',
+    ],
+  },
+  {
     v: 39,
     date: 'Nov 18, 2026',
     title: 'DMC-themed upgrade artwork',
