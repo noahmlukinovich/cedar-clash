@@ -137,7 +137,6 @@ function mountLoadingArtwork(host: HTMLElement): { setProgress: (p: number) => v
   if (!logoContext) return { setProgress: () => {}, dispose: () => {} };
   const logoCtx: CanvasRenderingContext2D = logoContext;
       const CONFIG = {
-        loadDuration: 4.5, // Seconds for smooth 0% -> 100% progress animation
         palette: {
           bgCenter: '#2558BD',
           bgMid: '#123682',
@@ -2695,20 +2694,24 @@ export class UI {
     document.body.appendChild(l);
     const artwork = mountLoadingArtwork(l);
     return new Promise((res) => {
-      let p = 0;
-      const iv = setInterval(() => {
-        p += 12 + Math.random() * 18;
-        artwork.setProgress(Math.min(100, p) / 100);
-        l.setAttribute('aria-valuenow', String(Math.min(100, Math.round(p))));
-        if (p >= 100) {
-          clearInterval(iv);
+      // Startup is already complete here; animate this presentation at display
+      // refresh speed instead of adding random percentage chunks on a timer.
+      const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 900;
+      const start = performance.now();
+      const advance = (now: number): void => {
+        const p = duration === 0 ? 1 : Math.max(0, Math.min(1, (now - start) / duration));
+        artwork.setProgress(p);
+        l.setAttribute('aria-valuenow', String(Math.round(p * 100)));
+        if (p < 1) requestAnimationFrame(advance);
+        else {
           setTimeout(() => {
             l.style.opacity = '0';
             setTimeout(() => { artwork.dispose(); l.remove(); }, 500);
             res();
           }, 600);
         }
-      }, 160);
+      };
+      requestAnimationFrame(advance);
     });
   }
 
