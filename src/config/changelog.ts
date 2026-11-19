@@ -10,7 +10,7 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
-    v: 39,
+    v: 41,
     date: 'Nov 19, 2026',
     title: 'Cedarville Clash on your phone',
     items: [
@@ -20,6 +20,22 @@ export const CHANGELOG: ChangeEntry[] = [
       'Raids keep going if you switch apps or lock your phone, just like a real one would.',
       'New in Settings: Add to Home Screen (opens full screen, like an app), Vibration, and Graphics (Auto, Sharp or Battery saver).',
     ],
+  },
+  {
+    v: 40,
+    date: 'Nov 18, 2026',
+    title: 'Quieter campus colors, clearer Stinger lettering',
+    items: [
+      'Building colors reveal more of their natural materials, with stronger color retained on the RA Tower and Bible Prof Tower. Walls keep the original tier colors.',
+      'Upgrade artwork now matches the last DMC tier where that building level is campus max, including blue-and-gold level 6 Admissions, Rinnova and Coffee Cart.',
+      'The Stinger Statue has larger, high-contrast CEDARVILLE lettering. Building levels, stats, costs and upgrade requirements are unchanged.',
+    ],
+  },
+  {
+    v: 39,
+    date: 'Nov 18, 2026',
+    title: 'DMC-themed upgrade artwork',
+    items: ['Updated building and troop upgrade artwork with DMC-themed colors. Gameplay, stats and upgrade requirements are unchanged.'],
   },
   {
     v: 38,

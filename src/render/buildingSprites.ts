@@ -68,9 +68,9 @@ export function getBuildingSprite(type: BuildingType, level: number, variant = 0
 //   5+ flagship    gold finial, navy-and-gold banners, pale stone lot
 const WOOD = '#b98652';
 /** Cream stone used for parapets, cornices, columns and window frames. */
-const CREAM = '#f1e4c6';
+let CREAM = '#f1e4c6';
 /** A lighter cream for columns and top-level parapets (a hex literal: box() shades hex colours only). */
-const CREAM_LIGHT = '#f8f0dc';
+let CREAM_LIGHT = '#f8f0dc';
 const SLATE = '#4f5262';
 const LIT = '#ffd870';
 
@@ -256,7 +256,7 @@ function plaque(ctx: Ctx, x: number, y: number, text: string, size = 8, light = 
   ctx.lineWidth = 1;
   ctx.strokeStyle = light ? shade(CREAM, -0.25) : CREAM;
   ctx.stroke();
-  ctx.fillStyle = light ? OUT : CREAM;
+  ctx.fillStyle = light ? OUT : (C.navy === '#272d36' ? '#aeb7c4' : CREAM);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(text, x, y + 0.5);
@@ -465,7 +465,24 @@ function levelFlags(ctx: Ctx, level: number, u: number, v: number, z: number): v
   }
 }
 
+/** Applies approved colors at the drawing boundary, never to building stats. */
 export function drawBuilding(ctx: Ctx, type: BuildingType, level: number, variant = 0): void {
+  if (type === 'ratower' && level > 0) {
+    // The retained RA preview changes shared helper defaults only for this synchronous draw.
+    // Always restore them, including on error, so no other sprite inherits these colors.
+    const before = { ...C }, cream = CREAM, creamLight = CREAM_LIGHT;
+    const t = buildingThemes[buildingThemeTier(type, level)-1];
+    const dark = buildingThemeTier(type, level) === 8;
+    try {
+      C.brick=t.body; C.stone=t.body; C.stoneDark=shade(t.body,-.2);
+      C.gold=t.trim; C.goldDark=shade(t.trim,-.2); CREAM=t.trim; CREAM_LIGHT=t.trim;
+      C.roofBlue=t.roof; C.woodDark=dark?'#454b55':shade(t.body,-.35);
+      C.navy=dark?'#272d36':'#1c3d7a'; C.concrete=t.floor;
+      drawBuildingArt(ctx,type,level,variant);
+    } finally { Object.assign(C,before); CREAM=cream; CREAM_LIGHT=creamLight; }
+  } else drawBuildingArt(buildingThemeContext(ctx,type,level),type,level,variant);
+}
+function drawBuildingArt(ctx: Ctx, type: BuildingType, level: number, variant = 0): void {
   const size = BUILDINGS[type].size;
   if (type !== 'wall' && type !== 'gate' && type !== 'lake' && type !== 'nest' && type !== 'firealarm') groundShadow(ctx, size);
   if (level === 0) {
@@ -1787,7 +1804,7 @@ function presidents(ctx: Ctx, L: number): void {
 }
 
 function raTower(ctx: Ctx, L: number): void {
-  site(ctx, L, 3, L <= 1 ? undefined : C.stone);
+  site(ctx, L, 3, L <= 1 ? undefined : C.concrete);
   const h = 42 + L * 5;
   const s = 0.55;
   walls(ctx, L, -s, -s, s, s, 4, h, L >= 4 ? C.stone : C.brick);
@@ -1831,7 +1848,7 @@ function raTower(ctx: Ctx, L: number): void {
       [0.8, 0.8],
       [0.8, -0.8],
     ]) line(ctx, P(u, v, h + 16), P(u, v, h + 28));
-    pyramid(ctx, -0.95, -0.95, 0.95, 0.95, h + 28, 16, L >= 5 ? C.gold : C.roofBlue);
+    pyramid(ctx, -0.95, -0.95, 0.95, 0.95, h + 28, 16, C.roofBlue);
   }
   if (L >= 5) {
     // spotlight
@@ -2154,14 +2171,12 @@ function stinger(ctx: Ctx, L: number): void {
   ctx.strokeStyle = L >= 2 ? C.gold : '#dfe6ec';
   ctx.stroke();
   ctx.fillStyle = '#fff';
-  ctx.font = '900 10px "Trebuchet MS", system-ui, sans-serif';
+  ctx.font = '900 11px "Trebuchet MS", system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const word = 'CEDARVILLE';
-  for (let i = 0; i < word.length; i++) {
-    const k = (i - (word.length - 1) / 2) / ((word.length - 1) / 2); // -1..1
-    ctx.fillText(word[i], k * 33, -54.5 + k * k * 3.6);
-  }
+  // A single word keeps natural letter spacing and fits inside the dark banner.
+  ctx.fillText(word, 0, -54.5, 79);
 
   // chrome yellow jacket perched on the sign, facing the viewer, stinger raised
   const chrome = (y0: number, y1: number): CanvasGradient => {
@@ -2499,4 +2514,86 @@ function lake(ctx: Ctx): void {
   ctx.moveTo(a[0], a[1]);
   ctx.lineTo(b[0], b[1]);
   ctx.stroke();
+}
+
+// Approved wall/DMC palette. Natural effects retain their original colors.
+const buildingThemes=[
+ {name:'Timber',body:'#a8713c',trim:'#c99a62',roof:'#a8713c',floor:'#c9b48a'},
+ {name:'Brick',body:'#bf5a3f',trim:'#d97a5f',roof:'#bd5c43',floor:'#c3b5a1'},
+ {name:'Dark brick + stone',body:'#a34a3a',trim:'#b8b2a7',roof:'#a34a3a',floor:'#b8b2a7'},
+ {name:'Grey + silver',body:'#9aa0a8',trim:'#dfe3e8',roof:'#c4c9cf',floor:'#aeb4bb'},
+ {name:'Gold',body:'#c9a13a',trim:'#f5c32c',roof:'#f5c32c',floor:'#b9aa7c'},
+ {name:'Blue + gold',body:'#2e63b8',trim:'#f5c32c',roof:'#2e63b8',floor:'#a6adb6'},
+ {name:'Navy + gold',body:'#1c3d7a',trim:'#f5c32c',roof:'#1c3d7a',floor:'#959eac'},
+ {name:'Obsidian black',body:'#272c34',trim:'#525b68',roof:'#171b22',floor:'#454c57'}
+];
+type BuildingRGB=[number,number,number];
+function buildingRgb(s:string):BuildingRGB|null{
+ if(s.startsWith('#')){let x=s.slice(1);if(x.length===3)x=x.split('').map(c=>c+c).join('');if(x.length!==6)return null;return [parseInt(x.slice(0,2),16),parseInt(x.slice(2,4),16),parseInt(x.slice(4,6),16)];}
+ let m=s.match(/^rgb\(\s*(\d+)[, ]+\s*(\d+)[, ]+\s*(\d+)\s*\)$/);return m?[+m[1],+m[2],+m[3]]:null;
+}
+function buildingColorOutput(v:BuildingRGB){return `rgb(${v.map(n=>Math.max(0,Math.min(255,Math.round(n)))).join(',')})`;}
+function buildingShaded(target:string, n:number){const v=buildingRgb(target)!;return buildingColorOutput(v.map(x=>n>=0?x+(255-x)*n:x*(1+n)) as BuildingRGB);}
+const buildingMaterials:[string,string][]=[
+ ['#bf5a3f','body'],['#93402c','body'],['#c87952','body'],['#ce8050','body'],['#b98652','body'],['#a8713c','body'],
+ ['#b8b2a7','body'],['#8f897e','body'],['#f1e4c6','trim'],['#f8f0dc','trim'],['#f4efe4','trim'],['#f5c32c','trim'],['#c9971a','trim'],
+ ['#2e63b8','roof'],['#1c3d7a','roof'],['#4f5262','roof'],['#53657d','roof'],['#272d39','roof'],
+ ['#d9d2c3','floor'],['#e6dfd0','floor'],['#c9b48a','floor']
+];
+const buildingColorCaches = new Map<string, Map<string, string>>();
+export function buildingThemeTier(type: BuildingType, level: number): number {
+ const levels = BUILDINGS[type].levels;
+ const L = Math.max(1, Math.min(levels.length, Math.floor(level)));
+ if (type === 'dmc') return L;
+ // Match the approved one-card-per-upgrade catalog: use the last DMC tier
+ // where this level is the campus maximum. Intermediate upgrades sharing an
+ // unlock keep that unlock's tier. This changes artwork, never requirements.
+ const lastMaxDmc = levels[L] ? levels[L].dmc - 1 : buildingThemes.length;
+ return Math.max(1, levels[L-1].dmc, lastMaxDmc);
+}
+export function buildingThemeContext(ctx: Ctx, type: BuildingType, level: number): Ctx {
+ if (level <= 0 || type === 'ratower') return ctx;
+ const tier = buildingThemeTier(type, level);
+ const t:any=buildingThemes[tier-1];
+ const key = `${type}:${tier}`;
+ let colorCache = buildingColorCaches.get(key);
+ if (!colorCache) { colorCache = new Map<string,string>(); buildingColorCaches.set(key,colorCache); }
+ const cache = colorCache;
+ const recolor=(s:any)=>{
+  if(typeof s!=='string')return s;if(cache.has(s))return cache.get(s);
+  const v=buildingRgb(s);if(!v)return s;
+  const [r,g,b]=v,hi=Math.max(...v),lo=Math.min(...v),sat=hi-lo;
+  // Leave ink, transparency, vegetation, water/glass, warm lamps and skin readable.
+  if(s.toLowerCase()==='#1e1b2b'||hi<42)return s;
+  if(g>r*1.13&&g>b*1.05)return s;
+  if(b>r*1.16&&g>r*1.12&&g>b*.66&&hi>130)return s;
+  if(r>225&&g>175&&g<220&&b>135&&b<185)return s;
+  if(['#ffd870','#ffe9a8','#ffd877','#ffe6a0'].includes(s.toLowerCase()))return s;
+  if(type==='lake'&&(b>r||g>r))return s;
+  // Closely match source materials, including their normal shaded variants.
+  let best=Infinity,role='body',amount=0;
+  for(const [hex,k]of buildingMaterials){const src=buildingRgb(hex)!;for(const a of [-.4,-.3,-.25,-.2,-.18,-.15,-.12,-.1,0,.08,.12,.18,.2,.25]){
+   const candidate=src.map(x=>a>=0?x+(255-x)*a:x*(1+a));const e=candidate.reduce((p,x,j)=>p+(x-v[j])**2,0);
+   if(e<best){best=e;role=k;amount=a;}
+  }}
+  let result;
+  if(best<300) result=buildingShaded(t[role],amount);
+  else if(r>g*1.2&&r>b*1.2) result=buildingShaded(t.body,(hi-170)/600);
+  else if(b>r*1.05&&b>g*.95)result=buildingShaded(t.roof,(hi-120)/700);
+  else if(sat<38){
+   const lum=(r+g+b)/3;result=buildingShaded(lum>205?t.trim:lum>135?t.floor:lum>75?t.body:t.roof,(lum>205?(lum-230)/800:(lum-130)/1000));
+  }else if(r>g&&g>b)result=buildingShaded(hi>210?t.trim:t.body,(hi-180)/700);
+  else result=tier===8?buildingShaded(t.body,(hi-130)/850):buildingShaded(t.roof,(hi-130)/850);
+  // Approved material blend: 60% subtler generally, 45% for Bible Prof Tower.
+  // Walls retain the original full palette; RA Tower uses its full-theme
+  // drawing path above. Even the black tier retains native material detail.
+  const target=buildingRgb(result)!;
+  const strength=type==='wall'?1:type==='bibleprof'?.55:.40;
+  result=buildingColorOutput(target.map((n,i)=>n*strength+v[i]*(1-strength)) as BuildingRGB);
+  cache.set(s,result);return result;
+ };
+ return new Proxy(ctx,{
+  set(obj,key,val){(obj as any)[key]=(key==='fillStyle'||key==='strokeStyle')?recolor(val):val;return true;},
+  get(obj,key){if(key==='createLinearGradient'||key==='createRadialGradient')return (...args:any[])=>{const gradient=(obj as any)[key](...args);const add=gradient.addColorStop.bind(gradient);gradient.addColorStop=(p:number,c:string)=>add(p,recolor(c));return gradient;};if(key==='fillText')return (...args:any[])=>{const c=obj.fillStyle; obj.fillStyle=type==='stinger'?'#ffffff':tier===8?'#bcc5d1':(tier===1||tier===4||tier===5)?'#1e1b2b':'#f4efe4';(obj.fillText as any)(...args);obj.fillStyle=c;};const v=(obj as any)[key];return typeof v==='function'?v.bind(obj):v;}
+ });
 }
