@@ -66,7 +66,51 @@ export type CampusControl = 'attack' | 'army' | 'shop';
 export function campusControlArt(kind: CampusControl): string {
  const ink = '#102b41', gold = '#f5c32c';
 function sword(): string{return `<g stroke="${ink}" stroke-width="3" stroke-linejoin="round"><path d="M-4-31 0-43 4-31 4 20-4 20Z" fill="#dce5ed"/><path d="M0-39 0 19 4 19 4-31Z" fill="#8fa5ba" stroke="none"/><path d="M-12 19H12V25H-12Z" fill="${gold}"/><path d="M-3 25H3V40H-3Z" fill="#cf941e"/><circle cy="41" r="4" fill="${gold}"/></g>`;}
-function attack(): string{return `<g transform="translate(60 45) scale(.82)"><g transform="rotate(-43)">${sword()}</g><g transform="rotate(43)">${sword()}</g><path d="M-27-20Q-11-19 0-28 11-19 27-20L24 9Q20 28 0 38-20 28-24 9Z" fill="${ink}" stroke="${gold}" stroke-width="3"/></g>`;}
+/** Approved full Stinger, reduced 15% to leave breathing room inside the shield. */
+function stingerEmblem(): string {
+ const navy = ink, blue = '#2e63b8', cream = '#fff9e9';
+ return `<g transform="translate(-20.32 -18.82) scale(.0714)" stroke-linejoin="round" stroke-linecap="round">
+ <!-- legs, drawn behind the body -->
+ <g fill="${navy}" stroke="${cream}" stroke-width="6">
+  <path d="M302 276 217 258Q156 313 87 325Q149 335 222 282L297 292Z"/>
+  <path d="M300 295 231 282Q182 330 109 346Q169 361 240 306L299 311Z"/>
+  <path d="M264 328 220 329Q195 377 151 390L176 388Q154 427 115 441L137 438Q109 470 71 479L104 476 89 488Q158 472 185 429L179 452Q210 420 217 383L244 350Z"/>
+  <path d="M291 420Q292 468 250 486L274 482Q237 510 183 496Q224 483 229 460L241 434Z"/>
+ </g>
+ <!-- four long, angular wings -->
+ <g fill="${blue}" stroke="${cream}" stroke-width="7">
+  <path d="M82 22Q61 53 72 111L166 165 172 153 305 255Z"/>
+  <path d="M14 99 164 182 172 171 302 255 65 202Q30 191 14 99Z"/>
+  <path d="M315 63Q294 78 285 111L307 153 312 144 350 245Z"/>
+  <path d="M267 103Q253 136 260 164L328 243 341 244 302 176 294 180Z"/>
+ </g>
+ <!-- abdomen curls into the long raised stinger -->
+ <path d="M294 314Q255 308 222 323Q202 340 197 377Q187 428 219 477Q253 526 310 538C379 555 453 531 510 500C443 531 377 534 330 518Q289 499 303 441L315 373 338 336Z" fill="${navy}" stroke="${cream}" stroke-width="6"/>
+ <path d="M225 333Q211 356 218 382L241 396 240 414 264 425 257 402 245 395Q235 369 245 344L280 330Z" fill="${gold}"/>
+ <path d="M215 390Q204 410 215 438L242 451 239 430 230 433 224 410Z" fill="${gold}"/>
+ <path d="M224 443Q225 465 246 485L267 489 256 470 248 474 238 455Z" fill="${gold}"/>
+ <path d="M254 485Q259 509 283 520L302 522 290 507 282 508 271 494Z" fill="${gold}"/>
+ <path d="M289 520Q303 534 325 535L341 532 327 525 320 529 308 522Z" fill="${gold}"/>
+ <path d="M330 534Q388 546 468 518Q398 538 353 529Z" fill="${gold}"/>
+ <path d="M265 347Q256 403 277 452Q287 483 309 500Q278 474 271 438Q260 390 277 350Z" fill="${blue}"/>
+ <g fill="none" stroke="${gold}" stroke-width="3"><path d="M224 367Q264 389 298 381"/><path d="M215 405Q254 431 293 421"/><path d="M226 448Q260 470 298 459"/><path d="M251 485Q280 504 312 495"/></g>
+ <!-- thorax -->
+ <path d="M301 251Q324 237 367 243L385 266 373 309Q360 339 329 339Q298 340 290 316Q275 285 301 251Z" fill="${navy}" stroke="${cream}" stroke-width="6"/>
+ <path d="M323 249 351 247Q358 269 374 284L367 313Q345 289 323 249Z" fill="${gold}"/>
+ <path d="M299 282Q302 257 319 265L329 275Q310 266 305 298Z" fill="${blue}"/>
+ <!-- Stinger's recognizable angular head and antennae -->
+ <path d="M402 165Q424 169 449 189L455 176Q494 189 539 230Q521 234 495 217L459 188Q459 208 464 225L489 233 482 237 507 249 500 253 510 266Q528 276 527 298Q526 310 521 319Q521 349 498 372L484 359Q465 349 416 342Q382 337 376 321Q369 303 373 281Q364 263 378 250Q384 234 410 234L407 222Q399 191 402 165Z" fill="${navy}" stroke="${cream}" stroke-width="6"/>
+ <path d="M409 175Q428 182 449 198L453 231 431 227 427 218 416 225Q408 203 409 175ZM462 185Q492 198 525 222L511 214 475 199Z" fill="${cream}"/>
+ <path d="M406 235Q463 253 500 317Q506 282 498 260Q523 290 513 329L500 358Q484 330 454 307Q443 280 406 235Z" fill="${gold}"/>
+ <path d="M406 235Q464 270 493 348L500 358Q484 330 454 307Q443 280 406 235Z" fill="#c9971a"/>
+ <path d="M385 289Q379 313 395 324L455 341Q407 324 398 316Q389 308 391 299Z" fill="${gold}"/>
+ <path d="M379 253Q387 234 404 248Q429 266 446 300L450 309Q457 323 442 321Q406 319 389 296Q370 276 379 253Z" fill="${navy}"/>
+ <path d="M378 260Q383 240 400 251Q421 266 438 296L443 309Q423 273 402 261Q389 253 378 260Z" fill="${blue}"/>
+ <path d="M432 237 454 232 472 238 466 242 483 248 478 252 489 260 483 264Q497 287 499 308Q481 268 432 237Z" fill="${blue}"/>
+ <circle cx="420" cy="278" r="6.5" fill="#ffffff"/>
+</g>`;
+}
+function attack(): string{return `<g transform="translate(60 45) scale(.82)"><g transform="rotate(-43)">${sword()}</g><g transform="rotate(43)">${sword()}</g><path d="M-27-20Q-11-19 0-28 11-19 27-20L24 9Q20 28 0 38-20 28-24 9Z" fill="${ink}" stroke="${gold}" stroke-width="3"/>${stingerEmblem()}</g>`;}
 function army(): string{return ''; }
 function shop(): string{return `<g stroke="${ink}" stroke-width="2.6" stroke-linejoin="round"><path d="M21 35H99V83H21Z" fill="#b56348"/><path d="M18 25H102V37H18Z" fill="#f4e1b7"/><path d="M35 25V15H85V25" fill="#c37453"/><path d="M30 42H90V83H30Z" fill="#f0dcad"/><path d="M26 41H94L102 55H18Z" fill="${gold}"/><path d="M38 41H49L45 55H32ZM70 41H81L88 55H75Z" fill="#214570" stroke="none"/><path d="M18 55Q26 63 34 55 42 63 50 55 58 63 66 55 74 63 82 55 92 63 102 55" fill="#214570"/><path d="M33 61H45V76H33ZM75 61H87V76H75ZM52 60H68V83H52Z" fill="#8fc8dc"/><path d="M35 72 44 63M77 72 86 63M55 77 65 63" stroke="#e9f5f3" stroke-width="2"/><path d="M63 71V76" stroke="${gold}" stroke-width="2.5"/><path d="M46 14H74V31H46Z" fill="${ink}"/><path d="M55 21H65V28H55ZM57 21V18Q60 13 63 18V21" fill="${gold}" stroke="${gold}" stroke-width="1.6"/></g>`;}
 function button(type: CampusControl): string{
