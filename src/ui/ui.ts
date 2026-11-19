@@ -7,6 +7,8 @@ import { SPELLS, SPELL_ORDER } from '../config/spells';
 import type { BuildingType, HeroType, ResourceId, TroopType } from '../config/types';
 import { isMuted, setMuted, sfx } from '../core/audio';
 import { bus } from '../core/bus';
+import { hapticsOn, hapticsSupported, setHaptics } from '../core/haptics';
+import { touchMode } from '../core/input';
 import { pick } from '../core/rng';
 import {
   ARMIES,
@@ -53,7 +55,7 @@ import { type ExtraRow, type UpgradeRow, listUpgrades } from '../game/upgrades';
 import { toWorld } from '../core/iso';
 import type { Game } from '../main';
 import { NAME_RULES, type VisitBuilding, type VisitResponse, validCampusName } from '../net/protocol';
-import { fmtTime } from '../village/villageScene';
+import { fmtTime, type VillageScene } from '../village/villageScene';
 import { namePlatesOn, setNamePlates } from '../render/world';
 import { ICONS, icon } from './icons';
 import { buildingThumb, spellThumb, unitThumb } from './thumbs';
@@ -868,6 +870,9 @@ export class UI {
   chipsEl!: HTMLElement;
   selPanel!: HTMLElement;
   placePanel!: HTMLElement;
+  /** Touch placing: ✔ / ✖ that float above the ghost. */
+  placeFloat!: HTMLElement;
+  private placeOkBtn!: HTMLButtonElement;
   bottomLeft!: HTMLElement;
   bottomRight!: HTMLElement;
   sideRight!: HTMLElement;
@@ -1025,6 +1030,7 @@ export class UI {
     v.appendChild(this.selPanel);
     this.placePanel = el('div', 'place-panel hidden');
     v.appendChild(this.placePanel);
+    this.buildPlaceFloat();
   }
 
   showVillage(show: boolean): void {
@@ -1043,6 +1049,7 @@ export class UI {
   }
 
   update(): void {
+    this.updatePlaceFloat();
     this.tick++;
     if (this.tick % 6 !== 0) return; // ~10 Hz
     const s = this.state;
@@ -1091,18 +1098,68 @@ export class UI {
     }
   }
 
+  // ---------- Touch placing buttons ----------
+  private buildPlaceFloat(): void {
+    const f = el('div', 'place-float hidden');
+    const ok = el('button', 'btn round green', '✔') as HTMLButtonElement;
+    ok.setAttribute('aria-label', 'Place here');
+    const no = el('button', 'btn round red', '✖');
+    no.setAttribute('aria-label', 'Cancel');
+    const scene = (): VillageScene | null => {
+      const sc = this.game.scene;
+      return sc === this.game.village || sc === this.game.editor ? (sc as VillageScene) : null;
+    };
+    ok.onclick = () => scene()?.confirmPlace();
+    no.onclick = () => {
+      sfx('click');
+      scene()?.cancelMode();
+    };
+    f.append(no, ok);
+    this.root.appendChild(f);
+    this.placeFloat = f;
+    this.placeOkBtn = ok;
+  }
+
+  /** Runs every frame: keeps the touch ✔ / ✖ just above the placing ghost. */
+  private updatePlaceFloat(): void {
+    const f = this.placeFloat;
+    if (!f) return;
+    const sc = this.game.scene;
+    const vs = sc === this.game.village || sc === this.game.editor ? (sc as VillageScene) : null;
+    const box = touchMode && !this.isModalOpen() ? vs?.ghostBox() : null;
+    if (!box || !vs) {
+      f.classList.add('hidden');
+      return;
+    }
+    f.classList.remove('hidden');
+    const w = f.offsetWidth || 130;
+    const h = f.offsetHeight || 60;
+    const x = Math.min(Math.max(box.x - w / 2, 8), window.innerWidth - w - 8);
+    // Above the ghost; below it when there's no room above, so it never covers it.
+    let y = box.top - h - 6;
+    if (y < 8) y = box.bottom + 10;
+    y = Math.min(Math.max(y, 8), window.innerHeight - h - 8);
+    f.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+    this.placeOkBtn.classList.toggle('gray', !vs.placingOk());
+  }
+
   // ---------- Selection panel ----------
   renderSelection(force: boolean): void {
     const vs = this.game.village;
     const mode = vs.mode.kind;
     if (mode === 'placing') {
       this.selPanel.classList.add('hidden');
-      const sig = 'placing:' + (vs.mode.kind === 'placing' ? vs.mode.type : '');
+      const sig = `placing:${vs.mode.kind === 'placing' ? vs.mode.type : ''}:${touchMode}`;
       if (!force && this.lastSelSig === sig) return;
       this.lastSelSig = sig;
       this.placePanel.classList.remove('hidden');
       this.placePanel.innerHTML = '';
       const type = vs.mode.kind === 'placing' ? vs.mode.type : 'wall';
+      if (touchMode) {
+        // The ✔ / ✖ float above the ghost; here just say how it works.
+        this.placePanel.append(el('div', 'hint stroke', `Placing ${BUILDINGS[type].name}: drag it into place, then tap ✔.`));
+        return;
+      }
       const hint = el('div', 'hint stroke', `Placing ${BUILDINGS[type].name}: move the mouse, click to place. <kbd>Esc</kbd> cancels.`);
       const ok = el('button', 'btn', '✔ Place');
       ok.onclick = () => vs.confirmPlace();
@@ -2052,7 +2109,17 @@ export class UI {
         setNamePlates(!namePlatesOn());
         render();
       };
-      row1.append(mute, plates, save, news);
+      row1.append(mute, plates);
+      if (hapticsSupported()) {
+        const vib = el('button', 'btn blue', hapticsOn() ? '📳 Vibration: On' : '📳 Vibration: Off');
+        vib.onclick = () => {
+          setHaptics(!hapticsOn());
+          sfx('click');
+          render();
+        };
+        row1.append(vib);
+      }
+      row1.append(save, news);
       row1.style.flexWrap = 'wrap';
       m.body.appendChild(row1);
 
@@ -2326,7 +2393,7 @@ export class UI {
     const sel = ed.selected();
     const placing = ed.mode.kind === 'placing' ? ed.mode.type : null;
     let hint = 'Drag a selected building to move it. Wheel to zoom, drag the ground to pan.';
-    if (placing) hint = `Placing ${BUILDINGS[placing].name}: click to place. <kbd>Esc</kbd> cancels.`;
+    if (placing) hint = touchMode ? `Placing ${BUILDINGS[placing].name}: drag it into place, then tap ✔.` : `Placing ${BUILDINGS[placing].name}: click to place. <kbd>Esc</kbd> cancels.`;
     else if (ed.tray.length) hint = 'Pick a building from the tray to place it.';
     const hintRow = el('div', 'editor-hint');
     hintRow.appendChild(el('div', 'hint stroke', hint));

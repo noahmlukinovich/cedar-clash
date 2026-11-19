@@ -15,6 +15,31 @@ import type { Camera } from './camera';
  * - A quick one-finger pan keeps the camera gliding after release.
  */
 
+/**
+ * True after a touch or pen press anywhere on the page (HUD buttons included),
+ * false after a mouse press. Starts true on devices whose main pointer is a
+ * finger. Drives touch-only UI such as the floating ✔ / ✖ when placing.
+ */
+export let touchMode = false;
+
+export function setTouchMode(on: boolean): void {
+  if (touchMode === on) return;
+  touchMode = on;
+  document.body.classList.toggle('touch', on);
+}
+
+/** Call once at startup. */
+export function trackInputMode(): void {
+  try {
+    setTouchMode(matchMedia('(pointer: coarse)').matches);
+  } catch {
+    // very old browser: assume mouse
+  }
+  window.addEventListener('pointerdown', (e) => setTouchMode(e.pointerType !== 'mouse'), { capture: true });
+}
+
+/** How long a finger must rest, without moving, to count as a long-press. */
+export const LONG_PRESS_MS = 450;
 /** How long a new touch waits for a second finger. */
 export const SETTLE_MS = 70;
 /** How far (CSS px) a finger moves before a tap becomes a drag. */
@@ -27,6 +52,8 @@ export interface TouchTarget {
   onMouseUp(x: number, y: number, button: number): void;
   /** Drop the current press without acting on it (a second finger arrived). */
   onPointerCancel(): void;
+  /** A finger rested without moving for LONG_PRESS_MS. Optional. */
+  onLongPress?(x: number, y: number): void;
 }
 
 interface Pt {
@@ -38,7 +65,7 @@ export class TouchInput {
   /** Every finger currently down, by pointer id. */
   private pts = new Map<number, Pt>();
   /** The finger being forwarded to the scene, if any. */
-  private primary: { id: number; start: Pt; forwarded: boolean; moved: boolean; timer: number } | null = null;
+  private primary: { id: number; start: Pt; forwarded: boolean; moved: boolean; timer: number; longTimer: number } | null = null;
   /** Two-finger gesture state; stays set until every finger is up. */
   private gesture: { dist: number; mid: Pt } | null = null;
   /** Recent camera positions during a one-finger pan, for the flick speed. */
@@ -70,6 +97,7 @@ export class TouchInput {
   private down(e: PointerEvent): void {
     if (e.pointerType === 'mouse') return;
     e.preventDefault(); // no emulated mouse events after this touch
+    setTouchMode(true);
     this.onFirstTouch();
     this.canvas.setPointerCapture?.(e.pointerId);
     const p = { x: e.clientX, y: e.clientY };
@@ -79,7 +107,8 @@ export class TouchInput {
     this.trail = [];
     if (this.pts.size === 1 && !this.gesture) {
       const timer = window.setTimeout(() => this.forwardDown(), SETTLE_MS);
-      this.primary = { id: e.pointerId, start: p, forwarded: false, moved: false, timer };
+      const longTimer = window.setTimeout(() => this.longPress(), LONG_PRESS_MS);
+      this.primary = { id: e.pointerId, start: p, forwarded: false, moved: false, timer, longTimer };
       return;
     }
     // A second (or third) finger: switch to pinch / pan.
@@ -100,6 +129,7 @@ export class TouchInput {
     if (!pr.moved) {
       if (Math.hypot(p.x - pr.start.x, p.y - pr.start.y) <= TOUCH_SLOP) return;
       pr.moved = true;
+      clearTimeout(pr.longTimer);
       if (!pr.forwarded) this.forwardDown();
     }
     const scene = this.scene();
@@ -124,6 +154,7 @@ export class TouchInput {
       return;
     }
     clearTimeout(pr.timer);
+    clearTimeout(pr.longTimer);
     if (!pr.forwarded) this.forwardDown(); // a quick tap
     this.primary = null;
     const scene = this.scene();
@@ -142,10 +173,18 @@ export class TouchInput {
     this.scene().onMouseDown(pr.start.x, pr.start.y, 0);
   }
 
+  private longPress(): void {
+    const pr = this.primary;
+    if (!pr || pr.moved || this.gesture) return;
+    if (!pr.forwarded) this.forwardDown();
+    this.scene().onLongPress?.(pr.start.x, pr.start.y);
+  }
+
   private cancelPrimary(): void {
     const pr = this.primary;
     if (!pr) return;
     clearTimeout(pr.timer);
+    clearTimeout(pr.longTimer);
     this.primary = null;
     if (pr.forwarded) this.scene().onPointerCancel();
   }

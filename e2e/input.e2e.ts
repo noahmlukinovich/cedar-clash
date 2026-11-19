@@ -56,6 +56,58 @@ async function startRaid(page: Page): Promise<void> {
   await page.waitForTimeout(500);
 }
 
+const mode = (page: Page) => page.evaluate(() => (window as any).game.village.mode);
+const cartCount = (page: Page): Promise<number> =>
+  page.evaluate(() => (window as any).game.state.buildings.filter((b: any) => b.type === 'coffeecart').length);
+
+async function startPlacing(page: Page): Promise<void> {
+  await page.locator('.hud .btn', { hasText: 'Shop' }).first().dispatchEvent('click');
+  await page.locator('.modal .card', { hasText: 'Coffee Cart' }).first().dispatchEvent('click');
+  await expect.poll(async () => (await mode(page)).kind).toBe('placing');
+}
+
+/** A spot on the canvas (not under the HUD), optionally away from the placing ghost. */
+async function freeCanvasPoint(page: Page, awayFromGhost = false): Promise<{ x: number; y: number }> {
+  return page.evaluate(async (away) => {
+    const { toGrid } = await import(String('/src/core/iso.ts'));
+    const g = (window as any).game.village;
+    const c = document.getElementById('game');
+    for (const [fx, fy] of [[0.65, 0.4], [0.35, 0.4], [0.65, 0.6], [0.35, 0.6], [0.5, 0.3], [0.25, 0.5], [0.75, 0.5], [0.2, 0.3], [0.8, 0.3], [0.2, 0.65], [0.8, 0.65]]) {
+      const x = Math.round(innerWidth * fx);
+      const y = Math.round(innerHeight * fy);
+      if (document.elementFromPoint(x, y) !== c) continue;
+      if (away && g.mode.kind === 'placing') {
+        const w = g.cam.screenToWorld(x, y);
+        const q = toGrid(w.x, w.y);
+        if (Math.abs(q.gx - g.mode.gx) < 4 && Math.abs(q.gy - g.mode.gy) < 4) continue;
+      }
+      return { x, y };
+    }
+    throw new Error('no free canvas spot');
+  }, awayFromGhost);
+}
+
+async function ghostCornerFor(page: Page, p: { x: number; y: number }): Promise<{ gx: number; gy: number }> {
+  return page.evaluate(async ({ x, y }) => {
+    const { toGrid } = await import(String('/src/core/iso.ts'));
+    const g = (window as any).game.village;
+    const w = g.cam.screenToWorld(x, y);
+    const q = toGrid(w.x, w.y);
+    const sz = (await import(String('/src/config/buildings.ts'))).BUILDINGS[g.mode.type].size;
+    return { gx: Math.round(q.gx - sz / 2), gy: Math.round(q.gy - sz / 2) };
+  }, p);
+}
+
+async function ghostCentre(page: Page): Promise<{ x: number; y: number }> {
+  return page.evaluate(async () => {
+    const { toWorld } = await import(String('/src/core/iso.ts'));
+    const g = (window as any).game.village;
+    const sz = (await import(String('/src/config/buildings.ts'))).BUILDINGS[g.mode.type].size;
+    const w = toWorld(g.mode.gx + sz / 2, g.mode.gy + sz / 2);
+    return g.cam.worldToScreen(w.x, w.y);
+  });
+}
+
 const units = (page: Page): Promise<number> => page.evaluate(() => (window as any).game.raid.sim.units.length);
 const mid = (page: Page) => page.evaluate(() => ({ x: innerWidth / 2, y: innerHeight / 2 }));
 
@@ -139,40 +191,101 @@ test.describe('touch', () => {
     expect((await cam(page)).vx).toBe(0);
   });
 
-  test('placing: tapping puts the ghost where the finger is', async ({ page }) => {
-    await page.locator('.hud .btn', { hasText: 'Shop' }).first().dispatchEvent('click');
-    await page.locator('.modal .card', { hasText: 'Coffee Cart' }).first().dispatchEvent('click');
-    await expect.poll(() => page.evaluate(() => (window as any).game.village.mode.kind)).toBe('placing');
-    // A spot off-centre that's on the canvas (the placing bar has buttons).
-    const p = await page.evaluate(() => {
-      const c = document.getElementById('game');
-      for (const [fx, fy] of [[0.65, 0.4], [0.35, 0.4], [0.65, 0.6], [0.35, 0.6], [0.5, 0.3]]) {
-        const x = Math.round(innerWidth * fx);
-        const y = Math.round(innerHeight * fy);
-        if (document.elementFromPoint(x, y) === c) return { x, y };
-      }
-      throw new Error('no free canvas spot');
-    });
-    const want = await page.evaluate(async ({ x, y }) => {
-      const { toGrid } = await import(String('/src/core/iso.ts'));
-      const g = (window as any).game.village;
-      const w = g.cam.screenToWorld(x, y);
-      const q = toGrid(w.x, w.y);
-      const sz = (await import(String('/src/config/buildings.ts'))).BUILDINGS[g.mode.type].size;
-      return { gx: Math.round(q.gx - sz / 2), gy: Math.round(q.gy - sz / 2) };
-    }, p);
+  test('placing: a tap moves the ghost and never builds', async ({ page }) => {
+    await startPlacing(page);
+    const p = await freeCanvasPoint(page);
+    const want = await ghostCornerFor(page, p);
+    const carts = await cartCount(page);
     const f = await Fingers.on(page);
     await f.tap(p.x, p.y);
     await page.waitForTimeout(100);
-    const placed = await page.evaluate(
-      ({ gx, gy }) => {
-        const g = (window as any).game;
-        const m = g.village.mode;
-        return m.kind === 'placing' ? m.gx === gx && m.gy === gy : g.state.buildings.some((b: any) => b.type === 'coffeecart' && b.x === gx && b.y === gy);
-      },
-      want,
-    );
-    expect(placed).toBe(true);
+    expect(await mode(page)).toMatchObject({ kind: 'placing', ...want });
+    expect(await cartCount(page)).toBe(carts);
+  });
+
+  test('placing: dragging the ghost moves it, dragging elsewhere pans', async ({ page }) => {
+    await startPlacing(page);
+    const f = await Fingers.on(page);
+    const g0 = await mode(page);
+    const top = await ghostCentre(page);
+    await f.drag(top, { x: top.x + 90, y: top.y + 45 }, 8, 20);
+    await page.waitForTimeout(50);
+    const g1 = await mode(page);
+    expect(g1.gx !== g0.gx || g1.gy !== g0.gy).toBe(true);
+
+    const camBefore = await cam(page);
+    const p = await freeCanvasPoint(page, true);
+    await f.drag(p, { x: p.x - 100, y: p.y }, 8, 20);
+    await page.waitForTimeout(50);
+    expect((await cam(page)).x).toBeGreaterThan(camBefore.x + 40);
+    expect(await mode(page)).toMatchObject({ kind: 'placing', gx: g1.gx, gy: g1.gy });
+  });
+
+  test('placing: the floating ✔ builds and ✖ cancels', async ({ page }) => {
+    await startPlacing(page);
+    const float = page.locator('.place-float');
+    await expect(float).toBeVisible();
+    await expect(page.locator('.place-panel .btn')).toHaveCount(0); // bottom bar is just a hint on touch
+    const carts = await cartCount(page);
+    await float.locator('.btn:not(.red)').tap();
+    await expect.poll(() => cartCount(page)).toBe(carts + 1);
+    await expect(float).toBeHidden();
+
+    await page.locator('.hud .btn', { hasText: 'Shop' }).first().dispatchEvent('click');
+    await page.locator('.modal .card', { hasText: 'Admissions' }).first().dispatchEvent('click');
+    await expect(float).toBeVisible();
+    await float.locator('.btn.red').tap();
+    await expect.poll(async () => (await mode(page)).kind).toBe('idle');
+  });
+
+  test('placing: ✔ turns gray where the building does not fit', async ({ page }) => {
+    await startPlacing(page);
+    // Park the ghost on top of an existing building.
+    const b = await page.evaluate(() => {
+      const g = (window as any).game;
+      const t = g.state.buildings.find((x: any) => x.type === 'admissions');
+      g.village.mode.gx = t.x;
+      g.village.mode.gy = t.y;
+      return t.id;
+    });
+    expect(b).toBeGreaterThan(-1);
+    await expect(page.locator('.place-float .btn:not(.red)')).toHaveClass(/gray/);
+  });
+
+  test('long-press picks a building up and drops it where the finger lifts', async ({ page }) => {
+    const b = await buildingPoint(page);
+    const target = await page.evaluate(async (id) => {
+      const { toWorld } = await import(String('/src/core/iso.ts'));
+      const { canPlace } = await import(String('/src/game/economy.ts'));
+      const g = (window as any).game;
+      const bb = g.state.buildings.find((x: any) => x.id === id);
+      for (let r = 2; r < 8; r++)
+        for (const [dx, dy] of [[r, 0], [-r, 0], [0, r], [0, -r], [r, r], [-r, -r]])
+          if (canPlace(g.state, bb.type, bb.x + dx, bb.y + dy, bb.id)) {
+            const a = g.village.cam.worldToScreen(toWorld(bb.x, bb.y).x, toWorld(bb.x, bb.y).y);
+            const c = g.village.cam.worldToScreen(toWorld(bb.x + dx, bb.y + dy).x, toWorld(bb.x + dx, bb.y + dy).y);
+            return { sx: c.x - a.x, sy: c.y - a.y, from: [bb.x, bb.y] };
+          }
+      throw new Error('nowhere to move it');
+    }, b.id);
+    const f = await Fingers.on(page);
+    await f.drag(b, { x: b.x + target.sx, y: b.y + target.sy }, 10, 20, true, 600);
+    await page.waitForTimeout(100);
+    const now = await page.evaluate((id) => {
+      const bb = (window as any).game.state.buildings.find((x: any) => x.id === id);
+      return [bb.x, bb.y];
+    }, b.id);
+    expect(now).not.toEqual(target.from);
+    expect(await mode(page)).toMatchObject({ kind: 'idle' });
+  });
+
+  test('a quick drag over a building pans instead of moving it', async ({ page }) => {
+    const b = await buildingPoint(page);
+    const before = await page.evaluate(() => JSON.stringify((window as any).game.state.buildings.map((x: any) => [x.x, x.y])));
+    const f = await Fingers.on(page);
+    await f.drag(b, { x: b.x - 120, y: b.y }, 8, 20);
+    await page.waitForTimeout(50);
+    expect(await page.evaluate(() => JSON.stringify((window as any).game.state.buildings.map((x: any) => [x.x, x.y])))).toBe(before);
   });
 
   test('raid: a tap on grass deploys one troop', async ({ page }) => {
@@ -205,6 +318,62 @@ test.describe('touch', () => {
   });
 });
 
+test.describe('touch extras', () => {
+  test.beforeEach(async ({ page }, info) => {
+    test.skip(!isTouch(info.project.name), 'touch tests run on iphone-13');
+    // Record vibrations instead of making them.
+    await page.addInitScript(() => {
+      (window as any).buzzes = [];
+      navigator.vibrate = ((p: number | number[]) => {
+        (window as any).buzzes.push(p);
+        return true;
+      }) as typeof navigator.vibrate;
+    });
+    await freshGame(page);
+  });
+
+  test('raid: holding a finger shows a green ring on grass', async ({ page }) => {
+    await startRaid(page);
+    const p = await deployPoint(page);
+    const f = await Fingers.on(page);
+    await f.press(p.x, p.y);
+    await page.waitForTimeout(150);
+    const green = await page.evaluate(({ x, y }) => {
+      const c = document.getElementById('game') as HTMLCanvasElement;
+      const ctx = c.getContext('2d')!;
+      const k = c.width / innerWidth;
+      for (let r = 34; r <= 46; r++) {
+        const d = ctx.getImageData(Math.round((x + r) * k), Math.round(y * k), 1, 1).data;
+        if (d[1] > 200 && d[0] < 170 && d[2] < 150) return true;
+      }
+      return false;
+    }, p);
+    await f.release();
+    expect(green).toBe(true);
+  });
+
+  test('deploying vibrates, and the Settings toggle turns it off', async ({ page }) => {
+    await startRaid(page);
+    const p = await deployPoint(page);
+    const f = await Fingers.on(page);
+    await f.tap(p.x, p.y);
+    await expect.poll(() => page.evaluate(() => (window as any).buzzes.length)).toBeGreaterThan(0);
+    expect(await page.evaluate(() => (window as any).buzzes[0])).toBe(8);
+
+    await page.evaluate(async () => (await import(String('/src/core/haptics.ts'))).setHaptics(false));
+    await page.evaluate(() => ((window as any).buzzes = []));
+    await page.waitForTimeout(100);
+    await f.tap(p.x + 20, p.y);
+    await expect.poll(() => units(page)).toBe(2);
+    expect(await page.evaluate(() => (window as any).buzzes.length)).toBe(0);
+  });
+
+  test('Settings shows the vibration toggle', async ({ page }) => {
+    await page.locator('.side-right .btn.round').first().dispatchEvent('click');
+    await expect(page.locator('.modal .btn', { hasText: 'Vibration' })).toBeVisible();
+  });
+});
+
 test.describe('mouse (desktop stays the same)', () => {
   test.beforeEach(async ({ page }, info) => {
     test.skip(info.project.name !== 'desktop', 'mouse tests run on desktop');
@@ -231,6 +400,21 @@ test.describe('mouse (desktop stays the same)', () => {
     await page.mouse.move(m.x, m.y);
     await page.mouse.wheel(0, -100);
     await expect.poll(async () => (await cam(page)).zoom).toBeCloseTo(z * 1.1, 3);
+  });
+
+  test('placing: click builds right away, no floating buttons', async ({ page }) => {
+    await startPlacing(page);
+    await expect(page.locator('.place-float')).toBeHidden();
+    await expect(page.locator('.place-panel .btn', { hasText: 'Place' })).toBeVisible();
+    const p = await freeCanvasPoint(page);
+    await page.mouse.move(p.x, p.y);
+    const carts = await cartCount(page);
+    await page.mouse.click(p.x, p.y);
+    await page.waitForTimeout(100);
+    const m = await mode(page);
+    // Built, or still placing because that exact spot was taken (same as before).
+    if (m.kind === 'idle') expect(await cartCount(page)).toBe(carts + 1);
+    else expect(await page.locator('.toast', { hasText: "Can't place there" }).count()).toBeGreaterThan(0);
   });
 
   test('raid: click deploys one troop, dragging off the zone pans', async ({ page }) => {

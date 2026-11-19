@@ -4,7 +4,7 @@ import { ACHIEVEMENTS, EVENT_INFO } from './config/humor';
 import { setMuted, sfx, unlockAudio } from './core/audio';
 import { bus } from './core/bus';
 import type { Camera } from './core/camera';
-import { TouchInput } from './core/input';
+import { TouchInput, trackInputMode } from './core/input';
 import { type Action, type ActionResult, applyAction } from './game/actions';
 import { tickArmy } from './game/army';
 import { dmcLevel, spend, tickEconomy } from './game/economy';
@@ -33,6 +33,8 @@ export interface Scene {
   onKey(key: string, down: boolean): void;
   /** Drop the current press without acting on it (a second finger arrived). */
   onPointerCancel(): void;
+  /** A finger rested without moving (touch only). */
+  onLongPress?(x: number, y: number): void;
   enter(): void;
   exit(): void;
   cam: Camera;
@@ -265,6 +267,7 @@ export class Game {
     });
     window.addEventListener('keyup', (e) => this.scene.onKey(e.key, false));
     // Touch and pen (mouse keeps the handlers above).
+    trackInputMode();
     this.touch = new TouchInput(
       c,
       () => this.scene,

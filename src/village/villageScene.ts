@@ -4,6 +4,7 @@ import type { BuildingType } from '../config/types';
 import { sfx } from '../core/audio';
 import { bus, toast } from '../core/bus';
 import { Camera } from '../core/camera';
+import { touchMode } from '../core/input';
 import { toGrid, toWorld } from '../core/iso';
 import { Particles, drawIcon } from '../core/particles';
 import {
@@ -48,7 +49,15 @@ export class VillageScene implements Scene {
   anim = new Map<number, number>(); // building id -> squash time remaining
   trees: TreeSpot[] = borderTrees(BORDER);
   wanderers: Wanderer[] = [];
-  private down: { x: number; y: number; button: number; onSelected: boolean; dragged: boolean } | null = null;
+  private down: {
+    x: number;
+    y: number;
+    button: number;
+    onSelected: boolean;
+    dragged: boolean;
+    /** Touch placing: the press started on the ghost, at this grid offset from its corner. */
+    ghostGrab?: { dx: number; dy: number };
+  } | null = null;
   private lastMouse = { x: 0, y: 0 };
   private keys = new Set<string>();
   time = 0;
@@ -108,6 +117,18 @@ export class VillageScene implements Scene {
       gy = spot.y;
     }
     this.mode = { kind: 'placing', type, gx, gy };
+    // Touch: bring the ghost well on screen, since it's dragged directly.
+    if (touchMode) {
+      const w = toWorld(gx + size / 2, gy + size / 2);
+      const p = this.cam.worldToScreen(w.x, w.y);
+      const mx = this.cam.width * 0.25;
+      const my = this.cam.height * 0.3;
+      if (p.x < mx || p.x > this.cam.width - mx || p.y < my || p.y > this.cam.height - my) {
+        this.cam.x = w.x;
+        this.cam.y = w.y;
+        this.cam.clampPos();
+      }
+    }
     this.selectedId = -1;
     bus.emit('selection', null);
     bus.emit('mode', this.mode.kind);
@@ -272,9 +293,6 @@ export class VillageScene implements Scene {
   // ---------- Input ----------
   onMouseDown(x: number, y: number, button: number): void {
     this.lastMouse = { x, y };
-    // Fingers don't hover, so bring the placing ghost to the press. (A mouse
-    // has already moved it here, so this changes nothing on desktop.)
-    if (this.mode.kind === 'placing') this.ghostTo(x, y);
     const sel = this.selected();
     let onSelected = false;
     if (button === 0 && sel && this.mode.kind === 'idle' && BUILDINGS[sel.type].movable !== false) {
@@ -282,6 +300,52 @@ export class VillageScene implements Scene {
       onSelected = p?.id === sel.id;
     }
     this.down = { x, y, button, onSelected, dragged: false };
+    if (this.mode.kind === 'placing') {
+      // Touch: grab the ghost if the press is on (or right next to) it.
+      // Mouse: the ghost already follows the pointer, so this is a no-op.
+      if (touchMode) this.down.ghostGrab = this.ghostGrabAt(x, y);
+      else this.ghostTo(x, y);
+    }
+  }
+
+  /** Can the placing ghost be built where it is now? */
+  placingOk(): boolean {
+    return this.mode.kind === 'placing' && canPlace(this.state, this.mode.type, this.mode.gx, this.mode.gy, -1);
+  }
+
+  /** Screen box of the placing ghost (centre x, top and bottom y), for the touch ✔/✖ buttons. */
+  ghostBox(): { x: number; top: number; bottom: number } | null {
+    if (this.mode.kind !== 'placing') return null;
+    const sz = BUILDINGS[this.mode.type].size;
+    const c = toWorld(this.mode.gx + sz / 2, this.mode.gy + sz / 2);
+    const top = this.cam.worldToScreen(c.x, c.y - (30 + sz * 22));
+    const bottom = toWorld(this.mode.gx + sz, this.mode.gy + sz);
+    return { x: top.x, top: top.y, bottom: this.cam.worldToScreen(bottom.x, bottom.y).y };
+  }
+
+  /** Grid offset from the ghost's corner if (x, y) is on the ghost, with a tile of slack for fingers. */
+  private ghostGrabAt(x: number, y: number): { dx: number; dy: number } | undefined {
+    if (this.mode.kind !== 'placing') return undefined;
+    const w = this.cam.screenToWorld(x, y);
+    const g = toGrid(w.x, w.y);
+    const sz = BUILDINGS[this.mode.type].size;
+    const dx = g.gx - this.mode.gx;
+    const dy = g.gy - this.mode.gy;
+    return dx > -1 && dy > -1 && dx < sz + 1 && dy < sz + 1 ? { dx, dy } : undefined;
+  }
+
+  /** Touch: long-press a building to pick it up and drag it. */
+  onLongPress(x: number, y: number): void {
+    const d = this.down;
+    if (!d || d.dragged || this.mode.kind !== 'idle') return;
+    const b = this.pick(x, y);
+    if (!b || BUILDINGS[b.type].movable === false) return;
+    if (this.selectedId !== b.id) this.select(b.id);
+    d.dragged = true;
+    d.onSelected = true;
+    this.mode = { kind: 'moving', id: b.id, gx: b.x, gy: b.y, ox: b.x, oy: b.y };
+    bus.emit('mode', 'moving');
+    sfx('pop');
   }
 
   private ghostTo(x: number, y: number): void {
@@ -299,7 +363,8 @@ export class VillageScene implements Scene {
     this.lastMouse = { x, y };
     const w = this.cam.screenToWorld(x, y);
     const g = toGrid(w.x, w.y);
-    if (this.mode.kind === 'placing') this.ghostTo(x, y);
+    // Mouse: the ghost follows the pointer. Touch: only a drag that started on it moves it.
+    if (this.mode.kind === 'placing' && !touchMode) this.ghostTo(x, y);
     this.hoverId = !this.down && this.mode.kind === 'idle' && this.game.pointerOnCanvas ? (this.pick(x, y)?.id ?? -1) : -1;
     if (!this.down) return;
     if (!this.down.dragged && Math.hypot(x - this.down.x, y - this.down.y) > 6) {
@@ -318,7 +383,11 @@ export class VillageScene implements Scene {
         this.mode.gx = Math.round(g.gx - sz / 2);
         this.mode.gy = Math.round(g.gy - sz / 2);
       }
-    } else if (this.mode.kind === 'placing' && this.down.button === 0) {
+    } else if (this.mode.kind === 'placing' && this.down.ghostGrab) {
+      const grab = this.down.ghostGrab;
+      this.mode.gx = Math.round(g.gx - grab.dx);
+      this.mode.gy = Math.round(g.gy - grab.dy);
+    } else if (this.mode.kind === 'placing' && this.down.button === 0 && !touchMode) {
       // dragging while placing just moves the ghost (already handled)
     } else {
       this.cam.x -= dx / this.cam.zoom;
@@ -355,7 +424,10 @@ export class VillageScene implements Scene {
     }
     if (d.dragged || button !== 0) return;
     if (this.mode.kind === 'placing') {
-      this.confirmPlace();
+      // Touch never builds on a tap: the tap moves the ghost, and the ✔ button builds.
+      if (touchMode) {
+        if (!d.ghostGrab) this.ghostTo(x, y);
+      } else this.confirmPlace();
       return;
     }
     const b = this.pick(x, y);

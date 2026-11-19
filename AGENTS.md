@@ -202,7 +202,12 @@ its line. That keeps the list honest as the mobile work lands.
   (`bindInput`); touch and pen go through `src/core/input.ts`, which passes
   one finger to the scene as a left-button mouse and handles two-finger pinch
   and pan on the camera itself. Every scene implements `onPointerCancel()`,
-  which drops a press without acting on it. Hover doesn't exist on touch.
+  which drops a press without acting on it, and may implement
+  `onLongPress()`. Hover doesn't exist on touch.
+- `touchMode` (from `core/input`) says whether the last press was a finger.
+  Use it for touch-only UI (the floating ✔ / ✖ when placing, the raid deploy
+  ring, touch wording) and leave mouse behaviour as it is. `sfx()` also
+  vibrates on phones for some sounds (`core/haptics.ts`).
 
 - Wrap `localStorage` access in `try/catch`. It throws in private mode (see
   `seenChange()` in `ui.ts`).

@@ -24,10 +24,19 @@ export class Fingers {
     await this.send('touchEnd', []);
   }
 
-  /** One finger from a to b in `steps` moves, `ms` apart. */
-  async drag(a: { x: number; y: number }, b: { x: number; y: number }, steps = 10, ms = 16, lift = true): Promise<void> {
+  /** Put one finger down and leave it there. */
+  async press(x: number, y: number): Promise<void> {
+    await this.send('touchStart', [{ x, y }]);
+  }
+
+  async release(): Promise<void> {
+    await this.send('touchEnd', []);
+  }
+
+  /** One finger from a to b in `steps` moves, `ms` apart, after resting `holdMs`. */
+  async drag(a: { x: number; y: number }, b: { x: number; y: number }, steps = 10, ms = 16, lift = true, holdMs = 0): Promise<void> {
     await this.send('touchStart', [a]);
-    await this.page.waitForTimeout(ms);
+    await this.page.waitForTimeout(ms + holdMs);
     for (let i = 1; i <= steps; i++) {
       await this.send('touchMove', [{ x: a.x + ((b.x - a.x) * i) / steps, y: a.y + ((b.y - a.y) * i) / steps }]);
       await this.page.waitForTimeout(ms);

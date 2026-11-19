@@ -1,4 +1,5 @@
 // Tiny Web Audio synth for sound effects. No audio files needed.
+import { haptic } from './haptics';
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
@@ -91,6 +92,7 @@ export type Sfx =
   | 'ramp';
 
 export function sfx(name: Sfx): void {
+  haptic(name); // vibrates even when muted
   if (!ctx || muted) return;
   // rate limit noisy sounds
   const now = performance.now();

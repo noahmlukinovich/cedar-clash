@@ -127,6 +127,12 @@ kbd,
 .btn:hover {
   filter: brightness(1.08);
 }
+/* Touch screens "hover" whatever was last tapped; don't leave it lit. */
+@media (hover: none) {
+  .btn:hover {
+    filter: none;
+  }
+}
 .btn:active {
   transform: translateY(3px) scale(0.97);
   box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.25), inset 0 3px 0 rgba(255, 255, 255, 0.35), 0 1px 0 var(--out);
@@ -412,6 +418,22 @@ kbd,
     transform: translateX(-50%) translateY(40px) scale(0.8);
     opacity: 0;
   }
+}
+/* Touch placing: ✔ / ✖ floating above the ghost (positioned from ui.ts every frame). */
+.place-float {
+  position: fixed;
+  left: 0;
+  top: 0;
+  display: flex;
+  gap: 14px;
+  pointer-events: auto;
+  z-index: 5;
+  will-change: transform;
+}
+.place-float .btn.round {
+  width: 58px;
+  height: 58px;
+  font-size: 28px;
 }
 .place-panel {
   position: absolute;
@@ -945,6 +967,20 @@ button.up-main:hover {
   }
 }
 
+@keyframes abilityReady {
+  from {
+    background: rgba(255, 210, 63, 0.25);
+  }
+  to {
+    background: rgba(255, 210, 63, 0.6);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dcard .ability {
+    animation: none;
+  }
+}
+
 /* ---------- Rotate prompt (phones in portrait; the game is landscape-only) ---------- */
 #rotate {
   display: none;
@@ -1133,6 +1169,7 @@ button.up-main:hover {
   background: linear-gradient(#fff3c4, #e8c860);
 }
 .dcard .ability {
+  animation: abilityReady 1.1s ease-in-out infinite alternate;
   position: absolute;
   inset: 0;
   border-radius: 11px;

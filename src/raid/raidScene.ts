@@ -7,6 +7,7 @@ import { SPELLS, SPELL_ORDER } from '../config/spells';
 import type { HeroType, SpellType, TroopType } from '../config/types';
 import { sfx } from '../core/audio';
 import { Camera } from '../core/camera';
+import { touchMode } from '../core/input';
 import { toGrid, toWorld } from '../core/iso';
 import { Particles } from '../core/particles';
 import { pick } from '../core/rng';
@@ -1296,6 +1297,44 @@ export class RaidScene implements Scene {
       ctx.fillRect(0, 0, this.cam.width, this.cam.height);
     }
     this.particles.drawFlyers(ctx);
+    this.drawTouchMarker(ctx);
+  }
+
+  /** Would a deploy at this screen point work? Same checks as deployAt, with no side effects. */
+  private deployOkAt(sx: number, sy: number): boolean {
+    const c = this.cards[this.sel];
+    if (!c || this.ended) return false;
+    const w = this.cam.screenToWorld(sx, sy);
+    const g = toGrid(w.x, w.y);
+    const x = q(g.gx);
+    const y = q(g.gy);
+    if (x < 0 || y < 0 || x >= GRID || y >= GRID) return false;
+    if (c.kind === 'spell') return this.count(c) > 0;
+    return this.sim.canDeploy(x, y) && (c.kind === 'hero' || this.count(c) > 0);
+  }
+
+  /** Touch: a ring around the finger, green where troops can land and red where they can't. */
+  private drawTouchMarker(ctx: CanvasRenderingContext2D): void {
+    const d = this.down;
+    if (!touchMode || !d || d.button !== 0 || this.replay || this.ended) return;
+    if (d.dragged && !d.deploying) return; // panning, not deploying
+    const { x, y } = this.last;
+    const ok = this.deployOkAt(x, y);
+    const r = 40 + Math.sin(this.time * 10) * 3;
+    ctx.save();
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = 'rgba(30,27,43,0.8)';
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = ok ? '#7ef06a' : '#ff5a4a';
+    ctx.fillStyle = ok ? 'rgba(126,240,106,0.12)' : 'rgba(255,90,74,0.12)';
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
   }
 }
 
