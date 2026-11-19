@@ -13,7 +13,7 @@ import { generateBase, rivalStateU } from '../src/raid/basegen';
 import { RaidEngine, type RaidInput, type RaidSetup, SIM_VERSION } from '../src/raid/engine';
 
 /** The fingerprint for the current SIM_VERSION. */
-const EXPECTED = { version: SIM_VERSION, fingerprint: 'ceb31528a1c0bc71' };
+const EXPECTED = { version: SIM_VERSION, fingerprint: 'e8f593738dc30428' };
 
 const HERO_TYPES = Object.keys(HEROES) as HeroType[];
 
@@ -22,7 +22,7 @@ function setupFor(dmc: number, wind: boolean): RaidSetup {
   return {
     kind: 'random',
     simVersion: SIM_VERSION,
-    base: dmc === 0 ? rivalStateU() : generateBase(dmc, 1000 + dmc * 7919),
+    base: dmc === 0 ? rivalStateU() : generateBase({ dmc, seed: 1000 + dmc * 7919 }),
     seed: 4242 + dmc,
     wind,
     ringBySpring: dmc % 3 === 0,

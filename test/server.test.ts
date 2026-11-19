@@ -5,6 +5,8 @@ import { setInviteUses, startServer } from '../server/main';
 import type { MeResponse, RaidFinishResponse, RaidStartResponse, ReplayResponse, ReplayRow, SyncResponse, VisitResponse } from '../src/net/protocol';
 import { SIM_VERSION, replayRaid } from '../src/raid/engine';
 import type { GameState } from '../src/game/state';
+import { OBJECTIVES, dailyFor, dayKey } from '../src/game/daily';
+import { playBot } from './helpers';
 
 let srv: ReturnType<typeof startServer>;
 let base = '';
@@ -507,6 +509,70 @@ describe('sign-up without invite codes', () => {
       expect(r.status).toBe(200);
     } finally {
       await open.close();
+    }
+  });
+});
+
+describe('daily challenge on the server', () => {
+  it("serves today's challenge, verifies it by replay, and pays once per day without touching the army", async () => {
+    patchState('Alice Hall', (s) => {
+      s.army = { freshman: 7 };
+      s.trainQueue = []; // no reserve troops waiting to move in after the raid
+      s.trophies = 300;
+      s.daily = { day: null, done: false, attempts: 0, bestStars: 0 };
+    });
+    const before = (await alice.call<MeResponse>('/api/me')).data.state;
+    const start = await alice.call<RaidStartResponse>('/api/raid/start', { kind: 'daily', sim: SIM_VERSION });
+    expect(start.status).toBe(200);
+    const setup = start.data.setup;
+    expect(setup.kind).toBe('daily');
+    expect(setup.daily?.day).toBe(dayKey());
+    expect(setup.army).toEqual(dailyFor(dayKey(), setup.daily!.dmc).army);
+    expect(setup.heroes).toEqual({});
+
+    // try a few openings locally and send one that clears the objective (if any does)
+    let pick = playBot(setup, 0);
+    for (let dir = 1; dir < 8 && !OBJECTIVES[dailyFor(setup.daily!.day, setup.daily!.dmc).objectiveId].met(pick.result.metrics); dir++) pick = playBot(setup, dir);
+    const passed = OBJECTIVES[dailyFor(setup.daily!.day, setup.daily!.dmc).objectiveId].met(pick.result.metrics);
+
+    const fin = await alice.call<RaidFinishResponse>('/api/raid/finish', { raidId: start.data.raidId, inputs: pick.inputs });
+    expect(fin.status).toBe(200);
+    const o = fin.data.outcome;
+    expect(o.daily?.passed).toBe(passed);
+    expect(o.stars).toBe(pick.result.stars);
+    expect(fin.data.state.army).toEqual({ freshman: 7 });
+    expect(fin.data.state.trophies).toBe(300);
+    expect(fin.data.state.resources.tuition).toBe(before.resources.tuition);
+    expect(fin.data.state.daily).toMatchObject({ day: dayKey(), done: passed, attempts: 1 });
+    if (passed) expect(o.daily?.reward).toBe(dailyFor(dayKey(), setup.daily!.dmc).reward);
+
+    // a second clear the same day pays nothing more
+    if (passed) {
+      const again = await alice.call<RaidStartResponse>('/api/raid/start', { kind: 'daily', sim: SIM_VERSION });
+      const fin2 = await alice.call<RaidFinishResponse>('/api/raid/finish', { raidId: again.data.raidId, inputs: pick.inputs });
+      expect(fin2.data.outcome.daily).toEqual({ objectiveId: o.daily!.objectiveId, passed: true, reward: 0 });
+      expect(fin2.data.state.daily.attempts).toBe(2);
+    }
+  });
+
+  it('matches computer rivals to trophies and never serves the same layout twice running', async () => {
+    // nobody else is open to attack for an hour after the raids above, so these are computer rivals
+    patchState('Alice Hall', (s) => {
+      s.campaignDone = true;
+      s.army = { freshman: 3 };
+      s.resources.tuition = 100000;
+    });
+    let last = '';
+    for (let i = 0; i < 4; i++) {
+      const r = await alice.call<RaidStartResponse>('/api/raid/start', { kind: 'random', sim: SIM_VERSION });
+      expect(r.status).toBe(200);
+      if (r.data.setup.kind === 'random') {
+        expect(r.data.setup.base.archetype).toBeDefined();
+        expect(r.data.setup.base.difficulty).toBeDefined();
+        expect(r.data.setup.base.archetype).not.toBe(last);
+        last = r.data.setup.base.archetype!;
+      }
+      await alice.call('/api/raid/finish', { raidId: r.data.raidId, inputs: [{ t: 0, k: 'end' }] });
     }
   });
 });

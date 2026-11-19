@@ -88,8 +88,8 @@ describe('rival bases at DMC 7 and 8', () => {
   it('are deterministic, in bounds, non-overlapping and use the new levels', () => {
     for (const d of [7, 8]) {
       for (const seed of [1, 42, 9001]) {
-        const a = generateBase(d, seed);
-        expect(generateBase(d, seed)).toEqual(a);
+        const a = generateBase({ dmc: d, seed });
+        expect(generateBase({ dmc: d, seed })).toEqual(a);
         expect(a.dmc).toBe(d);
         expect(a.loot.tuition).toBeGreaterThan(0);
         const occ = new Set<number>();

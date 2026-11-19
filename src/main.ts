@@ -19,7 +19,7 @@ import { ApiError, OnlineSession, adoptState } from './net/online';
 import type { DefenseEntry, Note, RaidStartRequest, StateMsg } from './net/protocol';
 import type { ReplayData } from './raid/raidScene';
 import { type RaidSetup, SIM_VERSION, replayRaid, simVersionOf } from './raid/engine';
-import { applyRaidOutcome, localSetup, type RaidOutcome } from './raid/outcome';
+import { applyRaidOutcome, dailySetup, localSetup, type RaidOutcome } from './raid/outcome';
 import { RaidScene } from './raid/raidScene';
 import { UI, esc, fmt } from './ui/ui';
 import { VillageScene, fmtTime } from './village/villageScene';
@@ -72,6 +72,8 @@ export class Game {
   private visiting = false;
   /** Offline, but a game server is reachable (offer "play online" in settings). */
   serverAvailable = false;
+  /** Offline only: the save was unreadable and the backup was restored, or nothing could be. */
+  recovered: 'backup' | 'lost' | undefined;
   private pushT = 0;
   /** When the page was hidden (performance.now()), or 0. */
   private hiddenAt = 0;
@@ -98,6 +100,7 @@ export class Game {
       this.state = loaded.state;
       this.offlineSeconds = loaded.offlineSeconds;
       this.fresh = loaded.fresh;
+      this.recovered = loaded.recovered;
     }
     setMuted(this.state.settings.muted);
     this.ui = new UI(this);
@@ -113,13 +116,13 @@ export class Game {
       tickEconomy(this.state, dt);
       tickArmy(this.state, dt);
     }
-    bus.on('achievement', (id: string) => {
+    bus.on('achievement', (id) => {
       const a = ACHIEVEMENTS.find((x) => x.id === id);
       if (!a) return;
       this.ui.toast(`🏅 Achievement: ${a.name}! +${a.reward} Chapel Credits`, 'good', 3500);
       sfx('star');
     });
-    bus.on('ticket', (d: { text: string; fine: number }) => {
+    bus.on('ticket', (d) => {
       this.ui.toast(`🚓 ${d.text} −${d.fine} Tuition`, 'bad', 4000);
       sfx('whistle');
     });
@@ -353,7 +356,8 @@ export class Game {
     if (online) {
       let r;
       try {
-        this.ui.toast(opts.kind === 'random' ? 'Looking for a rival campus…' : opts.kind === 'revenge' ? 'Revenge is a dish best served… now.' : 'Heading out…');
+        const msg = { random: 'Looking for a rival campus…', revenge: 'Revenge is a dish best served… now.', daily: "Opening today's challenge…" } as Record<string, string>;
+        this.ui.toast(msg[opts.kind] ?? 'Heading out…');
         r = await online.startRaid(opts.kind, opts.raidId);
       } catch (e) {
         this.ui.toast((e as Error).message, 'bad');
@@ -380,7 +384,8 @@ export class Game {
       const scoutCost = opts.kind === 'random' ? SCOUT_COST_PER_DMC * dmcLevel(this.state) : 0;
       if (scoutCost > 0 && !spend(this.state, 'tuition', scoutCost)) return;
       // scoutCost is stored with the raid so it can be refunded if a game update calls it off
-      setup = scoutCost > 0 ? { ...localSetup(this.state, opts.kind), scoutCost } : localSetup(this.state, opts.kind);
+      if (opts.kind === 'daily') setup = dailySetup(this.state);
+      else setup = scoutCost > 0 ? { ...localSetup(this.state, opts.kind), scoutCost } : localSetup(this.state, opts.kind);
       savePendingRaid({ setup, inputs: [] });
       settle = async (engine) => {
         savePendingRaid(null); // settled here, not on next launch
@@ -591,7 +596,11 @@ async function boot(): Promise<void> {
   if (game.offlineSeconds > 60) {
     game.ui.toast(`Welcome back! ${fmtTime(game.offlineSeconds)} passed. Your Admissions Office kept recruiting.`, 'good', 4000);
   }
-  if (game.fresh) {
+  if (game.recovered === 'backup') {
+    game.ui.popup('Save restored from backup', "Your latest save could not be read, so your campus was restored from the previous session's backup. The unreadable save was kept aside, not deleted.", 'Carry on');
+  } else if (game.recovered === 'lost') {
+    game.ui.popup('Save could not be read', 'Your save was damaged and there was no backup to fall back on, so this is a fresh campus. The damaged save was kept aside (not deleted) in case it can be repaired.', 'Start over');
+  } else if (game.fresh) {
     game.ui.popup(
       'Welcome to Cedarville Clash!',
       `You've been appointed Campus Director. Collect <b>Tuition</b> from the Admissions Office and <b>Coffee</b> from the Coffee Cart, build up campus, train students, and raid rival schools!<br><br>Start by tapping the bubbles over your collectors, then visit the <b>Shop</b>. When ready, hit <b>Attack!</b> to raid Rival State U.`,
