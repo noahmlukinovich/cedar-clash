@@ -11,6 +11,7 @@ npm install
 npm run dev        # http://localhost:5173 (offline mode unless the game server is running)
 npm run dev:server # game server for online mode, on 127.0.0.1:8787 (Vite proxies /api to it)
 npm test           # raid replay determinism + server end-to-end tests
+npm run test:mobile # phone/tablet layout, touch and lifecycle checks (Playwright)
 npm run build      # type-check, build the game into dist/ and the server into server-dist/
 ```
 
@@ -20,7 +21,7 @@ To try online mode locally, create an invite code first:
 npm run build:server && DB_PATH=./data/dev.db npm run admin -- invite 5
 ```
 
-Desktop browser with mouse and keyboard; designed for 1280×800 and up. Requires Node 22.13 or newer.
+Plays in a desktop browser with mouse and keyboard (1280×800 and up) and on phones and tablets in landscape with touch: pinch to zoom, drag to pan, long-press to move buildings. It can be added to the home screen to run full screen (Settings → Add to Home Screen). To try it on your phone, run `npm run dev -- --host` and open the address it prints on the same Wi-Fi. Requires Node 22.13 or newer.
 
 **Single-player build:** `npm run build` produces a static `dist/` that runs in offline mode on any static host. (The old GitHub Pages workflow was removed; the game is served by the multiplayer server below.)
 

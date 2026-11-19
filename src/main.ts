@@ -5,6 +5,7 @@ import { setMuted, sfx, unlockAudio } from './core/audio';
 import { bus } from './core/bus';
 import type { Camera } from './core/camera';
 import { TouchInput, trackInputMode } from './core/input';
+import { watchInstall } from './core/install';
 import { FrameMonitor, type Quality, getQuality, lowerDpr, maxDpr, setQuality } from './core/quality';
 import { type Action, type ActionResult, applyAction } from './game/actions';
 import { tickArmy } from './game/army';
@@ -551,6 +552,7 @@ export class Game {
 }
 
 async function boot(): Promise<void> {
+  watchInstall(); // early: the browser's install prompt can arrive any time
   const start = await chooseStart();
   const game = new Game(start);
   (window as unknown as { game: Game }).game = game;

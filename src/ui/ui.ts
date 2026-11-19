@@ -9,6 +9,7 @@ import { isMuted, setMuted, sfx } from '../core/audio';
 import { bus } from '../core/bus';
 import { hapticsOn, hapticsSupported, setHaptics } from '../core/haptics';
 import { QUALITY_LABEL, nextQuality } from '../core/quality';
+import { installOption, promptInstall } from '../core/install';
 import { tapWord, touchMode } from '../core/input';
 import { pick } from '../core/rng';
 import {
@@ -2128,6 +2129,26 @@ export class UI {
         render();
       };
       row1.append(gfx, save, news);
+      const inst = installOption();
+      if (inst) {
+        const ib = el('button', 'btn gold', '📲 Add to Home Screen');
+        ib.onclick = () => {
+          sfx('click');
+          if (inst === 'prompt') {
+            void promptInstall().then((ok) => {
+              if (ok) this.toast('Installed! Cedarville Clash is on your home screen.', 'good');
+              render();
+            });
+          } else {
+            this.popup(
+              'Add to Home Screen',
+              'In <b>Safari</b>, tap the <b>Share</b> button (the square with an arrow), then <b>Add to Home Screen</b>. The game then opens full screen from its own icon, like an app.',
+              'Got it',
+            );
+          }
+        };
+        row1.append(ib);
+      }
       row1.style.flexWrap = 'wrap';
       m.body.appendChild(row1);
 

@@ -12,6 +12,7 @@ npm install
 npm run dev     # http://localhost:5173, offline mode: no server needed
 npm test        # run before opening a PR
 npm run build   # type-check and build; CI runs this too
+npm run test:mobile  # phone layout and touch checks; run it for UI changes
 ```
 
 Offline mode covers almost all UI work. You only need `npm run dev:server` for

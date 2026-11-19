@@ -215,6 +215,9 @@ its line. That keeps the list honest as the mobile work lands.
 - Graphics quality (`core/quality.ts`, Settings → Graphics) is per device:
   Auto lowers `game.dpr` when frames stay slow, Battery saver is 1x at 30 fps.
   Rendering only; never touch the raid clock for it.
+- The home-screen icons and `manifest.json` are drawn in code at build time
+  (`scripts/appIcon.ts`, emitted by the `appIcons` plugin in `vite.config.ts`).
+  There are no image files; change the crest there.
 
 - Wrap `localStorage` access in `try/catch`. It throws in private mode (see
   `seenChange()` in `ui.ts`).
