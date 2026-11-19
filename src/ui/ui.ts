@@ -8,7 +8,7 @@ import type { BuildingType, HeroType, ResourceId, TroopType } from '../config/ty
 import { isMuted, setMuted, sfx } from '../core/audio';
 import { bus } from '../core/bus';
 import { hapticsOn, hapticsSupported, setHaptics } from '../core/haptics';
-import { touchMode } from '../core/input';
+import { tapWord, touchMode } from '../core/input';
 import { pick } from '../core/rng';
 import {
   ARMIES,
@@ -1564,7 +1564,7 @@ export class UI {
         ticks.push(upd);
       }
       const qd = el('div', 'queue');
-      if (!runs.length) qd.appendChild(el('span', 'flavor', 'Nobody in training. Click a troop below to recruit, or hold to recruit several. You can train a second army ahead of time; it waits here until the halls have room.'));
+      if (!runs.length) qd.appendChild(el('span', 'flavor', `Nobody in training. ${tapWord(true)} a troop below to recruit, or hold to recruit several. You can train a second army ahead of time; it waits here until the halls have room.`));
       const firstTraining = runs.findIndex((r) => !r.ready);
       runs.forEach((r, i) => {
         const qi = el('div', `qitem ${r.ready ? 'ready' : ''}`);
@@ -1593,7 +1593,7 @@ export class UI {
       m.body.appendChild(qd);
 
       // troop cards
-      m.body.appendChild(el('div', 'section-title', 'Recruit <small>(click, or hold to keep recruiting)</small>'));
+      m.body.appendChild(el('div', 'section-title', `Recruit <small>(${tapWord()}, or hold to keep recruiting)</small>`));
       const grid = el('div', 'cards');
       for (const t of TROOP_ORDER) {
         const d = TROOPS[t];
@@ -1765,7 +1765,7 @@ export class UI {
       const scroll = m.body.scrollTop;
       m.body.innerHTML = '';
       const bl = builders(s);
-      m.body.appendChild(el('div', 'flavor', `Facilities Crew free: ${bl.total - bl.busy}/${bl.total}. Click a name or picture to find it on campus.`));
+      m.body.appendChild(el('div', 'flavor', `Facilities Crew free: ${bl.total - bl.busy}/${bl.total}. ${tapWord(true)} a name or picture to find it on campus.`));
       const section = (title: string, n: number): HTMLElement => {
         m.body.appendChild(el('div', 'section-title', `${title} <small>(${n})</small>`));
         const list = el('div', 'up-list');
@@ -2276,7 +2276,9 @@ export class UI {
         el(
           'div',
           '',
-          `Drag or <kbd>WASD</kbd>/arrows to pan · Wheel or <kbd>+</kbd>/<kbd>-</kbd> to zoom · Click a building to select · Drag a selected building to move it · <kbd>Esc</kbd> cancel · <kbd>Del</kbd> remove decor · <kbd>\`</kbd> toggle speed. In raids: pick a card, click/hold on green grass to deploy; <kbd>1</kbd>-<kbd>9</kbd> pick cards; <kbd>Space</kbd> uses the hero ability.`,
+          touchMode
+            ? 'Drag with one finger to pan · Pinch to zoom · Tap a building to select it · Long-press a building to pick it up and move it · Placing: drag the outline, then tap ✔. In raids: pick a card, tap or hold on open grass to deploy (the ring turns green where troops can land); drag with two fingers to look around; tap a deployed hero\'s card for its ability.'
+            : `Drag or <kbd>WASD</kbd>/arrows to pan · Wheel or <kbd>+</kbd>/<kbd>-</kbd> to zoom · Click a building to select · Drag a selected building to move it · <kbd>Esc</kbd> cancel · <kbd>Del</kbd> remove decor · <kbd>\`</kbd> toggle speed. In raids: pick a card, click/hold on green grass to deploy; <kbd>1</kbd>-<kbd>9</kbd> pick cards; <kbd>Space</kbd> uses the hero ability.`,
         ),
       );
       m.body.appendChild(el('div', 'section-title', 'About'));
@@ -2392,7 +2394,7 @@ export class UI {
     const bottom = el('div', 'editor-bottom');
     const sel = ed.selected();
     const placing = ed.mode.kind === 'placing' ? ed.mode.type : null;
-    let hint = 'Drag a selected building to move it. Wheel to zoom, drag the ground to pan.';
+    let hint = touchMode ? 'Long-press a building to move it. Pinch to zoom, drag the ground to pan.' : 'Drag a selected building to move it. Wheel to zoom, drag the ground to pan.';
     if (placing) hint = touchMode ? `Placing ${BUILDINGS[placing].name}: drag it into place, then tap ✔.` : `Placing ${BUILDINGS[placing].name}: click to place. <kbd>Esc</kbd> cancels.`;
     else if (ed.tray.length) hint = 'Pick a building from the tray to place it.';
     const hintRow = el('div', 'editor-hint');
@@ -2630,8 +2632,8 @@ export class UI {
   /** Popup with a stern/cute message and an OK button. */
   popup(title: string, text: string, okLabel = 'OK'): void {
     const m = this.modal(title, { narrow: true });
-    m.body.appendChild(el('div', '', `<p style="font-size:18px">${text}</p>`));
-    const b = el('button', 'btn big', okLabel);
+    m.body.appendChild(el('div', 'popup-text', `<p>${text}</p>`));
+    const b = el('button', 'btn big popup-ok', okLabel);
     b.onclick = () => m.close();
     m.body.appendChild(b);
   }

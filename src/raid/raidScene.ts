@@ -7,7 +7,7 @@ import { SPELLS, SPELL_ORDER } from '../config/spells';
 import type { HeroType, SpellType, TroopType } from '../config/types';
 import { sfx } from '../core/audio';
 import { Camera } from '../core/camera';
-import { touchMode } from '../core/input';
+import { tapWord, touchMode } from '../core/input';
 import { toGrid, toWorld } from '../core/iso';
 import { Particles } from '../core/particles';
 import { pick } from '../core/rng';
@@ -182,7 +182,7 @@ export class RaidScene implements Scene {
     h.appendChild(end);
     if (this.replay) h.appendChild(this.buildReplayBar());
     else {
-      const hint = el('div', 'hint stroke raid-hint', 'Pick a card, then click (or hold) on open grass outside the white zone to deploy.');
+      const hint = el('div', 'hint stroke raid-hint', `Pick a card, then ${tapWord()} (or hold) on open grass outside the white zone to deploy.`);
       h.appendChild(hint);
       setTimeout(() => hint.remove(), 6000);
     }
@@ -353,7 +353,7 @@ export class RaidScene implements Scene {
       if (!this.engine.apply({ t: 0, k: 'hero', type: c.type, x, y })) return false;
       const p = toWorld(x, y);
       this.particles.burst(p.x, p.y, 2, 16, { kind: 'spark', color: C.gold, size: 5, speed: 90, max: 0.7, vz: 120, gravity: 200 });
-      this.game.ui.toast(`${HEROES[c.type].name} has entered the raid! Click the card again for ${HEROES[c.type].ability.name}.`, 'good');
+      this.game.ui.toast(`${HEROES[c.type].name} has entered the raid! ${tapWord(true)} the card again for ${HEROES[c.type].ability.name}.`, 'good');
       sfx('chime');
       this.renderCards();
       return true;

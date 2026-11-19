@@ -28,6 +28,12 @@ export function setTouchMode(on: boolean): void {
   document.body.classList.toggle('touch', on);
 }
 
+/** "tap" on touch, "click" with a mouse (capitalised when asked). */
+export function tapWord(capital = false): string {
+  const w = touchMode ? 'tap' : 'click';
+  return capital ? w[0].toUpperCase() + w.slice(1) : w;
+}
+
 /** Call once at startup. */
 export function trackInputMode(): void {
   try {
