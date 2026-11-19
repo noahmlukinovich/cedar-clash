@@ -10,7 +10,7 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
-    v: 41,
+    v: 42,
     date: 'Nov 19, 2026',
     title: 'Cedarville Clash on your phone',
     items: [
@@ -19,6 +19,15 @@ export const CHANGELOG: ChangeEntry[] = [
       'Raids on touch: a ring around your finger turns green where troops can land. Drag with two fingers to look around without deploying.',
       'Raids keep going if you switch apps or lock your phone, just like a real one would.',
       'New in Settings: Add to Home Screen (opens full screen, like an app), Vibration, and Graphics (Auto, Sharp or Battery saver).',
+    ],
+  },
+  {
+    v: 41,
+    date: 'Nov 18, 2026',
+    title: 'Campus controls and new building projects',
+    items: [
+      'Attack, Army and Shop have matching campus-themed buttons. The Attack shield is blank, and Army features the actual Freshman, Athlete and Theology Major artwork.',
+      'The Facilities Crew menu now lists buildings you can still add at your DMC level, alongside upgrades and research. See the price, remaining allowance and any resource or crew requirement, then choose Build to place one on campus.',
     ],
   },
   {

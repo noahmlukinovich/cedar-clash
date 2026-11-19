@@ -59,8 +59,8 @@ import type { Game } from '../main';
 import { NAME_RULES, type VisitBuilding, type VisitResponse, validCampusName } from '../net/protocol';
 import { fmtTime, type VillageScene } from '../village/villageScene';
 import { namePlatesOn, setNamePlates } from '../render/world';
-import { ICONS, icon } from './icons';
-import { buildingThumb, spellThumb, unitThumb } from './thumbs';
+import { ICONS, campusControlArt, icon } from './icons';
+import { armyControlPortraits, buildingThumb, spellThumb, unitThumb } from './thumbs';
 
 export function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', html = ''): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -954,7 +954,7 @@ export class UI {
     v.appendChild(stack);
 
     this.buildersEl = el('div', 'builders stroke');
-    this.buildersEl.title = 'Facilities Crew (builders). Click to list every upgrade you can do.';
+    this.buildersEl.title = 'Facilities Crew (builders). Click to see new buildings, upgrades and research.';
     this.buildersEl.setAttribute('role', 'button');
     this.buildersEl.tabIndex = 0;
     const openList = (): void => {
@@ -975,7 +975,8 @@ export class UI {
     v.appendChild(prof);
 
     this.bottomLeft = el('div', 'bottom-left');
-    const atk = el('button', 'btn attack-btn', `${icon('sword', 56)}<span>Attack!</span>`);
+    const atk = el('button', 'btn campus-control attack-btn', campusControlArt('attack'));
+    atk.setAttribute('aria-label', 'Attack!');
     atk.onclick = () => {
       sfx('click');
       this.openAttack();
@@ -984,12 +985,15 @@ export class UI {
     v.appendChild(this.bottomLeft);
 
     this.bottomRight = el('div', 'bottom-right');
-    const army = el('button', 'btn square blue', `${icon('army', 40)}<span>Army</span>`);
+    const army = el('button', 'btn campus-control army-control', campusControlArt('army'));
+    army.setAttribute('aria-label', 'Army');
+    army.appendChild(armyControlPortraits());
     army.onclick = () => {
       sfx('click');
       this.openArmy();
     };
-    const shop = el('button', 'btn square gold', `${icon('shop', 40)}<span>Shop</span>`);
+    const shop = el('button', 'btn campus-control shop-control', campusControlArt('shop'));
+    shop.setAttribute('aria-label', 'Shop');
     shop.onclick = () => {
       sfx('click');
       this.openShop();
@@ -1715,9 +1719,9 @@ export class UI {
   }
 
   // ---------- Upgrades list ----------
-  /** Every upgrade the player can do (or is waiting on), in one place. */
+  /** Available new buildings, upgrades and research, including projects waiting on resources. */
   openUpgrades(): void {
-    const m = this.modal('Upgrades', { headIcon: icon('builder', 36) });
+    const m = this.modal('Facilities Crew', { headIcon: icon('builder', 36) });
     let sig = '';
     let timers: { el: HTMLElement; left: () => number }[] = [];
     const fail = (err: string): void => {
@@ -1756,8 +1760,16 @@ export class UI {
     const render = (force = false): void => {
       const s = this.state;
       const l = listUpgrades(s);
+      const dl = dmcLevel(s);
+      const newBuildings = SHOP_TABS.flatMap((tab) => tab.types).flatMap((type) => {
+        const count = countOf(s, type);
+        const limit = maxCount(type, dl);
+        if (count >= limit) return [];
+        const first = BUILDINGS[type].levels[0];
+        return [{ type, count, limit, reason: buildCheck(s, type), affordable: canAfford(s, first.res, first.cost) }];
+      });
       // Rebuild only when something other than a countdown changed; otherwise just tick the timers.
-      const nsig = JSON.stringify([l.progress.map((p) => [p.id, p.to, p.finishCost, s.resources.chapel >= p.finishCost]), l.ready, l.waiting, l.extras.map((e) => ({ ...e, left: e.left !== undefined }))]);
+      const nsig = JSON.stringify([newBuildings, l.progress.map((p) => [p.id, p.to, p.finishCost, s.resources.chapel >= p.finishCost]), l.ready, l.waiting, l.extras.map((e) => ({ ...e, left: e.left !== undefined }))]);
       if (!force && nsig === sig) {
         for (const t of timers) t.el.textContent = fmtTime(t.left());
         return;
@@ -1790,6 +1802,30 @@ export class UI {
             render(true);
           };
           r.side.appendChild(fin);
+          list.appendChild(r.row);
+        }
+      }
+
+      if (newBuildings.length) {
+        const list = section('New buildings', newBuildings.length);
+        for (const b of newBuildings) {
+          const def = BUILDINGS[b.type];
+          const first = def.levels[0];
+          const r = mkRow(`new-building-row${b.reason ? ' waiting' : ''}`, buildingThumb(b.type, 1, 60, 50), esc(def.name),
+            `${b.count}/${b.limit} on campus · ${b.limit - b.count} available · ${time(first.time)}`);
+          r.side.appendChild(el('div', '', costHtml(first.res, first.cost, b.affordable)));
+          const buy = el('button', `btn small ${b.reason ? 'gray' : 'gold'}`, 'Build');
+          buy.disabled = !!b.reason;
+          buy.title = b.reason ?? 'Choose where to place this building';
+          buy.onclick = () => {
+            const err = buildCheck(this.state, b.type);
+            if (err) { fail(err); render(true); return; }
+            sfx('click');
+            this.closeModal();
+            this.game.village.startPlacing(b.type);
+          };
+          r.side.appendChild(buy);
+          if (b.reason) r.side.appendChild(el('div', 'up-why', esc(b.reason)));
           list.appendChild(r.row);
         }
       }
@@ -1837,8 +1873,8 @@ export class UI {
         const list = section('Library & heroes', l.extras.length);
         for (const e of l.extras) list.appendChild(extraRow(e));
       }
-      if (!l.progress.length && !l.ready.length && !l.waiting.length && !l.extras.length) {
-        m.body.appendChild(el('p', 'flavor', 'Nothing left to upgrade at this DMC level. Facilities is, for once, caught up.'));
+      if (!newBuildings.length && !l.progress.length && !l.ready.length && !l.waiting.length && !l.extras.length) {
+        m.body.appendChild(el('p', 'flavor', 'Nothing left to build, upgrade or research at this DMC level. Facilities is, for once, caught up.'));
       }
       m.body.scrollTop = scroll;
     };
