@@ -92,6 +92,10 @@ export class VisitScene implements Scene {
     this.select(this.pick(x, y)?.id ?? -1);
   }
 
+  onPointerCancel(): void {
+    this.down = null;
+  }
+
   onWheel(x: number, y: number, delta: number): void {
     this.cam.zoomAt(x, y, delta > 0 ? 0.9 : 1.1);
   }

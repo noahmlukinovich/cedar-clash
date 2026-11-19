@@ -19,10 +19,12 @@ export default defineConfig({
     stderr: 'ignore', // offline mode probes /api and logs refused connections
   },
   projects: [
-    { name: 'iphone-se', testIgnore: /rotate\.e2e\.ts/, use: { ...devices['iPhone SE landscape'], ...chromium } },
+    { name: 'iphone-se', testIgnore: /(rotate|input)\.e2e\.ts/, use: { ...devices['iPhone SE landscape'], ...chromium } },
     { name: 'iphone-13', testIgnore: /rotate\.e2e\.ts/, use: { ...devices['iPhone 13 landscape'], ...chromium } },
-    { name: 'pixel-7', testIgnore: /rotate\.e2e\.ts/, use: { ...devices['Pixel 7 landscape'], ...chromium } },
-    { name: 'ipad', testIgnore: /rotate\.e2e\.ts/, use: { ...devices['iPad (gen 7) landscape'], ...chromium } },
+    { name: 'pixel-7', testIgnore: /(rotate|input)\.e2e\.ts/, use: { ...devices['Pixel 7 landscape'], ...chromium } },
+    { name: 'ipad', testIgnore: /(rotate|input)\.e2e\.ts/, use: { ...devices['iPad (gen 7) landscape'], ...chromium } },
+    // Desktop with a mouse: only the input tests, to prove mouse controls didn't change.
+    { name: 'desktop', testMatch: /input\.e2e\.ts/, use: { viewport: { width: 1280, height: 800 }, ...chromium } },
     { name: 'portrait', use: { ...devices['iPhone 13'], ...chromium }, testMatch: /rotate\.e2e\.ts/ },
   ],
   testMatch: /.*\.e2e\.ts/,

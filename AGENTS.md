@@ -198,6 +198,12 @@ its line. That keeps the list honest as the mobile work lands.
 
 ## Gotchas
 
+- Canvas input has two paths. Mouse uses the handlers in `src/main.ts`
+  (`bindInput`); touch and pen go through `src/core/input.ts`, which passes
+  one finger to the scene as a left-button mouse and handles two-finger pinch
+  and pan on the camera itself. Every scene implements `onPointerCancel()`,
+  which drops a press without acting on it. Hover doesn't exist on touch.
+
 - Wrap `localStorage` access in `try/catch`. It throws in private mode (see
   `seenChange()` in `ui.ts`).
 - `UI.update()` runs every frame. To skip work when nothing changed, it

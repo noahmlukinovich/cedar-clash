@@ -3,6 +3,8 @@ import { DEBUG_SPEEDS, SCOUT_COST_PER_DMC } from './config/balance';
 import { ACHIEVEMENTS, EVENT_INFO } from './config/humor';
 import { setMuted, sfx, unlockAudio } from './core/audio';
 import { bus } from './core/bus';
+import type { Camera } from './core/camera';
+import { TouchInput } from './core/input';
 import { type Action, type ActionResult, applyAction } from './game/actions';
 import { tickArmy } from './game/army';
 import { dmcLevel, spend, tickEconomy } from './game/economy';
@@ -29,9 +31,11 @@ export interface Scene {
   onMouseUp(x: number, y: number, button: number): void;
   onWheel(x: number, y: number, delta: number): void;
   onKey(key: string, down: boolean): void;
+  /** Drop the current press without acting on it (a second finger arrived). */
+  onPointerCancel(): void;
   enter(): void;
   exit(): void;
-  cam: { width: number; height: number };
+  cam: Camera;
 }
 
 export class Game {
@@ -62,6 +66,7 @@ export class Game {
   /** Offline, but a game server is reachable (offer "play online" in settings). */
   serverAvailable = false;
   private pushT = 0;
+  touch!: TouchInput;
 
   constructor(start: StartChoice) {
     if (start.mode === 'online') {
@@ -259,6 +264,14 @@ export class Game {
       this.scene.onKey(e.key, true);
     });
     window.addEventListener('keyup', (e) => this.scene.onKey(e.key, false));
+    // Touch and pen (mouse keeps the handlers above).
+    this.touch = new TouchInput(
+      c,
+      () => this.scene,
+      (x, y) => document.elementFromPoint(x, y) === c,
+      () => this.scene === this.raid,
+      () => unlockAudio(),
+    );
     window.addEventListener('pointerdown', () => unlockAudio(), { once: true });
   }
 

@@ -272,6 +272,9 @@ export class VillageScene implements Scene {
   // ---------- Input ----------
   onMouseDown(x: number, y: number, button: number): void {
     this.lastMouse = { x, y };
+    // Fingers don't hover, so bring the placing ghost to the press. (A mouse
+    // has already moved it here, so this changes nothing on desktop.)
+    if (this.mode.kind === 'placing') this.ghostTo(x, y);
     const sel = this.selected();
     let onSelected = false;
     if (button === 0 && sel && this.mode.kind === 'idle' && BUILDINGS[sel.type].movable !== false) {
@@ -281,17 +284,22 @@ export class VillageScene implements Scene {
     this.down = { x, y, button, onSelected, dragged: false };
   }
 
+  private ghostTo(x: number, y: number): void {
+    if (this.mode.kind !== 'placing') return;
+    const w = this.cam.screenToWorld(x, y);
+    const g = toGrid(w.x, w.y);
+    const sz = BUILDINGS[this.mode.type].size;
+    this.mode.gx = Math.round(g.gx - sz / 2);
+    this.mode.gy = Math.round(g.gy - sz / 2);
+  }
+
   onMouseMove(x: number, y: number): void {
     const dx = x - this.lastMouse.x;
     const dy = y - this.lastMouse.y;
     this.lastMouse = { x, y };
     const w = this.cam.screenToWorld(x, y);
     const g = toGrid(w.x, w.y);
-    if (this.mode.kind === 'placing') {
-      const sz = BUILDINGS[this.mode.type].size;
-      this.mode.gx = Math.round(g.gx - sz / 2);
-      this.mode.gy = Math.round(g.gy - sz / 2);
-    }
+    if (this.mode.kind === 'placing') this.ghostTo(x, y);
     this.hoverId = !this.down && this.mode.kind === 'idle' && this.game.pointerOnCanvas ? (this.pick(x, y)?.id ?? -1) : -1;
     if (!this.down) return;
     if (!this.down.dragged && Math.hypot(x - this.down.x, y - this.down.y) > 6) {
@@ -363,6 +371,15 @@ export class VillageScene implements Scene {
       }
     }
     this.select(b.id);
+  }
+
+  onPointerCancel(): void {
+    this.down = null;
+    // A move in progress goes back where it was; placing keeps its ghost.
+    if (this.mode.kind === 'moving') {
+      this.mode = { kind: 'idle' };
+      bus.emit('mode', 'idle');
+    }
   }
 
   onWheel(x: number, y: number, delta: number): void {

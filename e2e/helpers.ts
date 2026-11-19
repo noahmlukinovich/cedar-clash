@@ -7,7 +7,16 @@ import type { Page } from '@playwright/test';
 export async function freshGame(page: Page, opts: { keepWelcome?: boolean } = {}): Promise<void> {
   await page.goto('/');
   await page.getByText("Let's go, Jackets!").waitFor({ timeout: 20_000 });
-  if (!opts.keepWelcome) await closeModal(page);
+  if (opts.keepWelcome) return;
+  // Close the welcome dialog and anything that follows it (What's new), until
+  // no dialog has been open for a moment.
+  for (let quiet = 0; quiet < 3; ) {
+    if (await page.locator('.modal-back').count()) {
+      await closeModal(page);
+      quiet = 0;
+    } else quiet++;
+    await page.waitForTimeout(150);
+  }
 }
 
 export async function closeModal(page: Page): Promise<void> {

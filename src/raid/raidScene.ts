@@ -416,6 +416,10 @@ export class RaidScene implements Scene {
     this.down = null;
   }
 
+  onPointerCancel(): void {
+    this.down = null;
+  }
+
   onWheel(x: number, y: number, d: number): void {
     this.cam.zoomAt(x, y, d > 0 ? 0.9 : 1.1);
   }
