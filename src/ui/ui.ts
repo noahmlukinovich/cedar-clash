@@ -1003,34 +1003,50 @@ export class UI {
     v.appendChild(this.bottomRight);
 
     this.sideRight = el('div', 'side-right');
-    const mk = (ic: string, title: string, fn: () => void, cls = 'blue'): HTMLButtonElement => {
+    const mk = (ic: string, title: string, fn: () => void, cls = 'blue', parent = this.sideRight): HTMLButtonElement => {
       const b = el('button', `btn round ${cls}`, icon(ic, 32));
       b.title = title;
       b.onclick = () => {
         sfx('click');
         fn();
       };
-      this.sideRight.appendChild(b);
+      parent.appendChild(b);
       return b;
     };
     mk('gear', 'Settings & Debug', () => this.openSettings(), 'gray');
-    mk('medal', 'Achievements', () => this.openAchievements(), 'gold');
+    const collectAll = mk('tuition', 'Collect all', () => this.game.village.collectAll(), 'green');
+    collectAll.classList.remove('green');
+    const shortcuts = el('div', 'side-shortcuts-menu');
+    shortcuts.id = 'campus-shortcuts';
+    shortcuts.hidden = true;
+    shortcuts.setAttribute('role', 'group');
+    shortcuts.setAttribute('aria-label', 'Additional campus shortcuts');
+    const toggle = mk('chevronDown', 'Expand campus shortcuts', () => {
+      shortcuts.hidden = !shortcuts.hidden;
+      toggle.setAttribute('aria-expanded', String(!shortcuts.hidden));
+      toggle.title = shortcuts.hidden ? 'Expand campus shortcuts' : 'Collapse campus shortcuts';
+      toggle.setAttribute('aria-label', toggle.title);
+    });
+    toggle.classList.add('side-shortcuts-toggle');
+    toggle.setAttribute('aria-controls', shortcuts.id);
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.setAttribute('aria-label', toggle.title);
+    this.sideRight.appendChild(shortcuts);
+    mk('medal', 'Achievements', () => this.openAchievements(), 'gold', shortcuts);
     // The leaderboard lives on the server, so it only exists when playing online.
-    if (this.game.online) mk('trophy', 'Leaderboard', () => void this.openLeaderboard(), 'blue');
+    if (this.game.online) mk('trophy', 'Leaderboard', () => void this.openLeaderboard(), 'blue', shortcuts);
     if (this.game.online) {
-      const log = mk('', 'Raid log & replays', () => void this.openReplays(), 'blue');
+      const log = mk('', 'Raid log & replays', () => void this.openReplays(), 'blue', shortcuts);
       log.innerHTML = '<span style="font-size:26px">🎬</span>';
     }
-    mk('chapel', 'Chapel', () => this.openChapel(), 'purple');
-    const lay = mk('', 'Base layouts', () => this.openLayouts(), 'blue');
+    mk('chapel', 'Chapel', () => this.openChapel(), 'purple', shortcuts);
+    const lay = mk('', 'Base layouts', () => this.openLayouts(), 'blue', shortcuts);
     lay.innerHTML = '<span style="font-size:26px">🗺️</span>';
     const snd = mk(isMuted() ? 'mute' : 'sound', 'Toggle sound', () => {
       setMuted(!isMuted());
       this.state.settings.muted = isMuted();
       snd.innerHTML = icon(isMuted() ? 'mute' : 'sound', 32);
-    }, 'gray');
-    const collectAll = mk('tuition', 'Collect all', () => this.game.village.collectAll(), 'green');
-    collectAll.classList.remove('green');
+    }, 'gray', shortcuts);
     v.appendChild(this.sideRight);
 
     this.selPanel = el('div', 'sel-panel hidden');

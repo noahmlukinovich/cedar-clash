@@ -370,6 +370,30 @@ kbd,
   width: 52px;
   height: 52px;
 }
+.side-shortcuts-menu[hidden] {
+  display: none;
+}
+.side-shortcuts-menu:not([hidden]) {
+  display: contents;
+}
+.side-shortcuts-toggle .ic {
+  transition: transform 0.16s ease;
+}
+.side-shortcuts-toggle[aria-expanded='true'] .ic {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .side-shortcuts-toggle .ic { transition: none; }
+}
+/* A full online toolbar grows leftwards on shorter screens, away from Shop. */
+@media (min-height: 501px) and (max-height: 840px) {
+  .side-right {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(3, 52px);
+    direction: rtl;
+  }
+}
 .attack-btn {
   width: 120px;
   height: 120px;

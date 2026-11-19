@@ -10,6 +10,12 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 47,
+    date: 'Nov 19, 2026',
+    title: 'A tidier campus toolbar',
+    items: ['Settings and Collect all stay visible on the right. Tap the down arrow to reveal the other campus shortcuts, and tap it again to tuck them away.'],
+  },
+  {
     v: 46,
     date: 'Nov 19, 2026',
     title: 'A smoother campus arrival',

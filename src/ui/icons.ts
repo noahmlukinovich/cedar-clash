@@ -37,6 +37,7 @@ function goldBarsSvg(): string {
   return `<svg viewBox="0 0 32 32"><g stroke="#1e1b2b" stroke-width="2" stroke-linejoin="round">${polys}</g></svg>`;
 }
 export const ICONS: Record<string, string> = {
+  chevronDown: `<svg viewBox="0 0 32 32"><path d="m8 12 8 8 8-8" fill="none" stroke="#1e1b2b" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="m8 12 8 8 8-8" fill="none" stroke="#fff2bd" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   tuition: goldBarsSvg(),
   coffee: `<svg viewBox="0 0 32 32"><path d="M16 3C18 8 25.5 14 25.5 19.5A9.5 9.5 0 0 1 6.5 19.5C6.5 14 14 8 16 3Z" fill="#7a4520" stroke="#1e1b2b" stroke-width="2.5" stroke-linejoin="round"/><path d="M10.5 20a5.5 5.5 0 0 0 4 5" fill="none" stroke="#c98a55" stroke-width="2" stroke-linecap="round"/></svg>`,
   chapel: `<svg viewBox="0 0 32 32"><path d="M6 28V14l10-9 10 9v14z" fill="#9b6dd6" stroke="#1e1b2b" stroke-width="2.5" stroke-linejoin="round"/><rect x="13" y="19" width="6" height="9" fill="#4a2f6b" stroke="#1e1b2b" stroke-width="1.5"/><path d="M16 7v8M13 10h6" stroke="#f5c32c" stroke-width="2.5"/></svg>`,
