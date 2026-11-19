@@ -8,6 +8,7 @@ import type { BuildingType, HeroType, ResourceId, TroopType } from '../config/ty
 import { isMuted, setMuted, sfx } from '../core/audio';
 import { bus } from '../core/bus';
 import { hapticsOn, hapticsSupported, setHaptics } from '../core/haptics';
+import { QUALITY_LABEL, nextQuality } from '../core/quality';
 import { tapWord, touchMode } from '../core/input';
 import { pick } from '../core/rng';
 import {
@@ -2119,7 +2120,14 @@ export class UI {
         };
         row1.append(vib);
       }
-      row1.append(save, news);
+      const gfx = el('button', 'btn blue', `🎨 Graphics: ${QUALITY_LABEL[this.game.quality]}`);
+      gfx.title = 'Auto lowers sharpness if the game runs slowly. Battery saver: lower sharpness and 30 frames a second.';
+      gfx.onclick = () => {
+        sfx('click');
+        this.game.setQuality(nextQuality(this.game.quality));
+        render();
+      };
+      row1.append(gfx, save, news);
       row1.style.flexWrap = 'wrap';
       m.body.appendChild(row1);
 

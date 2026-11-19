@@ -167,10 +167,16 @@ export class OnlineSession {
 
   private lastPushed = 0;
   /** Streams inputs so an abandoned raid still counts. */
-  pushInputs(raidId: string, inputs: RaidInput[]): void {
+  pushInputs(raidId: string, inputs: RaidInput[], keepalive = false): void {
     if (inputs.length === this.lastPushed) return;
     this.lastPushed = inputs.length;
-    void api('/api/raid/inputs', { raidId, inputs }).catch(() => (this.lastPushed = -1));
+    void api('/api/raid/inputs', { raidId, inputs }, 15000, keepalive).catch(() => (this.lastPushed = -1));
+  }
+
+  /** Back from the background: refresh soon and retry anything that failed. */
+  wake(): void {
+    this.pollT = POLL_SECONDS;
+    this.retryT = 0;
   }
 
   async finishRaid(raidId: string, inputs: RaidInput[]): Promise<RaidFinishResponse> {

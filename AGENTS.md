@@ -208,6 +208,13 @@ its line. That keeps the list honest as the mobile work lands.
   Use it for touch-only UI (the floating ✔ / ✖ when placing, the raid deploy
   ring, touch wording) and leave mouse behaviour as it is. `sfx()` also
   vibrates on phones for some sounds (`core/haptics.ts`).
+- Raids carry on without the player. Back from the background, `RaidScene.catchUp()`
+  runs the missed ticks; offline, a raid left open when the page closes is
+  saved (`savePendingRaid`) and settled on next launch; online, inputs are
+  pushed when the page hides and the server settles abandoned raids.
+- Graphics quality (`core/quality.ts`, Settings → Graphics) is per device:
+  Auto lowers `game.dpr` when frames stay slow, Battery saver is 1x at 30 fps.
+  Rendering only; never touch the raid clock for it.
 
 - Wrap `localStorage` access in `try/catch`. It throws in private mode (see
   `seenChange()` in `ui.ts`).

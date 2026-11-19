@@ -865,6 +865,28 @@ export class RaidScene implements Scene {
   }
 
   // ---------- Results ----------
+  /**
+   * The raid carries on while the app is in the background: run the ticks the
+   * player missed, with no new inputs. Deterministic, so the server's replay
+   * of the same inputs agrees. Visual events from the skipped time are dropped.
+   */
+  catchUp(seconds: number): void {
+    if (this.replay || this.ended || this.engine.ended || seconds <= 0) return;
+    this.down = null; // a finger that was down when the app was hidden is gone
+    const before = this.sim.destruction;
+    const n = Math.floor(seconds / TICK);
+    let ran = 0;
+    for (; ran < n && !this.engine.ended; ran++) {
+      this.engine.step();
+      this.sim.events.length = 0;
+    }
+    this.acc = 0;
+    if (ran < 30) return; // under a second: nobody will notice
+    this.renderCards();
+    const pct = Math.floor((this.sim.destruction - before) * 100);
+    this.game.ui.toast(this.engine.ended ? 'The raid finished while you were away.' : `The raid carried on while you were away${pct > 0 ? ` (+${pct}% destruction)` : ''}.`, 'info', 3000);
+  }
+
   private finish(): void {
     if (this.ended) return;
     this.ended = true;

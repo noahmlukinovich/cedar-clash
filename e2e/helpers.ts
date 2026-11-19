@@ -111,3 +111,33 @@ export async function layoutProblems(page: Page): Promise<Problem[]> {
     return out;
   });
 }
+
+/** Screen point on grass where the raid allows deploying, clear of the HUD. */
+export async function deployPoint(page: Page): Promise<{ x: number; y: number }> {
+  return page.evaluate(async () => {
+    const { toGrid } = await import(String('/src/core/iso.ts'));
+    const r = (window as any).game.raid;
+    const canvas = document.getElementById('game');
+    for (let y = 80; y < innerHeight - 80; y += 20) {
+      for (let x = 80; x < innerWidth - 80; x += 20) {
+        if (document.elementFromPoint(x, y) !== canvas) continue;
+        const w = r.cam.screenToWorld(x, y);
+        const g = toGrid(w.x, w.y);
+        const gx = Math.round(g.gx * 4) / 4;
+        const gy = Math.round(g.gy * 4) / 4;
+        if (gx < 1 || gy < 1 || gx > 39 || gy > 39) continue;
+        if (r.sim.canDeploy(gx, gy) && r.sim.canDeploy(gx + 3, gy) && r.sim.canDeploy(gx - 3, gy)) return { x, y };
+      }
+    }
+    throw new Error('no deployable grass on screen');
+  });
+}
+
+export async function startRaid(page: Page): Promise<void> {
+  await page.locator('.hud .btn', { hasText: 'Attack!' }).first().dispatchEvent('click');
+  await page.locator('.modal .btn', { hasText: 'Rival State U' }).first().dispatchEvent('click');
+  await page.locator('.raid-top').waitFor();
+  await page.waitForTimeout(500);
+}
+
+export const units = (page: Page): Promise<number> => page.evaluate(() => (window as any).game.raid.sim.units.length);

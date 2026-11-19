@@ -1,7 +1,7 @@
 // Page code below imports game modules from the Vite dev server by URL;
 // String() keeps TypeScript from trying to resolve those paths.
 import { expect, test, type Page } from '@playwright/test';
-import { freshGame } from './helpers';
+import { deployPoint, freshGame, startRaid, units } from './helpers';
 import { cam, Fingers } from './touch';
 
 // Touch behaves the same on every phone, so these run on one phone project;
@@ -26,34 +26,6 @@ async function buildingPoint(page: Page): Promise<{ id: number; x: number; y: nu
     }
     throw new Error('no building on screen');
   });
-}
-
-/** Screen point on grass where the raid allows deploying, clear of the HUD. */
-async function deployPoint(page: Page): Promise<{ x: number; y: number }> {
-  return page.evaluate(async () => {
-    const { toGrid } = await import(String('/src/core/iso.ts'));
-    const r = (window as any).game.raid;
-    const canvas = document.getElementById('game');
-    for (let y = 80; y < innerHeight - 80; y += 20) {
-      for (let x = 80; x < innerWidth - 80; x += 20) {
-        if (document.elementFromPoint(x, y) !== canvas) continue;
-        const w = r.cam.screenToWorld(x, y);
-        const g = toGrid(w.x, w.y);
-        const gx = Math.round(g.gx * 4) / 4;
-        const gy = Math.round(g.gy * 4) / 4;
-        if (gx < 1 || gy < 1 || gx > 39 || gy > 39) continue;
-        if (r.sim.canDeploy(gx, gy) && r.sim.canDeploy(gx + 3, gy) && r.sim.canDeploy(gx - 3, gy)) return { x, y };
-      }
-    }
-    throw new Error('no deployable grass on screen');
-  });
-}
-
-async function startRaid(page: Page): Promise<void> {
-  await page.locator('.hud .btn', { hasText: 'Attack!' }).first().dispatchEvent('click');
-  await page.locator('.modal .btn', { hasText: 'Rival State U' }).first().dispatchEvent('click');
-  await page.locator('.raid-top').waitFor();
-  await page.waitForTimeout(500);
 }
 
 const mode = (page: Page) => page.evaluate(() => (window as any).game.village.mode);
@@ -108,7 +80,6 @@ async function ghostCentre(page: Page): Promise<{ x: number; y: number }> {
   });
 }
 
-const units = (page: Page): Promise<number> => page.evaluate(() => (window as any).game.raid.sim.units.length);
 const mid = (page: Page) => page.evaluate(() => ({ x: innerWidth / 2, y: innerHeight / 2 }));
 
 test.describe('touch', () => {
