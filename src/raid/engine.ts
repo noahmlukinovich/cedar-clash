@@ -17,7 +17,7 @@ export type RaidKind = 'campaign' | 'random' | 'elephant' | 'player';
  * The server only settles a raid with the sim version it was started under, and old replays
  * stop being watchable. `test/simVersion.test.ts` fails when behavior changes without a bump.
  */
-export const SIM_VERSION = 1;
+export const SIM_VERSION = 2;
 
 /** The sim version a setup was built for. Setups from before versioning count as version 1. */
 export function simVersionOf(setup: Pick<RaidSetup, 'simVersion'>): number {

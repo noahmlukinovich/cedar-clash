@@ -13,7 +13,7 @@ import { generateBase, rivalStateU } from '../src/raid/basegen';
 import { RaidEngine, type RaidInput, type RaidSetup, SIM_VERSION } from '../src/raid/engine';
 
 /** The fingerprint for the current SIM_VERSION. */
-const EXPECTED = { version: SIM_VERSION, fingerprint: 'd076daa578987c0e' };
+const EXPECTED = { version: SIM_VERSION, fingerprint: 'ceb31528a1c0bc71' };
 
 const HERO_TYPES = Object.keys(HEROES) as HeroType[];
 
