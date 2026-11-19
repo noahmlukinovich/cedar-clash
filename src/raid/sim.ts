@@ -68,6 +68,7 @@ export interface RU {
   pathI: number;
   needsPath: boolean;
   wall: RB | null; // wall blocking the path
+  wallCheckAt: number; // when a troop bashing `wall` next looks for a quicker wall
   frozenUntil: number;
   slowUntil: number;
   slowMul: number;
@@ -207,6 +208,17 @@ const WANDER_DIRS: [number, number][] = [
 /** Aleph to tav. */
 export const HEBREW_LETTERS = 22;
 
+// Wall pricing for pathing (see RaidSim.wallCostFor): ground troops within
+// WALL_HELP_RADIUS tiles are counted as helping break a wall (at most WALL_HELPERS_MAX
+// in all), and past WALL_COST_MAX tiles a wall's cost grows only slowly (a detour that long
+// is rarely worth it, but a weaker wall should still look better than a stronger one).
+const WALL_HELP_RADIUS = 3;
+const WALL_HELPERS_MAX = 8;
+const WALL_COST_MAX = 60;
+// Troops bashing a wall look for a quicker one this often (seconds), and only switch when
+// it's clearly better: their own wall's cost is multiplied by WALL_STAY.
+const WALL_RECHECK = 1;
+const WALL_STAY = 0.75;
 /** What a Business Major goes for first. */
 const RESOURCE_TYPES: BuildingType[] = ['registrar', 'rinnova', 'admissions', 'coffeecart'];
 
@@ -442,6 +454,7 @@ export class RaidSim {
       pathI: 0,
       needsPath: true,
       wall: null,
+      wallCheckAt: 0,
       frozenUntil: 0,
       slowUntil: 0,
       slowMul: 1,
@@ -1159,7 +1172,12 @@ export class RaidSim {
           u.needsPath = true;
         }
       }
-      if (!b.isWall) for (const u of this.units) if (u.side === 'atk') u.needsPath = true;
+      for (const u of this.units) {
+        if (u.side !== 'atk') continue;
+        // a building gone changes everyone's plans; a wall gone opens a gap, so troops
+        // bashing some other wall check whether walking to it is quicker
+        if (!b.isWall || u.wall) u.needsPath = true;
+      }
     }
   }
 
@@ -1292,6 +1310,15 @@ export class RaidSim {
         return;
       }
     }
+    if (u.wall && this.time >= u.wallCheckAt) {
+      u.wallCheckAt = this.time + WALL_RECHECK;
+      u.needsPath = true; // walls nearby may have been weakened by others since we chose this one
+    }
+    if (u.needsPath && u.wall && this.pathBudget > 0) {
+      // bashing a wall, but something changed (another wall fell or weakened): is there a better way now?
+      this.pathBudget--;
+      this.computePath(u);
+    }
     const tgt = u.wall ?? u.tb;
     const inRange = distToRect(u.x, u.y, tgt.x, tgt.y, tgt.size, tgt.size) <= u.range + 0.15;
     if (inRange) {
@@ -1310,11 +1337,19 @@ export class RaidSim {
 
   private computePath(u: RU): void {
     u.needsPath = false;
+    const prevWall = u.wall;
     u.wall = null;
     const t = u.tb;
     if (!t) return;
     const jumps = !!u.def?.jumps;
-    const p = findPath(jumps ? this.costJump : this.cost, Math.floor(u.x), Math.floor(u.y), { x: t.x, y: t.y, w: t.size, h: t.size }, Math.max(0.5, u.range - 0.2));
+    const p = findPath(
+      jumps ? this.costJump : this.cost,
+      Math.floor(u.x),
+      Math.floor(u.y),
+      { x: t.x, y: t.y, w: t.size, h: t.size },
+      Math.max(0.5, u.range - 0.2),
+      jumps ? undefined : this.wallCostFor(u, prevWall),
+    );
     u.path = p ?? [];
     u.pathI = 0;
     if (jumps) return; // walls are not in the way
@@ -1323,10 +1358,55 @@ export class RaidSim {
       const b = this.tileB[u.path[i]];
       if (b && b.isWall && !b.dead) {
         u.wall = b;
+        u.wallCheckAt = this.time + WALL_RECHECK;
         u.path = u.path.slice(0, i);
         break;
       }
     }
+  }
+
+  /**
+   * Prices a wall tile for `u` in tiles of walking: roughly how far `u` could walk in the
+   * time it takes to knock that wall down (counting its current HP, so a half-broken wall
+   * is cheaper and troops pile into a breach that is already being opened), shared with the
+   * ground troops around it: a lone troop walks to a gap, a crowd smashes through. A wall
+   * other troops are already hitting also counts their damage, so troops pile onto one
+   * piece and open a single breach quickly instead of each chipping its own. Without this
+   * a wall cost a flat few tiles, so troops bashed a 300 HP wall for half a minute rather than
+   * walk ten tiles to a gap.
+   */
+  private wallCostFor(u: RU, current: RB | null): (i: number) => number {
+    const dps = this.wallDps(u);
+    const tilesPerSec = u.speed * this.mulSpeed(u);
+    let helpers = 1;
+    for (const o of this.units) {
+      if (o === u || o.dead || o.side !== 'atk' || o.def?.jumps || o.type === 'nurse') continue;
+      if (dist(o.x, o.y, u.x, u.y) <= WALL_HELP_RADIUS && ++helpers >= WALL_HELPERS_MAX) break;
+    }
+    // damage already committed to each wall by the troops bashing it
+    const committed = new Map<RB, number>();
+    for (const o of this.units) {
+      if (o === u || o.dead || o.side !== 'atk' || !o.wall || o.wall.dead) continue;
+      committed.set(o.wall, (committed.get(o.wall) ?? 0) + this.wallDps(o));
+    }
+    return (i) => {
+      const b = this.tileB[i];
+      if (!b || dps <= 0) return WALL_COST_MAX;
+      const total = dps * helpers + (committed.get(b) ?? 0);
+      let tiles = 1 + (b.hp / total) * tilesPerSec;
+      if (tiles > WALL_COST_MAX) tiles = WALL_COST_MAX + (tiles - WALL_COST_MAX) * 0.05;
+      if (b === current) tiles *= WALL_STAY; // stick with the wall we're on unless another is clearly quicker
+      return Math.max(WALL_COST, tiles);
+    };
+  }
+
+  /** Average damage per second `u` deals to a wall right now, as attackBuilding works it out. */
+  private wallDps(u: RU): number {
+    let dps = u.dps * this.mulDmg(u);
+    if (u.type === 'engineer') dps *= TROOPS.engineer.wallMul ?? 1;
+    const ch = u.def?.chorus;
+    if (ch) dps *= 1 + (ch.mul - 1) / ch.every; // every nth hit is the chorus
+    return dps;
   }
 
   private followPath(u: RU, dt: number, sp: number): void {

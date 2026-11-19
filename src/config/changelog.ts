@@ -10,6 +10,17 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 41,
+    date: 'Nov 19, 2026',
+    title: 'Smarter about walls',
+    items: [
+      'Troops walk to a nearby gap in a wall instead of stopping to bash it. A big group still smashes straight through.',
+      'Troops breaking through pile onto the same piece of wall, and switch to a nearby piece that has been weakened, so a breach opens much sooner.',
+      'When any wall falls, troops still hitting other walls check whether the new gap is quicker.',
+      'Raid replays recorded before this update may play out a little differently.',
+    ],
+  },
+  {
     v: 40,
     date: 'Nov 18, 2026',
     title: 'Quieter campus colors, clearer Stinger lettering',

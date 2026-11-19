@@ -1,5 +1,6 @@
-// A* on the tile grid. Walls are passable at high cost (troops break through them
+// A* on the tile grid. Walls are passable at a cost (troops break through them
 // when going around would be much longer). Other buildings and lakes are impassable.
+// The caller can price each wall tile (see `wallCost`); otherwise a wall tile costs WALL_COST.
 import { GRID } from '../config/balance';
 import { distToRect } from '../core/iso';
 
@@ -78,9 +79,19 @@ const DIRS: [number, number, number][] = [
 /**
  * Find a path from (sx, sy) tile to any tile within `range` of target rect.
  * cost[] holds per-tile cost: 0 blocked, 1 free, WALL_COST for walls.
+ * `wallCost(i)`, if given, is the cost of stepping onto wall tile i, in tiles of walking:
+ * how long breaking that wall would take compared with walking around it.
  * Returns list of tile indices (excluding start), or null.
  */
-export function findPath(cost: Uint8Array, sx: number, sy: number, target: Rect, range: number, maxIter = 4000): number[] | null {
+export function findPath(
+  cost: Uint8Array,
+  sx: number,
+  sy: number,
+  target: Rect,
+  range: number,
+  wallCost?: (i: number) => number,
+  maxIter = 4000,
+): number[] | null {
   sx = Math.max(0, Math.min(GRID - 1, sx));
   sy = Math.max(0, Math.min(GRID - 1, sy));
   const start = sy * GRID + sx;
@@ -96,7 +107,10 @@ export function findPath(cost: Uint8Array, sx: number, sy: number, target: Rect,
   let bestH = h(sx, sy);
   while (open.size && iter++ < maxIter) {
     const cur = open.pop();
-    if (closed[cur]) continue;
+    if (closed[cur]) {
+      iter--; // stale heap entry: not a real expansion
+      continue;
+    }
     closed[cur] = 1;
     const cx = cur % GRID;
     const cy = (cur / GRID) | 0;
@@ -117,7 +131,7 @@ export function findPath(cost: Uint8Array, sx: number, sy: number, target: Rect,
         // no corner cutting past blocked/walls
         if (cost[cy * GRID + nx] !== FREE || cost[ny * GRID + cx] !== FREE) continue;
       }
-      const g = gScore[cur] + dc * c;
+      const g = gScore[cur] + dc * (c === WALL_COST && wallCost ? wallCost(ni) : c);
       if (g < gScore[ni]) {
         gScore[ni] = g;
         came[ni] = cur;
