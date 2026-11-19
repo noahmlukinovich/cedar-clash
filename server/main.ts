@@ -82,9 +82,13 @@ function getCookie(req: IncomingMessage, name: string): string | null {
 }
 
 export function createApp(db: DB, cfg: ServerConfig) {
-  const loginFails = new RateLimiter(10, 15 * 60 * 1000);
-  const signups = new RateLimiter(5, 60 * 60 * 1000);
-  const requests = new RateLimiter(240, 60 * 1000);
+  // Limits are per account where possible: a whole dorm can share one public IP
+  // behind campus NAT, so the per-IP budgets are sized for a crowd, not a person.
+  const loginFails = new RateLimiter(10, 15 * 60 * 1000); // per IP + name
+  const loginFailsIp = new RateLimiter(60, 15 * 60 * 1000); // per IP, across all names
+  const signups = new RateLimiter(30, 60 * 60 * 1000);
+  const userRequests = new RateLimiter(240, 60 * 1000);
+  const ipRequests = new RateLimiter(3000, 60 * 1000);
 
   const cookie = (value: string, maxAge: number): string =>
     `${COOKIE}=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${cfg.secureCookies ? '; Secure' : ''}`;
@@ -141,12 +145,12 @@ export function createApp(db: DB, cfg: ServerConfig) {
     const { username, password } = body;
     if (typeof username !== 'string' || typeof password !== 'string' || username.length > 40 || password.length > 200) throw new HttpError(400, 'Bad request');
     const key = `${ip}|${username.toLowerCase()}`;
-    if (loginFails.blocked(key) || loginFails.blocked(ip)) throw new HttpError(429, 'Too many attempts. Wait 15 minutes and try again.');
+    if (loginFails.blocked(key) || loginFailsIp.blocked(ip)) throw new HttpError(429, 'Too many attempts. Wait 15 minutes and try again.');
     const user = db.st.userByName.get(username) as UserRow | undefined;
     const ok = await verifyPassword(password, user?.pass ?? DUMMY_HASH);
     if (!user || !ok) {
       loginFails.hit(key);
-      loginFails.hit(ip); // per-IP budget too, across all names
+      loginFailsIp.hit(ip); // per-IP budget too, across all names
       throw new HttpError(401, 'Wrong campus name or password');
     }
     loginFails.clear(key);
@@ -160,7 +164,8 @@ export function createApp(db: DB, cfg: ServerConfig) {
     const method = req.method ?? 'GET';
     if (!path.startsWith('/api/')) throw new HttpError(404, 'Not found');
     if (path === '/api/health') return { ok: true, loggedIn: sessionUser(req) != null, inviteRequired: !!cfg.requireInvite };
-    if (!requests.hit(clientIp(req))) throw new HttpError(429, 'Slow down a little');
+    const uid = sessionUser(req);
+    if (!ipRequests.hit(clientIp(req)) || (uid != null && !userRequests.hit(`u${uid}`))) throw new HttpError(429, 'Slow down a little');
 
     let body: Record<string, unknown> = {};
     if (method === 'POST') {

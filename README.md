@@ -41,7 +41,7 @@ When the page is served with the game server behind it, players log in (invite-o
   - Passwords are hashed with scrypt.
   - Sessions are random tokens in `HttpOnly; Secure; SameSite=Strict` cookies, and only hashes of the tokens are stored.
   - POST requests need a custom header, a JSON body, and a same-origin `Origin`.
-  - Logins, sign-ups and requests are rate-limited.
+  - Logins, sign-ups and requests are rate-limited. Requests are limited per account (240 a minute), with a much larger per-IP ceiling, so players sharing campus Wi-Fi don't throttle each other.
   - Campus names are restricted to a safe character set and escaped wherever they're displayed.
 - **Known limits:**
   - The browser knows a raid's random seed, so a determined cheater could rehearse a raid offline before playing it. This is fine for friends; a public game would need more.

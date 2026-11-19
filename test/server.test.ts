@@ -455,3 +455,36 @@ describe('sign-up without invite codes', () => {
     }
   });
 });
+
+describe('rate limits', () => {
+  it('limits requests per account, so players sharing one IP do not throttle each other', async () => {
+    const shared = startServer({ dbPath: ':memory:', host: '127.0.0.1', port: 0, secureCookies: false });
+    await shared.ready;
+    try {
+      const url = `http://127.0.0.1:${shared.port}`;
+      const signup = async (name: string): Promise<string> => {
+        const r = await fetch(url + '/api/signup', {
+          method: 'POST',
+          headers: { 'X-CC': '1', 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: name, password: 'sharedpass1' }),
+        });
+        expect(r.status).toBe(200);
+        return (r.headers.get('set-cookie') ?? '').split(';')[0];
+      };
+      // more sign-ups from one IP than the old limit of 5 allowed
+      const cookies: string[] = [];
+      for (let i = 0; i < 8; i++) cookies.push(await signup(`Dorm Room ${i}`));
+      const me = (cookie: string) => fetch(url + '/api/me', { headers: { 'X-CC': '1', Cookie: cookie } }).then((r) => r.status);
+      // 8 players x 200 requests = 1600 from one IP, well past the old 240/minute per-IP cap
+      for (const c of cookies) {
+        const statuses = await Promise.all(Array.from({ length: 200 }, () => me(c)));
+        expect(statuses.every((s) => s === 200)).toBe(true);
+      }
+      // one account on its own still gets throttled
+      const more = await Promise.all(Array.from({ length: 41 }, () => me(cookies[0])));
+      expect(more).toContain(429);
+    } finally {
+      await shared.close();
+    }
+  });
+});
