@@ -1081,7 +1081,9 @@ button.up-main:hover {
   position: absolute;
   top: 12px;
   left: 14px;
-  max-width: calc(50vw - 120px); /* never runs under the timer */
+  /* Never runs under the timer, whatever the font: the timer is at most
+     220px wide (half of it 110px), so stop 6px short of that. */
+  max-width: calc(50vw - 130px);
   background: rgba(20, 18, 30, 0.75);
   border: 3px solid var(--out);
   border-radius: 14px;
@@ -1110,6 +1112,7 @@ button.up-main:hover {
   transform: translateX(-50%);
   text-align: center;
   font-weight: 900;
+  max-width: 220px; /* the label wraps rather than reach the info box */
 }
 .raid-timer .t {
   font-size: 34px;
@@ -1885,7 +1888,7 @@ kbd {
     top: 8px;
     left: 10px;
     min-width: 0;
-    max-width: calc(50vw - 96px);
+    max-width: calc(50vw - 100px); /* timer is at most 170px here */
     padding: 4px 10px;
   }
   .raid-top .enemy {
