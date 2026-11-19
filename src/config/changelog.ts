@@ -10,6 +10,15 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 41,
+    date: 'Nov 18, 2026',
+    title: 'Campus controls and new building projects',
+    items: [
+      'Attack, Army and Shop have matching campus-themed buttons. The Attack shield is blank, and Army features the actual Freshman, Athlete and Theology Major artwork.',
+      'The Facilities Crew menu now lists buildings you can still add at your DMC level, alongside upgrades and research. See the price, remaining allowance and any resource or crew requirement, then choose Build to place one on campus.',
+    ],
+  },
+  {
     v: 40,
     date: 'Nov 18, 2026',
     title: 'Quieter campus colors, clearer Stinger lettering',

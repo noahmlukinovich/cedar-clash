@@ -3,6 +3,44 @@ import type { BuildingType, SpellType, UnitType } from '../config/types';
 import { getBuildingSprite } from '../render/buildingSprites';
 import { drawUnit } from '../render/unitSprites';
 
+/** The same level-one Freshman, Athlete and Theology Major art used in Army menus. */
+export function armyControlPortraits(): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = 480;
+  c.height = 496;
+  c.className = 'campus-control-portraits';
+  c.setAttribute('aria-hidden', 'true');
+  const ctx = c.getContext('2d')!;
+  ctx.scale(4, 4);
+  ctx.beginPath();
+  ctx.rect(8, 8, 104, 75);
+  ctx.clip();
+  for (const [type, centerX, top, width, height] of [
+    ['athlete', 60, 12, 43, 62],
+    ['freshman', 30, 25, 41, 61],
+    ['theology', 89, 25, 42, 61],
+  ] as const) {
+    const portrait = document.createElement('canvas');
+    portrait.width = portrait.height = 512;
+    const pc = portrait.getContext('2d')!;
+    drawUnit(pc, 256, 400, type, { t: 0.4, facing: 1, moving: false, attacking: 0, scale: 7, level: 1 });
+    const pixels = pc.getImageData(0, 0, 512, 512).data;
+    let left = 512, topEdge = 512, right = 0, bottom = 0;
+    for (let y = 0; y < 512; y++) for (let x = 0; x < 512; x++) {
+      if (pixels[(y * 512 + x) * 4 + 3] <= 5) continue;
+      left = Math.min(left, x); topEdge = Math.min(topEdge, y);
+      right = Math.max(right, x); bottom = Math.max(bottom, y);
+    }
+    // Use upper-body crops so faces and each troop's identifying gear stay readable.
+    const sourceW = right - left + 1;
+    const sourceH = (bottom - topEdge + 1) * 0.76;
+    const scale = Math.min(width / sourceW, height / sourceH);
+    const w = sourceW * scale, h = sourceH * scale;
+    ctx.drawImage(portrait, left, topEdge, sourceW, sourceH, centerX - w / 2, top, w, h);
+  }
+  return c;
+}
+
 export function buildingThumb(type: BuildingType, level: number, w = 120, h = 100): HTMLCanvasElement {
   const c = document.createElement('canvas');
   c.width = w * 2;

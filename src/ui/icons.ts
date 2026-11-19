@@ -58,3 +58,22 @@ export const ICONS: Record<string, string> = {
 export function icon(name: string, size = 24): string {
   return `<span class="ic" style="width:${size}px;height:${size}px">${ICONS[name] ?? ''}</span>`;
 }
+
+
+export type CampusControl = 'attack' | 'army' | 'shop';
+
+/** Approved HUD artwork. The Army portraits are drawn separately by the unit renderer. */
+export function campusControlArt(kind: CampusControl): string {
+ const ink = '#102b41', gold = '#f5c32c';
+function sword(): string{return `<g stroke="${ink}" stroke-width="3" stroke-linejoin="round"><path d="M-4-31 0-43 4-31 4 20-4 20Z" fill="#dce5ed"/><path d="M0-39 0 19 4 19 4-31Z" fill="#8fa5ba" stroke="none"/><path d="M-12 19H12V25H-12Z" fill="${gold}"/><path d="M-3 25H3V40H-3Z" fill="#cf941e"/><circle cy="41" r="4" fill="${gold}"/></g>`;}
+function attack(): string{return `<g transform="translate(60 45) scale(.82)"><g transform="rotate(-43)">${sword()}</g><g transform="rotate(43)">${sword()}</g><path d="M-27-20Q-11-19 0-28 11-19 27-20L24 9Q20 28 0 38-20 28-24 9Z" fill="${ink}" stroke="${gold}" stroke-width="3"/></g>`;}
+function army(): string{return ''; }
+function shop(): string{return `<g stroke="${ink}" stroke-width="2.6" stroke-linejoin="round"><path d="M21 35H99V83H21Z" fill="#b56348"/><path d="M18 25H102V37H18Z" fill="#f4e1b7"/><path d="M35 25V15H85V25" fill="#c37453"/><path d="M30 42H90V83H30Z" fill="#f0dcad"/><path d="M26 41H94L102 55H18Z" fill="${gold}"/><path d="M38 41H49L45 55H32ZM70 41H81L88 55H75Z" fill="#214570" stroke="none"/><path d="M18 55Q26 63 34 55 42 63 50 55 58 63 66 55 74 63 82 55 92 63 102 55" fill="#214570"/><path d="M33 61H45V76H33ZM75 61H87V76H75ZM52 60H68V83H52Z" fill="#8fc8dc"/><path d="M35 72 44 63M77 72 86 63M55 77 65 63" stroke="#e9f5f3" stroke-width="2"/><path d="M63 71V76" stroke="${gold}" stroke-width="2.5"/><path d="M46 14H74V31H46Z" fill="${ink}"/><path d="M55 21H65V28H55ZM57 21V18Q60 13 63 18V21" fill="${gold}" stroke="${gold}" stroke-width="1.6"/></g>`;}
+function button(type: CampusControl): string{
+ const palette=type==='attack'?['#ffe378','#f5bd25','#bd8115']:type==='army'?['#365e98','#183761','#0d253f']:['#fffbed','#f1e2c2','#b8a67f'];
+ const label=type==='attack'?'ATTACK!':type.toUpperCase();
+ const foreground=type==='army'?'#ffffff':ink;
+ return `<svg xmlns="http://www.w3.org/2000/svg" width="480" height="496" class="campus-control-art" aria-hidden="true" focusable="false" viewBox="0 0 120 124"><defs><linearGradient id="control-${type}-face" x2="0" y2="1"><stop stop-color="${palette[0]}"/><stop offset="1" stop-color="${palette[1]}"/></linearGradient></defs><rect x="2" y="6" width="116" height="116" rx="24" fill="${ink}" opacity=".40"/><rect x="2" y="1" width="116" height="116" rx="24" fill="${palette[2]}" stroke="${ink}" stroke-width="3"/><rect x="5" y="3" width="110" height="107" rx="21" fill="url(#control-${type}-face)" stroke="${type==='army'?gold:'#fff0b5'}" stroke-width="2"/><path d="M15 15Q17 8 27 8H94" fill="none" stroke="#fff5c9" opacity=".55" stroke-width="2" stroke-linecap="round"/>${type==='attack'?attack():type==='army'?army():shop()}<text x="60" y="102" text-anchor="middle" font-family="DejaVu Sans,Arial,sans-serif" font-size="${type==='attack'?18:19}" font-weight="bold" fill="${foreground}">${label}</text></svg>`;
+}
+ return button(kind);
+}

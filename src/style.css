@@ -365,6 +365,42 @@ kbd,
   width: 56px !important;
   height: 56px !important;
 }
+.btn.campus-control {
+  position: relative;
+  display: block;
+  width: 88px;
+  height: 91px;
+  padding: 0;
+  border: 0;
+  border-radius: 20px;
+  background: none;
+  box-shadow: none;
+  -webkit-text-stroke: 0;
+  text-shadow: none;
+}
+.btn.campus-control.attack-btn {
+  width: 120px;
+  height: 124px;
+  border-radius: 25px;
+}
+.campus-control-art,
+.campus-control-portraits {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.campus-control-portraits {
+  position: absolute;
+  inset: 0;
+}
+.btn.campus-control:active {
+  box-shadow: none;
+}
+.btn.campus-control:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
 
 /* ---------- Selection panel ---------- */
 .sel-panel {
@@ -851,6 +887,17 @@ button.up-main:hover {
   color: #564b66;
   max-width: 130px;
   text-align: right;
+}
+.new-building-row .up-sub {
+  white-space: normal;
+}
+.new-building-row .up-side {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 4px 8px;
+}
+.new-building-row .up-why {
+  grid-column: 1 / -1;
 }
 
 /* ---------- Toasts ---------- */
