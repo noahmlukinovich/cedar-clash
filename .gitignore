@@ -4,3 +4,5 @@ dist
 .DS_Store
 server-dist
 data
+test-results
+playwright-report

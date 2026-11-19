@@ -2,13 +2,31 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b1e4d" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Cedar Clash" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M16 2l12 7v14l-12 7-12-7V9z' fill='%232e63b8' stroke='%231e1b2b' stroke-width='2'/><path d='M16 8v16M10 13h12' stroke='%23f5c32c' stroke-width='3'/></svg>" />
     <title>Cedarville Clash</title>
   </head>
   <body>
     <canvas id="game"></canvas>
     <div id="ui"></div>
+    <div id="rotate" aria-live="polite">
+      <svg viewBox="0 0 120 120" width="120" height="120" aria-hidden="true">
+        <g class="rotate-phone">
+          <rect x="38" y="16" width="44" height="88" rx="9" fill="#2e63b8" stroke="#1e1b2b" stroke-width="5" />
+          <rect x="45" y="27" width="30" height="62" rx="3" fill="#f5c32c" stroke="#1e1b2b" stroke-width="3" />
+          <circle cx="60" cy="96" r="3.5" fill="#1e1b2b" />
+        </g>
+      </svg>
+      <div class="rotate-title">Turn your phone sideways</div>
+      <div class="rotate-sub">Campus is wider than it is tall. Like the parking lot.</div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

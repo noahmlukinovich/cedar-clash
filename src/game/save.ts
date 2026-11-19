@@ -112,6 +112,34 @@ export function saveGame(state: GameState): boolean {
   }
 }
 
+// ---------- Offline raid in progress ----------
+// If the page is closed or killed mid-raid, the raid carries on without the
+// player: next launch replays it from the stored inputs and applies the result.
+const RAID_KEY = 'cedarville-clash-raid';
+
+export interface PendingRaid {
+  setup: import('../raid/engine').RaidSetup;
+  inputs: import('../raid/engine').RaidInput[];
+}
+
+export function savePendingRaid(p: PendingRaid | null): void {
+  try {
+    if (p) localStorage.setItem(RAID_KEY, JSON.stringify(p));
+    else localStorage.removeItem(RAID_KEY);
+  } catch {
+    // private window or full storage: the raid just won't survive a reload
+  }
+}
+
+export function loadPendingRaid(): PendingRaid | null {
+  try {
+    const txt = localStorage.getItem(RAID_KEY);
+    return txt ? (JSON.parse(txt) as PendingRaid) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Re-check (e.g. when another tab writes) whether a newer build owns the save. */
 export function checkStale(): boolean {
   if (!staleSave && savedByNewer()) staleSave = true;
@@ -120,6 +148,7 @@ export function checkStale(): boolean {
 
 export function resetSave(): void {
   localStorage.removeItem(KEY);
+  localStorage.removeItem(RAID_KEY);
   localStorage.removeItem(BUILD_KEY);
 }
 

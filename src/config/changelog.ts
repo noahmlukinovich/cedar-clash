@@ -10,6 +10,18 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 42,
+    date: 'Nov 19, 2026',
+    title: 'Cedarville Clash on your phone',
+    items: [
+      'Play on phones and tablets: turn your phone sideways, drag to look around and pinch to zoom.',
+      'Placing a building on touch: drag the outline into place, then tap ✔. Long-press any building to pick it up and move it.',
+      'Raids on touch: a ring around your finger turns green where troops can land. Drag with two fingers to look around without deploying.',
+      'Raids keep going if you switch apps or lock your phone, just like a real one would.',
+      'New in Settings: Add to Home Screen (opens full screen, like an app), Vibration, and Graphics (Auto, Sharp or Battery saver).',
+    ],
+  },
+  {
     v: 41,
     date: 'Nov 18, 2026',
     title: 'Campus controls and new building projects',

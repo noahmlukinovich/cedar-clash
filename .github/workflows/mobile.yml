@@ -1,0 +1,27 @@
+name: mobile
+
+# Mobile layout checks (npm run test:mobile). Separate from "tests" so it can
+# be made a required check once the mobile layout work settles.
+on:
+  pull_request:
+
+jobs:
+  mobile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:mobile
+        env:
+          CI: '1'
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-test-results
+          path: test-results
+          retention-days: 7

@@ -7,6 +7,7 @@ import { SPELLS, SPELL_ORDER } from '../config/spells';
 import type { HeroType, SpellType, TroopType } from '../config/types';
 import { sfx } from '../core/audio';
 import { Camera } from '../core/camera';
+import { tapWord, touchMode } from '../core/input';
 import { toGrid, toWorld } from '../core/iso';
 import { Particles } from '../core/particles';
 import { pick } from '../core/rng';
@@ -181,7 +182,7 @@ export class RaidScene implements Scene {
     h.appendChild(end);
     if (this.replay) h.appendChild(this.buildReplayBar());
     else {
-      const hint = el('div', 'hint stroke raid-hint', 'Pick a card, then click (or hold) on open grass outside the white zone to deploy.');
+      const hint = el('div', 'hint stroke raid-hint', `Pick a card, then ${tapWord()} (or hold) on open grass outside the white zone to deploy.`);
       h.appendChild(hint);
       setTimeout(() => hint.remove(), 6000);
     }
@@ -352,7 +353,7 @@ export class RaidScene implements Scene {
       if (!this.engine.apply({ t: 0, k: 'hero', type: c.type, x, y })) return false;
       const p = toWorld(x, y);
       this.particles.burst(p.x, p.y, 2, 16, { kind: 'spark', color: C.gold, size: 5, speed: 90, max: 0.7, vz: 120, gravity: 200 });
-      this.game.ui.toast(`${HEROES[c.type].name} has entered the raid! Click the card again for ${HEROES[c.type].ability.name}.`, 'good');
+      this.game.ui.toast(`${HEROES[c.type].name} has entered the raid! ${tapWord(true)} the card again for ${HEROES[c.type].ability.name}.`, 'good');
       sfx('chime');
       this.renderCards();
       return true;
@@ -413,6 +414,10 @@ export class RaidScene implements Scene {
   }
 
   onMouseUp(): void {
+    this.down = null;
+  }
+
+  onPointerCancel(): void {
     this.down = null;
   }
 
@@ -860,6 +865,28 @@ export class RaidScene implements Scene {
   }
 
   // ---------- Results ----------
+  /**
+   * The raid carries on while the app is in the background: run the ticks the
+   * player missed, with no new inputs. Deterministic, so the server's replay
+   * of the same inputs agrees. Visual events from the skipped time are dropped.
+   */
+  catchUp(seconds: number): void {
+    if (this.replay || this.ended || this.engine.ended || seconds <= 0) return;
+    this.down = null; // a finger that was down when the app was hidden is gone
+    const before = this.sim.destruction;
+    const n = Math.floor(seconds / TICK);
+    let ran = 0;
+    for (; ran < n && !this.engine.ended; ran++) {
+      this.engine.step();
+      this.sim.events.length = 0;
+    }
+    this.acc = 0;
+    if (ran < 30) return; // under a second: nobody will notice
+    this.renderCards();
+    const pct = Math.floor((this.sim.destruction - before) * 100);
+    this.game.ui.toast(this.engine.ended ? 'The raid finished while you were away.' : `The raid carried on while you were away${pct > 0 ? ` (+${pct}% destruction)` : ''}.`, 'info', 3000);
+  }
+
   private finish(): void {
     if (this.ended) return;
     this.ended = true;
@@ -1292,6 +1319,44 @@ export class RaidScene implements Scene {
       ctx.fillRect(0, 0, this.cam.width, this.cam.height);
     }
     this.particles.drawFlyers(ctx);
+    this.drawTouchMarker(ctx);
+  }
+
+  /** Would a deploy at this screen point work? Same checks as deployAt, with no side effects. */
+  private deployOkAt(sx: number, sy: number): boolean {
+    const c = this.cards[this.sel];
+    if (!c || this.ended) return false;
+    const w = this.cam.screenToWorld(sx, sy);
+    const g = toGrid(w.x, w.y);
+    const x = q(g.gx);
+    const y = q(g.gy);
+    if (x < 0 || y < 0 || x >= GRID || y >= GRID) return false;
+    if (c.kind === 'spell') return this.count(c) > 0;
+    return this.sim.canDeploy(x, y) && (c.kind === 'hero' || this.count(c) > 0);
+  }
+
+  /** Touch: a ring around the finger, green where troops can land and red where they can't. */
+  private drawTouchMarker(ctx: CanvasRenderingContext2D): void {
+    const d = this.down;
+    if (!touchMode || !d || d.button !== 0 || this.replay || this.ended) return;
+    if (d.dragged && !d.deploying) return; // panning, not deploying
+    const { x, y } = this.last;
+    const ok = this.deployOkAt(x, y);
+    const r = 40 + Math.sin(this.time * 10) * 3;
+    ctx.save();
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = 'rgba(30,27,43,0.8)';
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = ok ? '#7ef06a' : '#ff5a4a';
+    ctx.fillStyle = ok ? 'rgba(126,240,106,0.12)' : 'rgba(255,90,74,0.12)';
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
   }
 }
 

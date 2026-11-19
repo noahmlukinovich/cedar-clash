@@ -3,18 +3,22 @@ import { DEBUG_SPEEDS, SCOUT_COST_PER_DMC } from './config/balance';
 import { ACHIEVEMENTS, EVENT_INFO } from './config/humor';
 import { setMuted, sfx, unlockAudio } from './core/audio';
 import { bus } from './core/bus';
+import type { Camera } from './core/camera';
+import { TouchInput, trackInputMode } from './core/input';
+import { watchInstall } from './core/install';
+import { FrameMonitor, type Quality, getQuality, lowerDpr, maxDpr, setQuality } from './core/quality';
 import { type Action, type ActionResult, applyAction } from './game/actions';
 import { tickArmy } from './game/army';
-import { dmcLevel, spend, tickEconomy } from './game/economy';
+import { addRes, dmcLevel, spend, tickEconomy } from './game/economy';
 import { checkChapelSkip, tickEvents } from './game/events';
-import { BUILD_TIME, checkStale, loadGame, saveGame, staleSave } from './game/save';
+import { BUILD_TIME, checkStale, loadGame, loadPendingRaid, saveGame, savePendingRaid, staleSave } from './game/save';
 import { EditorScene } from './village/editorScene';
 import { type GameState, newGame } from './game/state';
 import { type StartChoice, chooseStart } from './net/login';
 import { ApiError, OnlineSession, adoptState } from './net/online';
 import type { DefenseEntry, Note, RaidStartRequest, StateMsg } from './net/protocol';
 import type { ReplayData } from './raid/raidScene';
-import { type RaidSetup, SIM_VERSION, simVersionOf } from './raid/engine';
+import { type RaidSetup, SIM_VERSION, replayRaid, simVersionOf } from './raid/engine';
 import { applyRaidOutcome, localSetup, type RaidOutcome } from './raid/outcome';
 import { RaidScene } from './raid/raidScene';
 import { UI, esc, fmt } from './ui/ui';
@@ -29,9 +33,13 @@ export interface Scene {
   onMouseUp(x: number, y: number, button: number): void;
   onWheel(x: number, y: number, delta: number): void;
   onKey(key: string, down: boolean): void;
+  /** Drop the current press without acting on it (a second finger arrived). */
+  onPointerCancel(): void;
+  /** A finger rested without moving (touch only). */
+  onLongPress?(x: number, y: number): void;
   enter(): void;
   exit(): void;
-  cam: { width: number; height: number };
+  cam: Camera;
 }
 
 export class Game {
@@ -39,7 +47,10 @@ export class Game {
   ctx = this.canvas.getContext('2d')!;
   /** False while the pointer is over a button or panel rather than the campus. */
   pointerOnCanvas = false;
-  dpr = Math.min(2, window.devicePixelRatio || 1);
+  /** Graphics quality (per device); see core/quality.ts. */
+  quality: Quality = getQuality();
+  dpr = this.quality === 'saver' ? 1 : maxDpr();
+  private frameMon = new FrameMonitor();
   state: GameState;
   ui: UI;
   village: VillageScene;
@@ -62,6 +73,9 @@ export class Game {
   /** Offline, but a game server is reachable (offer "play online" in settings). */
   serverAvailable = false;
   private pushT = 0;
+  /** When the page was hidden (performance.now()), or 0. */
+  private hiddenAt = 0;
+  touch!: TouchInput;
 
   constructor(start: StartChoice) {
     if (start.mode === 'online') {
@@ -92,6 +106,7 @@ export class Game {
     this.resize();
     window.addEventListener('resize', () => this.resize());
     this.bindInput();
+    if (!this.online) this.settleAbandonedRaid();
     // Offline progress: run the simulation forward in one go. (Online, the server does this.)
     if (!this.online && this.offlineSeconds > 1) {
       const dt = this.offlineSeconds;
@@ -122,9 +137,24 @@ export class Game {
     window.addEventListener('beforeunload', () => {
       if (!this.resetting) this.save();
     });
+    // iOS Safari doesn't always fire beforeunload; pagehide is the reliable one.
+    window.addEventListener('pagehide', () => {
+      if (!this.resetting) this.save();
+    });
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden && !this.resetting) this.save();
-      if (!document.hidden) void this.checkForUpdate();
+      if (document.hidden) {
+        this.hiddenAt = performance.now();
+        if (!this.resetting) this.save();
+        return;
+      }
+      // Back from the background (home screen, app switcher, phone call).
+      const away = this.hiddenAt ? (performance.now() - this.hiddenAt) / 1000 : 0;
+      this.hiddenAt = 0;
+      this.frameMon.reset(); // the first frames back are slow; don't judge them
+      this.raid?.catchUp(away); // raids carry on without you
+      this.online?.wake();
+      unlockAudio(); // phones suspend audio in the background
+      void this.checkForUpdate();
     });
     // Another tab wrote the save: if it's a newer build, stop saving here.
     window.addEventListener('storage', () => {
@@ -165,8 +195,45 @@ export class Game {
    * the player if a newer version in another tab owns the save.
    */
   save(): void {
-    if (this.online) void this.online.flush();
-    else if (!saveGame(this.state)) this.ui.showUpdateBar('stale');
+    // A raid in progress is saved too, so it can finish without the player.
+    const r = this.raid && !this.raid.replay && !this.raid.ended ? this.raid : null;
+    if (this.online) {
+      if (r && this.raidId) this.online.pushInputs(this.raidId, r.engine.inputs, true);
+      void this.online.flush();
+    } else {
+      if (r) savePendingRaid({ setup: r.engine.setup, inputs: r.engine.inputs });
+      if (!saveGame(this.state)) this.ui.showUpdateBar('stale');
+    }
+  }
+
+  /** Offline: a raid left running when the page closed finishes now, from its saved inputs. */
+  private settleAbandonedRaid(): void {
+    const p = loadPendingRaid();
+    if (!p) return;
+    savePendingRaid(null); // first, so a crash below can never apply it twice
+    // Raid rules changed since it started (a game update): call it off rather than
+    // re-score it with different rules, like the server does. Troops were never spent.
+    if (simVersionOf(p.setup) !== SIM_VERSION) {
+      const refund = Math.max(0, Math.floor(p.setup.scoutCost ?? 0));
+      if (refund > 0) addRes(this.state, 'tuition', refund);
+      saveGame(this.state);
+      setTimeout(
+        () =>
+          this.ui.toast(`Your last raid was called off because the game was updated. Your troops are back in camp${refund > 0 ? ` and your ${fmt(refund)} Tuition scouting fee was refunded` : ''}.`, 'info', 5000),
+        1200,
+      );
+      return;
+    }
+    try {
+      const out = applyRaidOutcome(this.state, p.setup, replayRaid(p.setup, p.inputs));
+      saveGame(this.state);
+      if (!out.cancelled) {
+        const stars = '★'.repeat(out.stars) + '☆'.repeat(3 - out.stars);
+        setTimeout(() => this.ui.toast(`Your last raid finished while you were away: ${stars} ${Math.floor(out.destruction * 100)}% destruction.`, out.win ? 'good' : 'info', 5000), 1200);
+      }
+    } catch (e) {
+      console.warn('Could not settle the unfinished raid', e);
+    }
   }
 
   private onServerState(m: StateMsg, adopt: boolean): void {
@@ -265,7 +332,17 @@ export class Game {
       this.scene.onKey(e.key, true);
     });
     window.addEventListener('keyup', (e) => this.scene.onKey(e.key, false));
-    window.addEventListener('pointerdown', () => unlockAudio(), { once: true });
+    // Touch and pen (mouse keeps the handlers above).
+    trackInputMode();
+    this.touch = new TouchInput(
+      c,
+      () => this.scene,
+      (x, y) => document.elementFromPoint(x, y) === c,
+      () => this.scene === this.raid,
+      () => unlockAudio(),
+    );
+    // Every press, not just the first: phones suspend audio after calls and app switches.
+    window.addEventListener('pointerdown', () => unlockAudio());
   }
 
   async startRaid(opts: { kind: RaidStartRequest['kind']; raidId?: string }): Promise<void> {
@@ -300,9 +377,17 @@ export class Game {
       };
     } else {
       if (opts.kind === 'revenge') return; // nobody raids you offline
-      if (opts.kind === 'random' && !spend(this.state, 'tuition', SCOUT_COST_PER_DMC * dmcLevel(this.state))) return;
-      setup = localSetup(this.state, opts.kind);
-      settle = async (engine) => applyRaidOutcome(this.state, setup, engine.result());
+      const scoutCost = opts.kind === 'random' ? SCOUT_COST_PER_DMC * dmcLevel(this.state) : 0;
+      if (scoutCost > 0 && !spend(this.state, 'tuition', scoutCost)) return;
+      // scoutCost is stored with the raid so it can be refunded if a game update calls it off
+      setup = scoutCost > 0 ? { ...localSetup(this.state, opts.kind), scoutCost } : localSetup(this.state, opts.kind);
+      savePendingRaid({ setup, inputs: [] });
+      settle = async (engine) => {
+        savePendingRaid(null); // settled here, not on next launch
+        const out = applyRaidOutcome(this.state, setup, engine.result());
+        this.save();
+        return out;
+      };
     }
     if (this.scene !== this.village) return; // something else started while we waited
     this.ui.closeModal();
@@ -438,9 +523,31 @@ export class Game {
     this.showServerNews();
   }
 
+  /** Settings: switch graphics quality now. */
+  setQuality(q: Quality): void {
+    this.quality = q;
+    setQuality(q);
+    this.dpr = q === 'saver' ? 1 : maxDpr();
+    this.frameMon.reset();
+    this.resize();
+  }
+
   private frame(now: number): void {
+    // Battery saver: draw at most 30 frames a second.
+    if (this.quality === 'saver' && now - this.last < 1000 / 30 - 4) {
+      requestAnimationFrame((t) => this.frame(t));
+      return;
+    }
     const realDt = Math.min(0.1, (now - this.last) / 1000);
     this.last = now;
+    // Auto: if frames stay slow, draw fewer pixels.
+    if (this.quality === 'auto' && this.frameMon.sample(realDt)) {
+      const d = lowerDpr(this.dpr);
+      if (d) {
+        this.dpr = d;
+        this.resize();
+      }
+    }
     const dt = realDt * this.speed();
     const s = this.state;
     s.clock += dt;
@@ -474,6 +581,7 @@ export class Game {
 }
 
 async function boot(): Promise<void> {
+  watchInstall(); // early: the browser's install prompt can arrive any time
   const start = await chooseStart();
   const game = new Game(start);
   (window as unknown as { game: Game }).game = game;
