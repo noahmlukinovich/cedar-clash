@@ -10,6 +10,12 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 45,
+    date: 'Nov 19, 2026',
+    title: 'Stinger joins the Attack shield',
+    items: ['The Attack button now features a small full-winged Stinger emblem in campus navy, blue and gold. Same button, same raid action.'],
+  },
+  {
     v: 44,
     date: 'Nov 19, 2026',
     title: 'Daily Challenge and matched rivals',
