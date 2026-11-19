@@ -1,8 +1,8 @@
 import { BUILDINGS, blocksPath, maxCount, maxLevelForDmc } from '../config/buildings';
 import { DMC_STORAGE, FINISH_NOW_PER_MIN, GRID } from '../config/balance';
-import { ACHIEVEMENTS } from '../config/humor';
 import type { BuildingType, ResourceId } from '../config/types';
 import { bus, toast } from '../core/bus';
+import { bump, checkAchievements } from './achievements';
 import type { BuildingInst, GameState } from './state';
 
 export function dmcLevel(s: GameState): number {
@@ -127,7 +127,7 @@ export function buildNew(s: GameState, type: BuildingType, x: number, y: number)
   }
   s.buildings.push(b);
   bump(s, 'built');
-  if (type === 'lake') unlock(s, 'lakebridge');
+  if (type === 'lake') bump(s, 'lakesBuilt');
   return b;
 }
 
@@ -208,18 +208,6 @@ export function collectorCap(b: BuildingInst): number {
   return BUILDINGS[b.type].levels[b.level - 1].capacity ?? 0;
 }
 
-export function bump(s: GameState, stat: string, n = 1): void {
-  s.stats[stat] = (s.stats[stat] ?? 0) + n;
-}
-
-export function unlock(s: GameState, id: string): void {
-  if (s.achievements[id]) return;
-  s.achievements[id] = true;
-  const a = ACHIEVEMENTS.find((x) => x.id === id);
-  if (a) addRes(s, 'chapel', a.reward);
-  bus.emit('achievement', id);
-}
-
 export function tickEconomy(s: GameState, dt: number): void {
   const finals = hasEvent(s, 'finals');
   for (const b of s.buildings) {
@@ -227,11 +215,7 @@ export function tickEconomy(s: GameState, dt: number): void {
       b.level = b.upgrade.to;
       b.upgrade = undefined;
       bus.emit('buildingDone', b);
-      if (b.type === 'dmc') {
-        if (b.level >= 3) unlock(s, 'dmc3');
-        if (b.level >= 5) unlock(s, 'dmc5');
-        if (b.level >= 8) unlock(s, 'dmc8');
-      }
+      if (b.type === 'dmc') checkAchievements(s);
     }
     if ((b.type === 'admissions' || b.type === 'coffeecart') && b.level >= 1 && !b.upgrade) {
       const L = BUILDINGS[b.type].levels[b.level - 1];

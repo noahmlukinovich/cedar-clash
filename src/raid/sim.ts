@@ -224,6 +224,10 @@ export class RaidSim {
   time = 0;
   stars = 0;
   dmcDead = false;
+  /** Sim time when the DMC fell, or -1. */
+  dmcDeadAt = -1;
+  /** Troops and heroes the player has sent in (GO Team members who climb out of a van, and Pebbles, don't count). */
+  deployed = 0;
   pctStar = false;
   fullStar = false;
   totalCount = 0;
@@ -363,6 +367,7 @@ export class RaidSim {
     const L = d.levels[lvl - 1];
     const u = this.addUnit({ type, side: 'atk', level: lvl, x, y, hp: L.hp, dps: L.dps, speed: d.speed * (this.opts.elephant ? 1.5 : 1), range: d.range, rate: d.attackRate });
     u.def = d;
+    this.deployed++;
     return u;
   }
 
@@ -410,6 +415,7 @@ export class RaidSim {
     const u = this.addUnit({ type: h, side: 'atk', level: lvl, x, y, hp: L.hp, dps: L.dps, speed: d.speed, range: d.range, rate: d.attackRate });
     u.hero = h;
     u.hp = L.hp * hpFrac;
+    this.deployed++;
     return u;
   }
 
@@ -1134,6 +1140,7 @@ export class RaidSim {
         this.buildingsDestroyed++;
         if (b.type === 'dmc' && !this.dmcDead) {
           this.dmcDead = true;
+          this.dmcDeadAt = this.time;
           this.stars++;
           this.events.push({ e: 'star', n: this.stars, why: 'DMC destroyed!' });
         }
@@ -1522,5 +1529,19 @@ export class RaidSim {
 
   aliveAttackers(): number {
     return this.units.filter((u) => u.side === 'atk' && !u.dead).length;
+  }
+
+  /** Raiders still on their feet, not counting Pebbles a Rock broke into. */
+  standing(): number {
+    let n = 0;
+    for (const u of this.units) if (u.side === 'atk' && !u.dead && u.type !== 'pebble') n++;
+    return n;
+  }
+
+  /** Defensive buildings still standing. */
+  defensesLeft(): number {
+    let n = 0;
+    for (const b of this.buildings) if (b.isDefense && !b.dead) n++;
+    return n;
   }
 }

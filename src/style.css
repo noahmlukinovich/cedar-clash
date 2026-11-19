@@ -1552,3 +1552,57 @@ kbd {
 .up-badge {
   text-shadow: none;
 }
+/* ---------- Matchmaking & Daily Challenge ---------- */
+.raid-top .stakes {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  margin-top: 3px;
+  font-size: 13px;
+  color: #ffe9a8;
+}
+.raid-top .objective {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 5px;
+  padding: 5px 8px;
+  max-width: 340px;
+  font-size: 13px;
+  background: rgba(123, 63, 160, 0.55);
+  border: 2px solid var(--out);
+  border-radius: 10px;
+}
+.raid-top .objective .prog {
+  color: #ffd9d9;
+}
+.raid-top .objective .prog.met {
+  color: #8dff9d;
+}
+.raid-top .objective .prog.met::before {
+  content: '✔ ';
+}
+.raid-top .objective .rw {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  opacity: 0.9;
+}
+.daily-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: linear-gradient(#f3e8ff, #e3d0fa);
+  border: 3px solid var(--out);
+  border-radius: 14px;
+  color: #2a1840;
+}
+.daily-card.done {
+  background: linear-gradient(#e9f7e6, #d3ecce);
+}
+.daily-card .daily-title {
+  font-size: 17px;
+  font-weight: 900;
+}

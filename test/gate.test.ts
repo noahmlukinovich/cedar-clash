@@ -106,7 +106,7 @@ describe('Parking Gate Arm', () => {
   });
 
   it('DMC 8 rival campuses set gates into their wall ring', () => {
-    const b8 = generateBase(8, 21);
+    const b8 = generateBase({ dmc: 8, seed: 21 });
     const gates = b8.pieces.filter((p) => p.type === 'gate');
     expect(gates.length).toBeGreaterThanOrEqual(3);
     expect(gates.length).toBeLessThanOrEqual(4);
@@ -116,6 +116,6 @@ describe('Parking Gate Arm', () => {
       const near = [1, -1, 40, -40].some((d) => walls.has(g.y * 40 + g.x + d));
       expect(near).toBe(true);
     }
-    expect(generateBase(7, 21).pieces.some((p) => p.type === 'gate')).toBe(false);
+    expect(generateBase({ dmc: 7, seed: 21 }).pieces.some((p) => p.type === 'gate')).toBe(false);
   });
 });

@@ -1,7 +1,7 @@
 import { STINGER_TIP_Z } from '../render/buildingSprites';
 import { BUILDINGS } from '../config/buildings';
 import { GRID } from '../config/balance';
-import { EVENT_INFO, LOSE_LINES, WIN_LINES, WIND_LINES } from '../config/humor';
+import { DAILY_DONE_LINES, DIFFICULTY_LABELS, EVENT_INFO, LAYOUT_INFO, LOSE_LINES, WIN_LINES, WIND_LINES } from '../config/humor';
 import { HEROES, TROOPS, TROOP_ORDER } from '../config/troops';
 import { SPELLS, SPELL_ORDER } from '../config/spells';
 import type { HeroType, SpellType, TroopType } from '../config/types';
@@ -17,9 +17,10 @@ import { borderTrees, drawBar, drawBuildingAt, drawGround, drawLabel, drawTree, 
 import { ICONS, icon } from '../ui/icons';
 import { spellThumb, unitThumb } from '../ui/thumbs';
 import { el, esc, fmt } from '../ui/ui';
-import type { BaseLayout } from './basegen';
+import type { Archetype, BaseLayout } from './basegen';
+import { type DailyChallenge, OBJECTIVES } from '../game/daily';
 import { RaidEngine, type RaidInput, type RaidSetup, TICK, q } from './engine';
-import type { RaidOutcome } from './outcome';
+import { type RaidOutcome, challengeOf } from './outcome';
 import { type RU, type RaidSim, beamStage } from './sim';
 
 export type { RaidKind } from './engine';
@@ -60,6 +61,15 @@ const REPLAY_SPEEDS = [1, 2, 4];
 /** Playback starts this many ticks before the first move, skipping the quiet scouting time. */
 const REPLAY_LEAD = 45;
 
+const LAYOUT_TINT: Record<Archetype, string | undefined> = {
+  fortress: undefined,
+  compartments: 'rgba(150,120,200,0.07)',
+  sprawl: 'rgba(215,190,120,0.09)',
+  lakeside: 'rgba(90,170,230,0.08)',
+  corner: 'rgba(60,110,70,0.10)',
+  donut: 'rgba(230,150,90,0.07)',
+};
+
 export class RaidScene implements Scene {
   cam = new Camera();
   particles = new Particles();
@@ -87,6 +97,8 @@ export class RaidScene implements Scene {
   private keys = new Set<string>();
   private windT = 0;
   private hudEls: Record<string, HTMLElement> = {};
+  /** The Daily Challenge this raid is for, if any (set on enter). */
+  private challenge: DailyChallenge | null = null;
   private starsShown = 0;
   /** Replay playback state. */
   private ri = 0;
@@ -143,10 +155,19 @@ export class RaidScene implements Scene {
 
   // ---------- Scene lifecycle ----------
   enter(): void {
+    this.challenge = challengeOf(this.setup);
     this.game.ui.root.appendChild(this.hud);
     this.buildHud();
     this.game.ui.banner(this.replay ? `🎬 Replay: ${esc(this.base.name)}` : esc(this.base.name), '#ffe066');
+    const c = this.challenge;
     if (this.kind === 'elephant') setTimeout(() => this.game.ui.toast(`🐘 ${EVENT_INFO.elephantrun.desc}`, 'event'), 600);
+    else if (c && !this.replay) {
+      const o = OBJECTIVES[c.objectiveId];
+      setTimeout(() => this.game.ui.toast(`🎯 ${o.name}: ${o.desc} This army is lent; yours is not used.`, 'event'), 600);
+    } else if (this.base.archetype && !this.setup.defender && !this.replay) {
+      const info = LAYOUT_INFO[this.base.archetype];
+      setTimeout(() => this.game.ui.toast(`🗺️ ${info.name}: ${info.hint}`, 'info', 4500), 600);
+    }
     if (this.sim.opts.ringBySpring) setTimeout(() => this.game.ui.toast('💍 Ring by Spring: troops that pair up get +20% damage & speed!', 'event'), 1200);
     sfx('whistle');
   }
@@ -156,12 +177,35 @@ export class RaidScene implements Scene {
   }
 
   // ---------- HUD ----------
+  /** "DMC 3 · Gated Community · Even Match", then the tagline, the defender's trophies, or the replay label. */
+  private tagLine(): string {
+    const { base, setup, replay } = this;
+    if (replay) return `DMC ${base.dmc} · 🎬 Replay of ${esc(replay.attacker)}'s raid`;
+    if (setup.defender) return `DMC ${base.dmc} · 🏆 ${setup.defender.trophies} · ${setup.defender.revenge ? '⚔️ Revenge!' : 'a real campus!'}`;
+    const parts = [`DMC ${base.dmc}`];
+    if (base.archetype && setup.kind !== 'daily') parts.push(LAYOUT_INFO[base.archetype].name);
+    if (base.difficulty !== undefined) parts.push(DIFFICULTY_LABELS[base.difficulty]);
+    return `${parts.join(' · ')}<br>${esc(base.tagline)}`;
+  }
+
+  /** What is at stake: the trophies for a ranked raid, or the objective for a Daily Challenge. */
+  private stakesLine(): string {
+    const c = this.challenge;
+    if (c) {
+      const done = !this.replay && this.game.state.daily.day === c.day && this.game.state.daily.done;
+      const reward = this.replay ? '' : `<span class="rw">${done ? 'Already cleared today (practice run)' : `Reward: +${c.reward} ${icon('chapel', 16)}`}</span>`;
+      return `<div class="objective"><b>🎯 ${OBJECTIVES[c.objectiveId].desc}</b><span class="prog"></span>${reward}</div>`;
+    }
+    if (this.replay || this.kind === 'elephant' || this.kind === 'campaign') return '';
+    const w = this.base.trophiesWin;
+    return `<div class="stakes">${icon('trophy', 18)} Win: +${Math.round(w / 2)} to +${w} · Lose: −${this.base.trophiesLose}</div>`;
+  }
+
   private buildHud(): void {
     const h = this.hud;
     h.innerHTML = '';
     const top = el('div', 'raid-top stroke');
-    const who = this.replay ? `🎬 Replay of ${esc(this.replay.attacker)}'s raid` : this.setup.defender ? `🏆 ${this.setup.defender.trophies} · ${this.setup.defender.revenge ? '⚔️ Revenge!' : 'a real campus!'}` : esc(this.base.tagline);
-    top.innerHTML = `<div class="enemy">${esc(this.base.name)}</div><div class="tag">DMC ${this.base.dmc} · ${who}</div><div class="loot"><span>Available:</span><span class="lt">${icon('tuition', 22)} <b></b></span><span class="lc">${icon('coffee', 22)} <b></b></span></div><div class="loot"><span>Looted:</span><span class="gt">${icon('tuition', 22)} <b>0</b></span><span class="gc">${icon('coffee', 22)} <b>0</b></span></div>`;
+    top.innerHTML = `<div class="enemy">${esc(this.base.name)}</div><div class="tag">${this.tagLine()}</div>${this.stakesLine()}<div class="loot"><span>Available:</span><span class="lt">${icon('tuition', 22)} <b></b></span><span class="lc">${icon('coffee', 22)} <b></b></span></div><div class="loot"><span>Looted:</span><span class="gt">${icon('tuition', 22)} <b>0</b></span><span class="gc">${icon('coffee', 22)} <b>0</b></span></div>`;
     h.appendChild(top);
     const timer = el('div', 'raid-timer stroke', `<div class="lbl">Scouting…</div><div class="t">3:00</div>`);
     h.appendChild(timer);
@@ -188,6 +232,7 @@ export class RaidScene implements Scene {
     const bar = el('div', 'deploy-bar');
     h.appendChild(bar);
     this.hudEls = {
+      prog: top.querySelector('.prog') as HTMLElement,
       timer,
       timerT: timer.querySelector('.t') as HTMLElement,
       timerL: timer.querySelector('.lbl') as HTMLElement,
@@ -295,6 +340,13 @@ export class RaidScene implements Scene {
 
   private updateHud(): void {
     const e = this.hudEls;
+    const c = this.challenge;
+    if (c && e.prog) {
+      const m = this.engine.metrics();
+      const o = OBJECTIVES[c.objectiveId];
+      e.prog.textContent = o.progress(m);
+      e.prog.classList.toggle('met', o.met(m));
+    }
     const eng = this.engine;
     const t = Math.max(0, eng.started ? eng.timeLeft : eng.scoutLeft);
     e.timerT.textContent = `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
@@ -886,7 +938,8 @@ export class RaidScene implements Scene {
 
   private showResults(r: RaidOutcome): void {
     const ui = this.game.ui;
-    const m = ui.modal(r.win ? 'Victory!' : 'Defeat', { narrow: true });
+    const d = r.daily;
+    const m = ui.modal(d ? (d.passed ? 'Challenge Complete!' : 'Challenge Failed') : r.win ? 'Victory!' : 'Defeat', { narrow: true });
     const starsRow = el('div', 'result-stars');
     for (let i = 0; i < 3; i++) {
       const sp = el('span', `ic ${i < r.stars ? 'on' : ''}`, i < r.stars ? ICONS.star : ICONS.starEmpty);
@@ -897,25 +950,50 @@ export class RaidScene implements Scene {
     m.body.appendChild(starsRow);
     m.body.appendChild(el('div', 'result-big', `${Math.floor(r.destruction * 100)}% <span style="font-size:18px">destruction</span>`));
     if (r.stars !== this.sim.stars) m.body.appendChild(el('div', 'flavor', 'The official replay on the server scored this raid a little differently from your screen. The server result counts.'));
-    m.body.appendChild(el('div', 'result-line flavor', r.win ? pick(WIN_LINES) : pick(LOSE_LINES)));
-    const loot = el('div', 'loot-row');
-    loot.innerHTML = `<div>${icon('tuition', 34)} +${fmt(r.gotT)}</div><div>${icon('coffee', 34)} +${fmt(r.gotC)}</div><div>${icon('trophy', 34)} ${r.trophyDelta >= 0 ? '+' : ''}${r.trophyDelta}</div>${r.chapel ? `<div>${icon('chapel', 34)} +${r.chapel}</div>` : ''}`;
-    m.body.appendChild(loot);
-    if (r.gotT < r.tuition || r.gotC < r.coffee) m.body.appendChild(el('div', 'flavor', 'Some loot was left behind: your storages are full! Upgrade the Registrar / Rinnova.'));
-    if (this.kind === 'campaign' && r.win) m.body.appendChild(el('div', 'result-line', '🎉 Random rivals unlocked! Use <b>Find a Rival</b> from the Attack menu.'));
+    if (d) {
+      const o = OBJECTIVES[d.objectiveId];
+      m.body.appendChild(el('div', 'result-line', `${d.passed ? '✅' : '❌'} <b>${o.name}:</b> ${o.desc}`));
+      if (d.reward > 0) {
+        m.body.appendChild(el('div', 'loot-row', `<div>${icon('chapel', 34)} +${d.reward}</div>`));
+        m.body.appendChild(el('div', 'result-line flavor', pick(DAILY_DONE_LINES)));
+      } else if (d.passed) m.body.appendChild(el('div', 'result-line flavor', "You already collected today's Chapel Credits. That one was for the love of the game."));
+      else m.body.appendChild(el('div', 'result-line flavor', 'No penalty, and your own army was not touched. Try a different opening: the campus is the same every attempt.'));
+    } else {
+      m.body.appendChild(el('div', 'result-line flavor', r.win ? pick(WIN_LINES) : pick(LOSE_LINES)));
+      const loot = el('div', 'loot-row');
+      loot.innerHTML = `<div>${icon('tuition', 34)} +${fmt(r.gotT)}</div><div>${icon('coffee', 34)} +${fmt(r.gotC)}</div><div>${icon('trophy', 34)} ${r.trophyDelta >= 0 ? '+' : ''}${r.trophyDelta}</div>${r.chapel ? `<div>${icon('chapel', 34)} +${r.chapel}</div>` : ''}`;
+      m.body.appendChild(loot);
+      if (r.gotT < r.tuition || r.gotC < r.coffee) m.body.appendChild(el('div', 'flavor', 'Some loot was left behind: your storages are full! Upgrade the Registrar / Rinnova.'));
+      if (this.kind === 'campaign' && r.win) m.body.appendChild(el('div', 'result-line', '🎉 Random rivals unlocked! Use <b>Find a Rival</b> from the Attack menu.'));
+    }
     this.addReplayButtons(
       m.body,
       { setup: this.setup, inputs: this.engine.inputs.slice(), attacker: this.game.online?.user.name ?? (this.game.state.playerName || 'You'), stars: r.stars, destruction: r.destruction },
       'Watch replay',
     );
+    if (d && !d.passed) {
+      const again = el('button', 'btn big purple', '🔁 Try again');
+      again.onclick = () => {
+        sfx('click');
+        ui.closeModal(); // also leaves this raid
+        void this.game.startRaid({ kind: 'daily' });
+      };
+      m.body.querySelector('.result-btns')?.prepend(again);
+    }
   }
 
   // ---------- Draw ----------
+  /** A faint wash over the grass so different kinds of rival campus read differently at a glance. */
+  private groundTint(): string | undefined {
+    if (this.kind === 'elephant') return 'rgba(255,200,120,0.08)';
+    return this.base.archetype && !this.setup.defender ? LAYOUT_TINT[this.base.archetype] : undefined;
+  }
+
   draw(ctx: CanvasRenderingContext2D, dpr: number): void {
     const sim = this.sim;
     const t = this.time;
     this.cam.apply(ctx, dpr);
-    drawGround(ctx, { border: 0, grid: false, tint: this.kind === 'elephant' ? 'rgba(255,200,120,0.08)' : undefined });
+    drawGround(ctx, { border: 0, grid: false, tint: this.groundTint() });
 
     // deploy zone overlay
     const c = this.cards[this.sel];

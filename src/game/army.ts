@@ -3,7 +3,8 @@ import { HEROES, TROOPS } from '../config/troops';
 import { SPELLS, SPELL_CAPACITY } from '../config/spells';
 import type { HeroType, SpellType, TroopType } from '../config/types';
 import { bus } from '../core/bus';
-import { bump, canAfford, hasEvent, resName, spend, unlock } from './economy';
+import { bump } from './achievements';
+import { canAfford, hasEvent, resName, spend } from './economy';
 import type { GameState } from './state';
 
 /** How many armies' worth of troops can be trained and queued in total. */
@@ -238,8 +239,7 @@ export function tickArmy(s: GameState, dt: number): void {
     if (isReady(q)) {
       q.left = 0;
       q.chucks = 0;
-      bump(s, 'trained_' + q.type);
-      if ((s.stats['trained_freshman'] ?? 0) >= 15) unlock(s, 'freshman15');
+      bump(s, `trained_${q.type}`);
       bus.emit('trained', q.type);
       fillArmy(s);
     }

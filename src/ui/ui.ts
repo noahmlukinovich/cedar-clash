@@ -1,5 +1,5 @@
 import { BUILDINGS, SHOP_TABS, maxCount, maxLevelForDmc } from '../config/buildings';
-import { DEBUG_SPEEDS, SCOUT_COST_PER_DMC } from '../config/balance';
+import { DEBUG_SPEEDS, MAX_DMC, SCOUT_COST_PER_DMC } from '../config/balance';
 import { CHANGELOG, LATEST_CHANGE } from '../config/changelog';
 import { ACHIEVEMENTS, EVENT_INFO, LEAGUES, leagueFor, CHAPEL_ATTEND_LINES, CHUCKS_LINE } from '../config/humor';
 import { HEROES, TROOPS, TROOP_ORDER } from '../config/troops';
@@ -45,7 +45,9 @@ import {
 } from '../game/economy';
 import { defaultName, isComplete, snapshot } from '../game/layouts';
 import { canAttendChapel, chapelReward, startEvent } from '../game/events';
-import { exportSave, resetSave, saveGame, staleSave } from '../game/save';
+import { exportSave, importSave, resetSave, saveGame, staleSave } from '../game/save';
+import { OBJECTIVES, dailyFor, dailyProgress, dayKey, msUntilNextDaily } from '../game/daily';
+import { expectedDmc } from '../raid/matchmaking';
 import { MAX_NAME_LEN, cleanName, renamePlayer } from '../game/state';
 import { setPrefersOffline } from '../net/login';
 import type { BuildingInst } from '../game/state';
@@ -891,7 +893,7 @@ export class UI {
     this.root.appendChild(this.village);
     this.buildVillageHud();
     this.root.appendChild(this.editorHud);
-    for (const ev of ['selection', 'mode', 'changed']) bus.on(ev, () => this.renderEditor());
+    for (const ev of ['selection', 'mode', 'changed'] as const) bus.on(ev, () => this.renderEditor());
     bus.on('toast', (d: { text: string; kind: 'info' | 'good' | 'bad' | 'event' }) => this.toast(d.text, d.kind));
     bus.on('selection', () => this.renderSelection(true));
     bus.on('mode', () => this.renderSelection(true));
@@ -1939,6 +1941,7 @@ export class UI {
       } else {
         m.body.appendChild(el('div', 'flavor', "You've already attended today. The worship team thanks you for clapping on 2 and 4."));
       }
+      m.body.appendChild(this.dailyCard());
       m.body.appendChild(el('p', 'flavor', 'Also earn Chapel Credits from 3-star raids and achievements. Spend them on heroes, the Chapel Announcement spell, and finishing construction instantly.'));
     };
     render();
@@ -1970,6 +1973,10 @@ export class UI {
     }
     m.body.appendChild(el('div', '', `Trophies: <b>${s.trophies}</b> (best ${s.bestTrophies}). Win raids to climb; lose them and slide back toward "Prospective Student."`));
     m.body.appendChild(list);
+    const exp = expectedDmc(s.trophies);
+    const dl = dmcLevel(s);
+    const lean = exp - dl > 0.5 ? 'so expect rivals a step above your campus (and bigger payouts)' : exp - dl < -0.5 ? 'so expect softer rivals until your trophies catch up' : 'so expect rivals about your size';
+    m.body.appendChild(el('p', 'flavor', `Matchmaking: the ladder expects a DMC ${Math.min(MAX_DMC, Math.floor(exp))} campus at ${s.trophies} trophies and yours is DMC ${dl}, ${lean}. Tougher rivals pay more trophies and loot.`));
   }
 
   // ---------- Attack ----------
@@ -2009,6 +2016,8 @@ export class UI {
       this.game.startRaid({ kind: 'random' });
     };
     col.appendChild(f);
+    const who = this.game.online ? 'Real players near your trophy count first; otherwise a computer campus matched' : 'Rival campuses are matched';
+    col.appendChild(el('div', 'flavor', `${who} to your <b>${s.trophies}</b> trophies (${leagueFor(s.trophies).name}). Win and the next one is tougher and pays more; lose and it eases off.`));
     if (hasEvent(s, 'elephantrun')) {
       const e = el('button', 'btn big purple', '🐘 Elephant Run (event!)');
       e.onclick = () => {
@@ -2018,7 +2027,35 @@ export class UI {
       col.appendChild(e);
       col.appendChild(el('div', 'flavor', EVENT_INFO.elephantrun.desc + ' Uses up to 30 free event Freshmen — your army is not consumed.'));
     }
+    col.appendChild(this.dailyCard());
     m.body.appendChild(col);
+  }
+
+  /** The Daily Challenge card, shared by the Chapel and Attack menus. */
+  dailyCard(): HTMLElement {
+    const s = this.state;
+    const day = dayKey();
+    const c = dailyFor(day, dmcLevel(s));
+    const o = OBJECTIVES[c.objectiveId];
+    const p = dailyProgress(s, day);
+    const troops = TROOP_ORDER.filter((t) => c.army[t]).map((t) => `${c.army[t]} ${TROOPS[t].name}`);
+    const spells = SPELL_ORDER.filter((t) => c.spells[t]).map((t) => `${c.spells[t]} ${SPELLS[t].name}`);
+    const box = el('div', `daily-card ${p.done ? 'done' : ''}`);
+    box.appendChild(el('div', 'daily-title', `🎯 Daily Challenge: ${c.title}`));
+    box.appendChild(el('div', '', `<b>${o.name}.</b> ${o.desc}`));
+    box.appendChild(el('div', 'flavor', `Lent army (Lv${c.troopLevel}): ${troops.join(', ')}${spells.length ? ` + ${spells.join(', ')}` : ''}. Your own troops are not used, and you can retry as often as you like.`));
+    const b = el('button', `btn big ${p.done ? 'gray' : 'purple'}`, p.done ? '✅ Cleared today · Play again for fun' : `Start (+${c.reward} ${icon('chapel', 26)})`);
+    b.onclick = () => {
+      sfx('click');
+      this.closeModal();
+      void this.game.startRaid({ kind: 'daily' });
+    };
+    box.appendChild(b);
+    const meta: string[] = [];
+    if (p.attempts > 0 && !p.done) meta.push(`Attempts today: ${p.attempts}, best ${p.bestStars} star${p.bestStars === 1 ? '' : 's'}`);
+    meta.push(`New challenge in ${fmtTime(msUntilNextDaily() / 1000)}`);
+    box.appendChild(el('div', 'flavor', meta.join(' · ')));
+    return box;
   }
 
   // ---------- Settings / debug ----------
@@ -2199,7 +2236,20 @@ export class UI {
           location.reload();
         }
       };
-      r3.append(exp, reset);
+      const imp = el('button', 'btn small blue', '📥 Import save');
+      imp.onclick = () => {
+        const text = prompt('Paste a save copied with "Copy save to clipboard". This replaces your current campus.');
+        if (!text) return;
+        try {
+          importSave(text);
+        } catch {
+          this.toast('That does not look like a Cedarville Clash save.', 'bad');
+          return;
+        }
+        this.game.resetting = true; // don't let the unload handler write the old campus back
+        location.reload();
+      };
+      r3.append(exp, imp, reset);
       m.body.appendChild(r3);
       appendControls();
     };

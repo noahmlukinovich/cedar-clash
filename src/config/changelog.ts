@@ -10,6 +10,18 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 42,
+    date: 'Nov 19, 2026',
+    title: 'Daily Challenge and matched rivals',
+    items: [
+      'New Daily Challenge (Attack or Chapel menu): one raid a day with a lent army and a single objective. Your own troops are never spent, retries are free, and clearing it pays Chapel Credits once a day.',
+      'Find a Rival now matches computer campuses to your trophies. Climb the ladder and rivals get bigger and pay more; slip and they ease off. The raid screen shows the difficulty and the trophies at stake.',
+      'Rival campuses come in six layouts, from the Gated Community to the Endowment Vault, and the same one never comes up twice in a row.',
+      'Three new achievements: Extra Credit, Perfect Attendance and Declared a Major.',
+      'Offline saves: Import in Settings, and an automatic backup. An unreadable save is set aside rather than overwritten, and the backup is restored.',
+    ],
+  },
+  {
     v: 40,
     date: 'Nov 18, 2026',
     title: 'Quieter campus colors, clearer Stinger lettering',
