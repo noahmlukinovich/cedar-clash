@@ -132,7 +132,7 @@ export function openDb(path: string) {
     openRaidsOf: db.prepare('SELECT * FROM raids WHERE attacker = ? AND finished IS NULL'),
     staleRaids: db.prepare('SELECT * FROM raids WHERE finished IS NULL AND created < ?'),
     replaysOf: db.prepare(
-      "SELECT id, attacker, defender, result, finished, created, json_extract(setup, '$.base.name') AS target FROM raids WHERE (attacker = ? OR defender = ?) AND finished IS NOT NULL ORDER BY finished DESC LIMIT 60",
+      "SELECT id, attacker, defender, result, finished, created, json_extract(setup, '$.base.name') AS target, json_extract(setup, '$.simVersion') AS sim FROM raids WHERE (attacker = ? OR defender = ?) AND finished IS NOT NULL ORDER BY finished DESC LIMIT 60",
     ),
     revengeTaken: db.prepare(
       "SELECT 1 AS x FROM raids WHERE attacker = ? AND defender = ? AND created > ? AND (finished IS NULL OR json_extract(result, '$.outcome.cancelled') = 0) LIMIT 1",

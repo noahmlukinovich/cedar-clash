@@ -23,5 +23,7 @@ Run `npm test` and `npm run build` before every commit you push.
   do UI work freely. If something touches core, mention once that the PR will
   need Noah's review, then do it anyway.
 - Keep raid simulation deterministic: replays and the server's checks depend on it.
+- Bump `SIM_VERSION` in `src/raid/engine.ts` whenever raids would play out differently
+  (sim code, stats, balance), and update the fingerprint in `test/simVersion.test.ts`.
 - All art is drawn procedurally in code. Don't add third-party game assets,
   logos or fonts.

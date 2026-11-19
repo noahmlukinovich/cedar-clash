@@ -3,7 +3,7 @@ import { hashPassword } from '../server/auth';
 import { newPlayerState } from '../server/game';
 import { setInviteUses, startServer } from '../server/main';
 import type { MeResponse, RaidFinishResponse, RaidStartResponse, ReplayResponse, ReplayRow, SyncResponse, VisitResponse } from '../src/net/protocol';
-import { replayRaid } from '../src/raid/engine';
+import { SIM_VERSION, replayRaid } from '../src/raid/engine';
 import type { GameState } from '../src/game/state';
 
 let srv: ReturnType<typeof startServer>;
@@ -284,6 +284,61 @@ describe('real raids', () => {
     const next = await alice.call<RaidStartResponse>('/api/raid/start', { kind: 'random' });
     expect(next.data.setup.army.freshman).toBe(5);
     await alice.call('/api/raid/finish', { raidId: next.data.raidId, inputs: [{ t: 0, k: 'end' }] });
+  });
+
+  it('refuses to start a raid for a client on other raid rules', async () => {
+    const r = await alice.call<{ error: string }>('/api/raid/start', { kind: 'random', sim: SIM_VERSION + 1 });
+    expect(r.status).toBe(426);
+    expect((await alice.call('/api/raid/start', { kind: 'random', sim: 'x' })).status).toBe(426);
+  });
+
+  it('voids a raid that was started under older raid rules and refunds the scouting', async () => {
+    patchState('Alice Hall', (s) => {
+      s.army = { freshman: 10 };
+      s.resources.tuition = 1000;
+    });
+    const start = await alice.call<RaidStartResponse>('/api/raid/start', { kind: 'random', sim: SIM_VERSION });
+    expect(start.status).toBe(200);
+    expect(start.data.setup.simVersion).toBe(SIM_VERSION);
+    const fee = start.data.setup.scoutCost ?? 0;
+    expect(fee).toBeGreaterThan(0);
+    // pretend the server was updated to new raid rules mid-raid
+    const row = srv.db.st.raid.get(start.data.raidId) as { setup: string };
+    srv.db.raw.prepare('UPDATE raids SET setup = ? WHERE id = ?').run(JSON.stringify({ ...JSON.parse(row.setup), simVersion: SIM_VERSION - 1 }), start.data.raidId);
+    const inputs = Array.from({ length: 10 }, (_, i) => ({ t: i * 3, k: 'troop', type: 'freshman', x: 1 + i * 0.5, y: 1 }));
+    const fin = await alice.call<RaidFinishResponse>('/api/raid/finish', { raidId: start.data.raidId, inputs });
+    expect(fin.status).toBe(200);
+    expect(fin.data.outcome.cancelled).toBe(true);
+    expect(fin.data.state.army.freshman).toBe(10);
+    expect(fin.data.state.resources.tuition).toBe(1000);
+    expect(fin.data.notes).toContainEqual({ ev: 'raidVoided', data: { refund: fee } });
+    const defender = start.data.setup.defender?.name;
+    if (defender) expect((srv.db.st.userByName.get(defender) as { locked_until: number }).locked_until).toBe(0);
+  });
+
+  it('marks replays from older raid rules as outdated and won\'t serve them', async () => {
+    const rows = (await alice.call<ReplayRow[]>('/api/replays')).data;
+    const target = rows.find((r) => r.role === 'attack')!;
+    expect(target.outdated).toBeUndefined();
+    const row = srv.db.st.raid.get(target.id) as { setup: string };
+    const old = { ...JSON.parse(row.setup), simVersion: SIM_VERSION - 1 };
+    srv.db.raw.prepare('UPDATE raids SET setup = ? WHERE id = ?').run(JSON.stringify(old), target.id);
+    try {
+      const after = (await alice.call<ReplayRow[]>('/api/replays')).data.find((r) => r.id === target.id)!;
+      expect(after.outdated).toBe(true);
+      expect((await alice.call('/api/replay?id=' + target.id)).status).toBe(410);
+    } finally {
+      srv.db.raw.prepare('UPDATE raids SET setup = ? WHERE id = ?').run(row.setup, target.id);
+    }
+    // setups from before versioning count as version 1
+    const legacy = { ...JSON.parse(row.setup) };
+    delete legacy.simVersion;
+    srv.db.raw.prepare('UPDATE raids SET setup = ? WHERE id = ?').run(JSON.stringify(legacy), target.id);
+    try {
+      expect((await alice.call('/api/replay?id=' + target.id)).status).toBe(SIM_VERSION === 1 ? 200 : 410);
+    } finally {
+      srv.db.raw.prepare('UPDATE raids SET setup = ? WHERE id = ?').run(row.setup, target.id);
+    }
   });
 
   it('serves a leaderboard', async () => {

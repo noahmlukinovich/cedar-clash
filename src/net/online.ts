@@ -2,7 +2,7 @@
 // applies actions immediately for responsiveness and then adopts the server's copy.
 import type { Action } from '../game/actions';
 import type { BuildingInst, GameState } from '../game/state';
-import type { RaidInput } from '../raid/engine';
+import { type RaidInput, SIM_VERSION } from '../raid/engine';
 import type {
   LeaderRow,
   MeResponse,
@@ -162,7 +162,7 @@ export class OnlineSession {
 
   async startRaid(kind: RaidStartRequest['kind'], raidId?: string): Promise<RaidStartResponse> {
     await this.flush();
-    return api<RaidStartResponse>('/api/raid/start', { kind, ...(raidId ? { raidId } : {}) } satisfies RaidStartRequest);
+    return api<RaidStartResponse>('/api/raid/start', { kind, sim: SIM_VERSION, ...(raidId ? { raidId } : {}) } satisfies RaidStartRequest);
   }
 
   private lastPushed = 0;
