@@ -48,6 +48,12 @@ export interface Layout {
   pos: Record<number, { x: number; y: number }>;
 }
 
+export interface SavedArmy {
+  name: string;
+  troops: Partial<Record<TroopType, number>>;
+  spells: Partial<Record<SpellType, number>>;
+}
+
 /** Progress on the Daily Challenge. `day` is the UTC date it refers to. */
 export interface DailyState {
   day: string | null;
@@ -88,6 +94,8 @@ export interface GameState {
   /** Saved base layouts (3 slots). The active slot always mirrors the live campus. */
   layouts: (Layout | null)[];
   activeLayout: number;
+  /** Named troop/spell recipes, synced with the campus. Heroes are not trained. */
+  savedArmies: (SavedArmy | null)[];
   /** True once the player has spent their one-time rename. */
   nameChanged?: boolean;
 }
@@ -145,6 +153,7 @@ export function newGame(): GameState {
     playerName: 'Your Campus',
     layouts: [null, null, null],
     activeLayout: 0,
+    savedArmies: [null, null, null],
   };
   const add = (type: BuildingType, x: number, y: number, level = 1): void => {
     const b: BuildingInst = { id: s.nextId++, type, x, y, level };

@@ -5,6 +5,7 @@ import { SPELLS } from '../config/spells';
 import { HEROES, TROOPS } from '../config/troops';
 import type { BuildingType, EventType, HeroType, ResourceId, SpellType, TroopType } from '../config/types';
 import { ensureLayouts } from './layouts';
+import { readSavedArmy, SAVED_ARMY_SLOTS } from './savedArmies';
 import { type ActiveEvent, type BuildingInst, type GameState, type HeroState, type Layout, type QueueItem, SAVE_VERSION, type Timer, newGame } from './state';
 
 const KEY = 'cedarville-clash-save';
@@ -251,6 +252,7 @@ export function sanitize(raw: AnySave): GameState {
     playerName: str(raw.playerName, fresh.playerName).slice(0, 40),
     layouts: layouts(raw.layouts),
     activeLayout: int(raw.activeLayout, 0, 0, 2),
+    savedArmies: Array.from({ length: SAVED_ARMY_SLOTS }, (_, i) => readSavedArmy(Array.isArray(raw.savedArmies) ? raw.savedArmies[i] : null)),
   };
   if (raw.nameChanged === true) s.nameChanged = true;
   if (typeof raw.lastRival === 'string') s.lastRival = raw.lastRival;

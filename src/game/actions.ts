@@ -11,6 +11,8 @@ import { buildNew, canPlace, collect, dmcLevel, finishNow, startUpgrade } from '
 import { attendChapel } from './events';
 import { LAYOUT_SLOTS, activate, defaultName, resolve, syncActive } from './layouts';
 import { type BuildingInst, type GameState, type Layout, cleanName } from './state';
+import type { SavedArmy } from './state';
+import { readSavedArmy, SAVED_ARMY_SLOTS, savedArmyCompositionCheck, trainSavedArmy } from './savedArmies';
 
 export type Action =
   | { k: 'build'; type: BuildingType; x: number; y: number }
@@ -38,7 +40,10 @@ export type Action =
   | { k: 'layoutSave'; slot: number; pos: Layout['pos'] }
   | { k: 'layoutUse'; slot: number }
   | { k: 'layoutName'; slot: number; name: string }
-  | { k: 'layoutClear'; slot: number };
+  | { k: 'layoutClear'; slot: number }
+  | { k: 'armySave'; slot: number; army: SavedArmy }
+  | { k: 'armyClear'; slot: number }
+  | { k: 'armyTrain'; slot: number };
 
 export interface ActionResult {
   err?: string;
@@ -65,6 +70,27 @@ export function applyAction(s: GameState, a: Action): ActionResult {
 function run(s: GameState, a: Action): ActionResult {
   if (!a || typeof a !== 'object') return { err: 'Bad action' };
   switch (a.k) {
+    case 'armySave': {
+      if (!int(a.slot) || a.slot < 0 || a.slot >= SAVED_ARMY_SLOTS) return { err: 'Bad action' };
+      const army = readSavedArmy(a.army);
+      if (!army) return { err: 'Choose troops or spells and give your army a name' };
+      const err = savedArmyCompositionCheck(s, army);
+      if (err) return { err };
+      s.savedArmies[a.slot] = army;
+      return {};
+    }
+    case 'armyClear':
+    case 'armyTrain': {
+      if (!int(a.slot) || a.slot < 0 || a.slot >= SAVED_ARMY_SLOTS) return { err: 'Bad action' };
+      const army = s.savedArmies[a.slot];
+      if (!army) return { err: 'Save an army in this slot first' };
+      if (a.k === 'armyClear') s.savedArmies[a.slot] = null;
+      else {
+        const err = trainSavedArmy(s, army);
+        if (err) return { err };
+      }
+      return {};
+    }
     case 'build': {
       if (!own(BUILDINGS, a.type) || !int(a.x) || !int(a.y)) return { err: 'Bad action' };
       const r = buildNew(s, a.type, a.x, a.y);
