@@ -5,6 +5,8 @@ import { setInviteUses, startServer } from '../server/main';
 import type { MeResponse, RaidFinishResponse, RaidStartResponse, ReplayResponse, ReplayRow, SyncResponse, VisitResponse } from '../src/net/protocol';
 import { SIM_VERSION, replayRaid } from '../src/raid/engine';
 import type { GameState } from '../src/game/state';
+import { OBJECTIVES, dailyFor, dayKey } from '../src/game/daily';
+import { playBot } from './helpers';
 
 let srv: ReturnType<typeof startServer>;
 let base = '';
@@ -165,7 +167,7 @@ describe('real raids', () => {
       s.resources.tuition = 1000;
       s.trophies = 120;
     });
-    const start = await alice.call<RaidStartResponse>('/api/raid/start', { kind: 'random' });
+    const start = await alice.call<RaidStartResponse>('/api/raid/start', { kind: 'random', sim: SIM_VERSION });
     expect(start.status).toBe(200);
     expect(start.data.setup.kind).toBe('player');
     expect(start.data.setup.defender?.name).toBe('Bob_U');
@@ -176,7 +178,7 @@ describe('real raids', () => {
       s.campaignDone = true;
       s.trophies = 120;
     });
-    const other = await carol.call<RaidStartResponse>('/api/raid/start', { kind: 'random' });
+    const other = await carol.call<RaidStartResponse>('/api/raid/start', { kind: 'random', sim: SIM_VERSION });
     expect(other.status).toBe(200);
     expect(other.data.setup.defender?.name).not.toBe('Bob_U');
     await carol.call('/api/raid/finish', { raidId: other.data.raidId, inputs: [{ t: 0, k: 'end' }] });
@@ -231,11 +233,11 @@ describe('real raids', () => {
     const def = log.data.find((r) => r.role === 'defense' && r.opponent === 'Alice Hall')!;
     expect(def.revenge).toBe(true);
     // the attacker can't use it, and nonsense ids are refused
-    expect((await alice.call('/api/raid/start', { kind: 'revenge', raidId: def.id })).status).toBe(404);
-    expect((await bob.call('/api/raid/start', { kind: 'revenge', raidId: 'nope' })).status).toBe(404);
+    expect((await alice.call('/api/raid/start', { kind: 'revenge', sim: SIM_VERSION, raidId: def.id })).status).toBe(404);
+    expect((await bob.call('/api/raid/start', { kind: 'revenge', sim: SIM_VERSION, raidId: 'nope' })).status).toBe(404);
     // not through a shield
     srv.db.raw.prepare('UPDATE users SET shield_until = ? WHERE name = ?').run(Date.now() + 3600_000, 'Alice Hall');
-    const shielded = await bob.call<{ error: string }>('/api/raid/start', { kind: 'revenge', raidId: def.id });
+    const shielded = await bob.call<{ error: string }>('/api/raid/start', { kind: 'revenge', sim: SIM_VERSION, raidId: def.id });
     expect(shielded.status).toBe(409);
     expect(shielded.data.error).toMatch(/shielded/);
     srv.db.raw.prepare('UPDATE users SET shield_until = 0 WHERE name = ?').run('Alice Hall');
@@ -246,19 +248,19 @@ describe('real raids', () => {
       s.resources.tuition = 0; // and costs no scouting fee
     });
     // calling it off without deploying doesn't use it up
-    const first = await bob.call<RaidStartResponse>('/api/raid/start', { kind: 'revenge', raidId: def.id });
+    const first = await bob.call<RaidStartResponse>('/api/raid/start', { kind: 'revenge', sim: SIM_VERSION, raidId: def.id });
     expect(first.status).toBe(200);
     expect(first.data.setup.defender).toEqual({ name: 'Alice Hall', trophies: expect.any(Number), revenge: true });
     await bob.call('/api/raid/finish', { raidId: first.data.raidId, inputs: [{ t: 0, k: 'end' }] });
     expect((await bob.call<ReplayRow[]>('/api/replays')).data.find((r) => r.id === def.id)!.revenge).toBe(true);
 
-    const start = await bob.call<RaidStartResponse>('/api/raid/start', { kind: 'revenge', raidId: def.id });
+    const start = await bob.call<RaidStartResponse>('/api/raid/start', { kind: 'revenge', sim: SIM_VERSION, raidId: def.id });
     expect(start.status).toBe(200);
     const fin = await bob.call<RaidFinishResponse>('/api/raid/finish', { raidId: start.data.raidId, inputs: [{ t: 0, k: 'troop', type: 'freshman', x: 1, y: 1 }] });
     expect(fin.data.outcome.cancelled).toBe(false);
     // used up, for both the log and a second try
     expect((await bob.call<ReplayRow[]>('/api/replays')).data.find((r) => r.id === def.id)!.revenge).toBe(false);
-    expect((await bob.call('/api/raid/start', { kind: 'revenge', raidId: def.id })).status).toBe(409);
+    expect((await bob.call('/api/raid/start', { kind: 'revenge', sim: SIM_VERSION, raidId: def.id })).status).toBe(409);
     // Alice hears about it, with her own revenge button
     const aliceMe = await alice.call<MeResponse>('/api/me');
     expect(aliceMe.data.defenses).toEqual([expect.objectContaining({ attacker: 'Bob_U', raidId: start.data.raidId, revenge: true })]);
@@ -267,7 +269,7 @@ describe('real raids', () => {
 
   it('cannot finish someone else\'s raid or send malformed inputs', async () => {
     patchState('Alice Hall', (s) => (s.army = { freshman: 5 }));
-    const start = await alice.call<RaidStartResponse>('/api/raid/start', { kind: 'random' });
+    const start = await alice.call<RaidStartResponse>('/api/raid/start', { kind: 'random', sim: SIM_VERSION });
     expect((await bob.call('/api/raid/finish', { raidId: start.data.raidId, inputs: [] })).status).toBe(404);
     expect((await alice.call('/api/raid/finish', { raidId: start.data.raidId, inputs: [{ t: -1, k: 'troop' }] })).status).toBe(400);
     expect((await alice.call('/api/raid/finish', { raidId: start.data.raidId, inputs: [{ t: 0, k: 'troop', type: '__proto__', x: 1, y: 1 }] })).status).toBe(400);
@@ -278,10 +280,10 @@ describe('real raids', () => {
 
   it('settles an abandoned raid with the inputs it received', async () => {
     patchState('Alice Hall', (s) => (s.army = { freshman: 6 }));
-    const start = await alice.call<RaidStartResponse>('/api/raid/start', { kind: 'random' });
+    const start = await alice.call<RaidStartResponse>('/api/raid/start', { kind: 'random', sim: SIM_VERSION });
     await alice.call('/api/raid/inputs', { raidId: start.data.raidId, inputs: [{ t: 0, k: 'troop', type: 'freshman', x: 1, y: 1 }] });
     // starting another raid settles the abandoned one first
-    const next = await alice.call<RaidStartResponse>('/api/raid/start', { kind: 'random' });
+    const next = await alice.call<RaidStartResponse>('/api/raid/start', { kind: 'random', sim: SIM_VERSION });
     expect(next.data.setup.army.freshman).toBe(5);
     await alice.call('/api/raid/finish', { raidId: next.data.raidId, inputs: [{ t: 0, k: 'end' }] });
   });
@@ -335,7 +337,7 @@ describe('real raids', () => {
     delete legacy.simVersion;
     srv.db.raw.prepare('UPDATE raids SET setup = ? WHERE id = ?').run(JSON.stringify(legacy), target.id);
     try {
-      expect((await alice.call('/api/replay?id=' + target.id)).status).toBe(SIM_VERSION === 1 ? 200 : 410);
+      expect((await alice.call('/api/replay?id=' + target.id)).status).toBe((SIM_VERSION as number) === 1 ? 200 : 410);
     } finally {
       srv.db.raw.prepare('UPDATE raids SET setup = ? WHERE id = ?').run(row.setup, target.id);
     }
@@ -407,7 +409,7 @@ describe('reserve army on the server', () => {
     expect(later.data.state.trainQueue).toHaveLength(3);
     expect(later.data.state.trainQueue.every((q) => q.left === 0)).toBe(true);
     // a raid that uses two troops: the result already has two reserve troops in the halls
-    const start = await dana.call<RaidStartResponse>('/api/raid/start', { kind: 'campaign' });
+    const start = await dana.call<RaidStartResponse>('/api/raid/start', { kind: 'campaign', sim: SIM_VERSION });
     expect(start.status).toBe(200);
     const fin = await dana.call<RaidFinishResponse>('/api/raid/finish', {
       raidId: start.data.raidId,
@@ -507,6 +509,70 @@ describe('sign-up without invite codes', () => {
       expect(r.status).toBe(200);
     } finally {
       await open.close();
+    }
+  });
+});
+
+describe('daily challenge on the server', () => {
+  it("serves today's challenge, verifies it by replay, and pays once per day without touching the army", async () => {
+    patchState('Alice Hall', (s) => {
+      s.army = { freshman: 7 };
+      s.trainQueue = []; // no reserve troops waiting to move in after the raid
+      s.trophies = 300;
+      s.daily = { day: null, done: false, attempts: 0, bestStars: 0 };
+    });
+    const before = (await alice.call<MeResponse>('/api/me')).data.state;
+    const start = await alice.call<RaidStartResponse>('/api/raid/start', { kind: 'daily', sim: SIM_VERSION });
+    expect(start.status).toBe(200);
+    const setup = start.data.setup;
+    expect(setup.kind).toBe('daily');
+    expect(setup.daily?.day).toBe(dayKey());
+    expect(setup.army).toEqual(dailyFor(dayKey(), setup.daily!.dmc).army);
+    expect(setup.heroes).toEqual({});
+
+    // try a few openings locally and send one that clears the objective (if any does)
+    let pick = playBot(setup, 0);
+    for (let dir = 1; dir < 8 && !OBJECTIVES[dailyFor(setup.daily!.day, setup.daily!.dmc).objectiveId].met(pick.result.metrics); dir++) pick = playBot(setup, dir);
+    const passed = OBJECTIVES[dailyFor(setup.daily!.day, setup.daily!.dmc).objectiveId].met(pick.result.metrics);
+
+    const fin = await alice.call<RaidFinishResponse>('/api/raid/finish', { raidId: start.data.raidId, inputs: pick.inputs });
+    expect(fin.status).toBe(200);
+    const o = fin.data.outcome;
+    expect(o.daily?.passed).toBe(passed);
+    expect(o.stars).toBe(pick.result.stars);
+    expect(fin.data.state.army).toEqual({ freshman: 7 });
+    expect(fin.data.state.trophies).toBe(300);
+    expect(fin.data.state.resources.tuition).toBe(before.resources.tuition);
+    expect(fin.data.state.daily).toMatchObject({ day: dayKey(), done: passed, attempts: 1 });
+    if (passed) expect(o.daily?.reward).toBe(dailyFor(dayKey(), setup.daily!.dmc).reward);
+
+    // a second clear the same day pays nothing more
+    if (passed) {
+      const again = await alice.call<RaidStartResponse>('/api/raid/start', { kind: 'daily', sim: SIM_VERSION });
+      const fin2 = await alice.call<RaidFinishResponse>('/api/raid/finish', { raidId: again.data.raidId, inputs: pick.inputs });
+      expect(fin2.data.outcome.daily).toEqual({ objectiveId: o.daily!.objectiveId, passed: true, reward: 0 });
+      expect(fin2.data.state.daily.attempts).toBe(2);
+    }
+  });
+
+  it('matches computer rivals to trophies and never serves the same layout twice running', async () => {
+    // nobody else is open to attack for an hour after the raids above, so these are computer rivals
+    patchState('Alice Hall', (s) => {
+      s.campaignDone = true;
+      s.army = { freshman: 3 };
+      s.resources.tuition = 100000;
+    });
+    let last = '';
+    for (let i = 0; i < 4; i++) {
+      const r = await alice.call<RaidStartResponse>('/api/raid/start', { kind: 'random', sim: SIM_VERSION });
+      expect(r.status).toBe(200);
+      if (r.data.setup.kind === 'random') {
+        expect(r.data.setup.base.archetype).toBeDefined();
+        expect(r.data.setup.base.difficulty).toBeDefined();
+        expect(r.data.setup.base.archetype).not.toBe(last);
+        last = r.data.setup.base.archetype!;
+      }
+      await alice.call('/api/raid/finish', { raidId: r.data.raidId, inputs: [{ t: 0, k: 'end' }] });
     }
   });
 });

@@ -1,4 +1,5 @@
 // All the jokes live here so they're easy to tweak / extend.
+import type { EventType } from './types';
 // Noah & friends: add your own inside jokes to these arrays!
 
 export const LOADING_TIPS: string[] = [
@@ -129,7 +130,7 @@ export const WIND_LINES: string[] = [
   'The wind has opinions about your formation.',
 ];
 
-export const EVENT_INFO: Record<string, { name: string; desc: string; icon: string }> = {
+export const EVENT_INFO: Record<EventType, { name: string; desc: string; icon: string }> = {
   ringbyspring: {
     name: 'Ring by Spring',
     desc: 'Troops that pair up get +20% damage and speed. Love is in the (Ohio) air.',
@@ -152,8 +153,30 @@ export const EVENT_INFO: Record<string, { name: string; desc: string; icon: stri
   },
 };
 
+export type AchievementId =
+  | 'deanslist'
+  | 'probation'
+  | 'lakebridge'
+  | 'freshman15'
+  | 'chapelregular'
+  | 'ticketed'
+  | 'allnighter'
+  | 'dmc3'
+  | 'dmc5'
+  | 'dmc8'
+  | 'popquiz'
+  | 'ringbyspring'
+  | 'windblown'
+  | 'elephant'
+  | 'destroyer'
+  | 'wallbreaker'
+  | 'dailyfirst'
+  | 'dailyfive'
+  | 'climber';
+
+/** Display text + reward. The unlock rules live in src/game/achievements.ts. */
 export interface AchievementDef {
-  id: string;
+  id: AchievementId;
   name: string;
   desc: string;
   reward: number; // chapel credits
@@ -176,4 +199,40 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'elephant', name: 'Elephant Runner', desc: 'Complete an Elephant Run.', reward: 10 },
   { id: 'destroyer', name: 'Rivalry Week', desc: 'Destroy 100 enemy buildings.', reward: 20 },
   { id: 'wallbreaker', name: 'Load-Bearing Assumption', desc: 'Have Engineering Majors destroy 25 walls.', reward: 10 },
+  { id: 'dailyfirst', name: 'Extra Credit', desc: 'Complete a Daily Challenge.', reward: 5 },
+  { id: 'dailyfive', name: 'Perfect Attendance', desc: 'Complete 5 Daily Challenges.', reward: 15 },
+  { id: 'climber', name: 'Declared a Major', desc: 'Reach 700 trophies.', reward: 15 },
+];
+
+// ---------- Rival campuses ----------
+
+/** How a generated rival campus is laid out (see src/raid/basegen.ts). */
+export const LAYOUT_INFO = {
+  fortress: { name: 'Gated Community', hint: 'Everything valuable sits inside one big brick ring.' },
+  compartments: { name: 'Departmental Silos', hint: 'Walled into separate boxes. Nobody talks to each other.' },
+  sprawl: { name: 'Commuter Sprawl', hint: 'Spread thin, with each defense fenced into its own little lot.' },
+  lakeside: { name: 'Lakefront Property', hint: 'Lakes guard one flank, so the walls only face one way.' },
+  corner: { name: 'Back-Corner Campus', hint: 'The DMC hides in a corner behind the decoy buildings.' },
+  donut: { name: 'Endowment Vault', hint: 'The DMC is left outside. The loot is very much not.' },
+} as const;
+
+export const DIFFICULTY_LABELS = ['Easy A', 'Gen Ed', 'Even Match', 'Upper-Level', 'Weed-Out Class'] as const;
+
+// ---------- Daily challenge ----------
+
+export const DAILY_TITLES: string[] = [
+  'Homecoming Scrimmage',
+  'Midterm Mayhem',
+  'Parking Lot Showdown',
+  'Rivalry Week Warm-Up',
+  'Getaway Weekend Raid',
+  "Li'l Sibs Weekend Brawl",
+  'Syllabus Day Ambush',
+  'Intramural Championship',
+];
+
+export const DAILY_DONE_LINES: string[] = [
+  'The Chapel office has stamped your attendance card. Twice.',
+  'Announced from the stage. People clapped. Mostly on beat.',
+  'Your RA is telling the whole hall about it.',
 ];

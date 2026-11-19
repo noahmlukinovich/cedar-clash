@@ -48,3 +48,11 @@ function tidyTime(s: number): number {
 export function scaleTime(times: number[]): number[] {
   return times.map((t, i) => (t > 0 ? tidyTime(t * UPGRADE_TIME_BASE * UPGRADE_TIME_GROWTH ** (i - 1)) : 0));
 }
+
+/** Daily Challenge: Chapel Credits for the first clear each day = base + perDmc * DMC level. */
+export const DAILY_REWARD_BASE = 10;
+export const DAILY_REWARD_PER_DMC = 2;
+/** Housing worth of lent troops in the Daily Challenge, by DMC level (about 1.3-1.6x the biggest army you could field). */
+export const DAILY_ARMY_HOUSING = [0, 26, 80, 120, 230, 290, 390, 460, 600];
+/** How built-up the daily rival is (see generateBase's `strength`). */
+export const DAILY_BASE_STRENGTH = 0.05;

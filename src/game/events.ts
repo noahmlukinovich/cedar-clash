@@ -11,7 +11,8 @@ import { CHAPEL_SKIP_LINES, CONSTRUCTION_LINES, EVENT_INFO, TICKET_LINES } from 
 import { bus, toast } from '../core/bus';
 import { pick } from '../core/rng';
 import { armyCapacity, armyUsed } from './army';
-import { BORDER, addRes, bump, hasEvent, occupancy, unlock } from './economy';
+import { bump, checkAchievements } from './achievements';
+import { BORDER, addRes, hasEvent, occupancy } from './economy';
 import type { ActiveEvent, GameState } from './state';
 
 export function startEvent(s: GameState, type: ActiveEvent['type'], duration?: number): void {
@@ -82,7 +83,6 @@ export function tickEvents(s: GameState, dt: number): void {
       const fine = Math.min(400, Math.max(25, Math.floor(s.resources.tuition * 0.03)));
       s.resources.tuition = Math.max(0, s.resources.tuition - fine);
       bump(s, 'tickets');
-      unlock(s, 'ticketed');
       bus.emit('ticket', { text: pick(TICKET_LINES), fine });
     }
   }
@@ -115,7 +115,7 @@ export function attendChapel(s: GameState): number {
   const r = chapelReward({ ...s, chapel: { ...s.chapel, streak: s.chapel.streak - 1 } } as GameState);
   s.chapel.lastDay = today;
   addRes(s, 'chapel', r);
-  if (s.chapel.streak >= 3) unlock(s, 'chapelregular');
+  checkAchievements(s);
   return r;
 }
 

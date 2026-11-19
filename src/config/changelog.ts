@@ -10,6 +10,29 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 44,
+    date: 'Nov 19, 2026',
+    title: 'Daily Challenge and matched rivals',
+    items: [
+      'New Daily Challenge (Attack or Chapel menu): one raid a day with a lent army and a single objective. Your own troops are never spent, retries are free, and clearing it pays Chapel Credits once a day.',
+      'Find a Rival now matches computer campuses to your trophies. Climb the ladder and rivals get bigger and pay more; slip and they ease off. The raid screen shows the difficulty and the trophies at stake.',
+      'Rival campuses come in six layouts, from the Gated Community to the Endowment Vault, and the same one never comes up twice in a row.',
+      'Three new achievements: Extra Credit, Perfect Attendance and Declared a Major.',
+      'Offline saves: Import in Settings, and an automatic backup. An unreadable save is set aside rather than overwritten, and the backup is restored.',
+    ],
+  },
+  {
+    v: 43,
+    date: 'Nov 19, 2026',
+    title: 'Smarter about walls',
+    items: [
+      'Troops walk to a nearby gap in a wall instead of stopping to bash it. A big group still smashes straight through.',
+      'Troops breaking through pile onto the same piece of wall, and switch to a nearby piece that has been weakened, so a breach opens much sooner.',
+      'When any wall falls, troops still hitting other walls check whether the new gap is quicker.',
+      'Raid replays recorded before this update may play out a little differently.',
+    ],
+  },
+  {
     v: 42,
     date: 'Nov 19, 2026',
     title: 'Cedarville Clash on your phone',

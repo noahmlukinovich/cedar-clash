@@ -95,7 +95,7 @@ describe("Dean's Office", () => {
   });
 
   it('shows up on DMC 8 rival campuses only', () => {
-    expect(generateBase(8, 11).pieces.filter((p) => p.type === 'deans')).toHaveLength(1);
-    expect(generateBase(7, 11).pieces.some((p) => p.type === 'deans')).toBe(false);
+    expect(generateBase({ dmc: 8, seed: 11 }).pieces.filter((p) => p.type === 'deans')).toHaveLength(1);
+    expect(generateBase({ dmc: 7, seed: 11 }).pieces.some((p) => p.type === 'deans')).toBe(false);
   });
 });

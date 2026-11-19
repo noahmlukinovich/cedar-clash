@@ -6,10 +6,11 @@ import { ELEPHANT_RUN_TIME, GRID, RAID_TIME } from '../config/balance';
 import { TROOP_ORDER } from '../config/troops';
 import { SPELL_ORDER } from '../config/spells';
 import type { HeroType, SpellType, TroopType } from '../config/types';
+import type { DailyMetrics } from '../game/daily';
 import type { BaseLayout } from './basegen';
 import { type RU, RaidSim } from './sim';
 
-export type RaidKind = 'campaign' | 'random' | 'elephant' | 'player';
+export type RaidKind = 'campaign' | 'random' | 'elephant' | 'player' | 'daily';
 
 /**
  * Version of the raid rules. Bump it whenever a change could make the same setup and inputs
@@ -17,7 +18,7 @@ export type RaidKind = 'campaign' | 'random' | 'elephant' | 'player';
  * The server only settles a raid with the sim version it was started under, and old replays
  * stop being watchable. `test/simVersion.test.ts` fails when behavior changes without a bump.
  */
-export const SIM_VERSION = 1;
+export const SIM_VERSION = 2;
 
 /** The sim version a setup was built for. Setups from before versioning count as version 1. */
 export function simVersionOf(setup: Pick<RaidSetup, 'simVersion'>): number {
@@ -43,6 +44,8 @@ export interface RaidSetup {
   scoutCost?: number;
   /** Online raids against a real player. */
   defender?: { name: string; trophies: number; revenge?: boolean };
+  /** Daily Challenge raids: which day's challenge, at which DMC level. The army is lent. */
+  daily?: { day: string; dmc: number };
 }
 
 export type RaidInput =
@@ -68,6 +71,8 @@ export interface RaidResult {
   windSurvived: boolean;
   deployedAny: boolean;
   ticks: number;
+  /** What a Daily Challenge objective is judged on. */
+  metrics: DailyMetrics;
 }
 
 export const TICK = 1 / 30;
@@ -262,6 +267,21 @@ export class RaidEngine {
       windSurvived: this.sim.windSurvived,
       deployedAny: this.deployedAny,
       ticks: this.tick,
+      metrics: this.metrics(),
+    };
+  }
+
+  metrics(): DailyMetrics {
+    const sim = this.sim;
+    const avail = sim.lootAvail.tuition + sim.lootAvail.coffee;
+    return {
+      stars: sim.stars,
+      destruction: sim.destruction,
+      dmcDeadAt: sim.dmcDeadAt,
+      deployed: sim.deployed,
+      standing: Math.min(sim.deployed, sim.standing()),
+      defensesLeft: sim.defensesLeft(),
+      lootFrac: avail > 0 ? (sim.loot.tuition + sim.loot.coffee) / avail : 0,
     };
   }
 }

@@ -128,9 +128,9 @@ describe('Fire Alarm', () => {
 
   it('shows up on DMC 7 and 8 rival campuses', () => {
     for (const dmc of [7, 8]) {
-      const n = generateBase(dmc, 11).pieces.filter((p) => p.type === 'firealarm').length;
+      const n = generateBase({ dmc, seed: 11 }).pieces.filter((p) => p.type === 'firealarm').length;
       expect(n).toBeGreaterThan(0);
-      expect(generateBase(6, 11).pieces.some((p) => p.type === 'firealarm')).toBe(false);
+      expect(generateBase({ dmc: 6, seed: 11 }).pieces.some((p) => p.type === 'firealarm')).toBe(false);
     }
   });
 });

@@ -13,7 +13,8 @@ import { type GameState, newGame } from '../src/game/state';
 import { type DefenseEntry, NAME_RE, NAME_RULES, type Note, type RenameResponse, type ReplayResponse, type ReplayRow, type StateMsg, type VisitResponse, validCampusName } from '../src/net/protocol';
 import type { BaseLayout, BasePiece } from '../src/raid/basegen';
 import { MAX_INPUTS, type RaidInput, type RaidResult, type RaidSetup, SCOUT_TIME, SIM_VERSION, replayRaid, simVersionOf } from '../src/raid/engine';
-import { type RaidOutcome, applyRaidOutcome, localSetup, trophyDelta } from '../src/raid/outcome';
+import { type RaidOutcome, applyRaidOutcome, dailySetup, localSetup, trophyDelta } from '../src/raid/outcome';
+import { dayKey } from '../src/game/daily';
 import { HEROES, TROOPS } from '../src/config/troops';
 import { SPELLS } from '../src/config/spells';
 import { RAID_TIME } from '../src/config/balance';
@@ -221,7 +222,7 @@ export function baseFromState(s: GameState, name: string, attackerTrophies: numb
 }
 
 export function startRaid(db: DB, userId: number, now: number, kind: unknown, revengeOf?: unknown, clientSim?: unknown): { raidId: string; setup: RaidSetup } {
-  if (kind !== 'campaign' && kind !== 'random' && kind !== 'elephant' && kind !== 'revenge') throw new GameError('Bad request');
+  if (kind !== 'campaign' && kind !== 'random' && kind !== 'elephant' && kind !== 'revenge' && kind !== 'daily') throw new GameError('Bad request');
   // Clients from before versioning don't send it; they run version 1.
   if ((clientSim ?? 1) !== SIM_VERSION) throw new GameError('Cedarville Clash was updated. Reload the page to raid with the latest rules.', 426);
   takeNotes();
@@ -235,6 +236,9 @@ export function startRaid(db: DB, userId: number, now: number, kind: unknown, re
     if (kind === 'campaign') {
       if (s.campaignDone) throw new GameError('You already beat Rival State U');
       setup = localSetup(s, 'campaign', cryptoRand);
+    } else if (kind === 'daily') {
+      // Today's (UTC) challenge for the player's DMC level. Retries are free and unlimited.
+      setup = dailySetup(s, dayKey(now));
     } else if (kind === 'elephant') {
       if (!hasEvent(s, 'elephantrun')) throw new GameError('The Elephant Run is over');
       setup = localSetup(s, 'elephant', cryptoRand);
@@ -345,6 +349,7 @@ function emptyResult(setup: RaidSetup): RaidResult {
     windSurvived: false,
     deployedAny: false,
     ticks: 0,
+    metrics: { stars: 0, destruction: 0, dmcDeadAt: -1, deployed: 0, standing: 0, defensesLeft: 0, lootFrac: 0 },
   };
 }
 

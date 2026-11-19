@@ -60,7 +60,7 @@ export interface SyncResponse extends StateMsg {
 }
 
 export interface RaidStartRequest {
-  kind: 'campaign' | 'random' | 'elephant' | 'revenge';
+  kind: 'campaign' | 'random' | 'elephant' | 'revenge' | 'daily';
   /** For 'revenge': the raid on you to answer. */
   raidId?: string;
   /** The client's SIM_VERSION; the server refuses to start a raid the client would play differently. */
