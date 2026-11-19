@@ -9,16 +9,16 @@ import { watchInstall } from './core/install';
 import { FrameMonitor, type Quality, getQuality, lowerDpr, maxDpr, setQuality } from './core/quality';
 import { type Action, type ActionResult, applyAction } from './game/actions';
 import { tickArmy } from './game/army';
-import { dmcLevel, spend, tickEconomy } from './game/economy';
+import { addRes, dmcLevel, spend, tickEconomy } from './game/economy';
 import { checkChapelSkip, tickEvents } from './game/events';
 import { BUILD_TIME, checkStale, loadGame, loadPendingRaid, saveGame, savePendingRaid, staleSave } from './game/save';
 import { EditorScene } from './village/editorScene';
 import { type GameState, newGame } from './game/state';
 import { type StartChoice, chooseStart } from './net/login';
-import { OnlineSession, adoptState } from './net/online';
+import { ApiError, OnlineSession, adoptState } from './net/online';
 import type { DefenseEntry, Note, RaidStartRequest, StateMsg } from './net/protocol';
 import type { ReplayData } from './raid/raidScene';
-import { type RaidSetup, replayRaid } from './raid/engine';
+import { type RaidSetup, SIM_VERSION, replayRaid, simVersionOf } from './raid/engine';
 import { applyRaidOutcome, localSetup, type RaidOutcome } from './raid/outcome';
 import { RaidScene } from './raid/raidScene';
 import { UI, esc, fmt } from './ui/ui';
@@ -211,6 +211,19 @@ export class Game {
     const p = loadPendingRaid();
     if (!p) return;
     savePendingRaid(null); // first, so a crash below can never apply it twice
+    // Raid rules changed since it started (a game update): call it off rather than
+    // re-score it with different rules, like the server does. Troops were never spent.
+    if (simVersionOf(p.setup) !== SIM_VERSION) {
+      const refund = Math.max(0, Math.floor(p.setup.scoutCost ?? 0));
+      if (refund > 0) addRes(this.state, 'tuition', refund);
+      saveGame(this.state);
+      setTimeout(
+        () =>
+          this.ui.toast(`Your last raid was called off because the game was updated. Your troops are back in camp${refund > 0 ? ` and your ${fmt(refund)} Tuition scouting fee was refunded` : ''}.`, 'info', 5000),
+        1200,
+      );
+      return;
+    }
     try {
       const out = applyRaidOutcome(this.state, p.setup, replayRaid(p.setup, p.inputs));
       saveGame(this.state);
@@ -238,6 +251,12 @@ export class Game {
         const info = EVENT_INFO[n.data.type as keyof typeof EVENT_INFO];
         if (info) this.ui.toast(`${info.icon} ${info.name}! ${info.desc}`, 'event', 4000);
       } else if (n.ev === 'chapelSkip') this.ui.popup('A note from the Chapel office', esc(n.data), 'I will do better');
+      else if (n.ev === 'raidVoided')
+        this.ui.popup(
+          'Raid called off',
+          `Cedarville Clash was updated while your raid was underway, so it doesn't count. Your troops and spells are back in camp${n.data.refund > 0 ? ` and your ${fmt(n.data.refund)} Tuition scouting fee was refunded` : ''}. Reload to get the new version.`,
+          'Fair enough',
+        );
     }
     const ds = this.pendingDefenses.splice(0);
     if (ds.length) {
@@ -339,6 +358,8 @@ export class Game {
       } catch (e) {
         this.ui.toast((e as Error).message, 'bad');
         sfx('error');
+        // 426: the server runs newer raid rules than this copy of the game
+        if (e instanceof ApiError && e.status === 426) this.ui.showUpdateBar('update');
         return;
       }
       setup = r.setup;
@@ -356,8 +377,10 @@ export class Game {
       };
     } else {
       if (opts.kind === 'revenge') return; // nobody raids you offline
-      if (opts.kind === 'random' && !spend(this.state, 'tuition', SCOUT_COST_PER_DMC * dmcLevel(this.state))) return;
-      setup = localSetup(this.state, opts.kind);
+      const scoutCost = opts.kind === 'random' ? SCOUT_COST_PER_DMC * dmcLevel(this.state) : 0;
+      if (scoutCost > 0 && !spend(this.state, 'tuition', scoutCost)) return;
+      // scoutCost is stored with the raid so it can be refunded if a game update calls it off
+      setup = scoutCost > 0 ? { ...localSetup(this.state, opts.kind), scoutCost } : localSetup(this.state, opts.kind);
       savePendingRaid({ setup, inputs: [] });
       settle = async (engine) => {
         savePendingRaid(null); // settled here, not on next launch
@@ -454,6 +477,12 @@ export class Game {
       this.visiting = false;
     }
     if (this.scene !== this.village) return; // something else started while we waited
+    if (simVersionOf(r.setup) !== SIM_VERSION) {
+      // The server only serves replays recorded under its own rules, so this copy is out of date.
+      this.ui.toast('This replay needs the latest version of the game. Reload to watch it.', 'bad');
+      this.ui.showUpdateBar('update');
+      return;
+    }
     this.ui.closeModal();
     this.playReplay({ setup: r.setup, inputs: r.inputs, attacker: r.attacker, stars: r.stars, destruction: r.destruction });
   }

@@ -15,7 +15,9 @@ export type Note =
   | { ev: 'ticket'; data: { text: string; fine: number } }
   | { ev: 'eventStart'; data: { type: string } }
   | { ev: 'chapelSkip'; data: string }
-  | { ev: 'achievement'; data: string };
+  | { ev: 'achievement'; data: string }
+  /** A raid was called off because the game was updated mid-raid; any scouting fee was refunded. */
+  | { ev: 'raidVoided'; data: { refund: number } };
 
 export interface DefenseEntry {
   id: number;
@@ -61,6 +63,8 @@ export interface RaidStartRequest {
   kind: 'campaign' | 'random' | 'elephant' | 'revenge';
   /** For 'revenge': the raid on you to answer. */
   raidId?: string;
+  /** The client's SIM_VERSION; the server refuses to start a raid the client would play differently. */
+  sim?: number;
 }
 
 export interface RaidStartResponse {
@@ -119,6 +123,8 @@ export interface ReplayRow {
   at: number;
   /** Defenses only: true while you can still raid this attacker back. */
   revenge?: boolean;
+  /** Recorded under older raid rules, so it can no longer be played back. */
+  outdated?: boolean;
 }
 
 /** Everything needed to play a finished raid back (GET /api/replay?id=...). */

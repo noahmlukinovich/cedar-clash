@@ -75,6 +75,25 @@ test('offline: closing the app mid-raid still counts the raid on next launch', a
   expect(await g(page, 'game.state.army.freshman')).toBe(before - 3);
 });
 
+test('offline: a raid left open across a game update is called off, not re-scored', async ({ page }) => {
+  const army = (await g(page, 'game.state.army.freshman')) as number;
+  await startRaid(page);
+  await deploySome(page, 2);
+  // Pretend this raid started under older raid rules, after paying a 50 Tuition scouting fee.
+  await page.evaluate(() => {
+    const s = (window as any).game.raid.engine.setup;
+    s.simVersion = 0;
+    s.scoutCost = 50;
+  });
+  const tuition = (await g(page, 'game.state.resources.tuition')) as number;
+  await page.reload();
+  await page.waitForFunction(() => (window as any).game?.state);
+  await expect(page.locator('.toast', { hasText: 'called off because the game was updated' })).toBeVisible({ timeout: 10_000 });
+  expect(await g(page, 'game.state.army.freshman')).toBe(army); // troops kept
+  expect(await g(page, 'game.state.resources.tuition')).toBeGreaterThanOrEqual(tuition + 50); // fee back
+  expect(await page.evaluate(() => localStorage.getItem('cedarville-clash-raid'))).toBeNull();
+});
+
 test('offline: a finished raid leaves nothing to settle later', async ({ page }) => {
   await startRaid(page);
   await deploySome(page, 1);

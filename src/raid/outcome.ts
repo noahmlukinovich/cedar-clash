@@ -6,7 +6,7 @@ import { fillArmy, heroAvailable } from '../game/army';
 import { addRes, bump, dmcLevel, hasEvent, unlock } from '../game/economy';
 import type { GameState } from '../game/state';
 import { generateBase, rivalStateU } from './basegen';
-import type { RaidKind, RaidResult, RaidSetup } from './engine';
+import { type RaidKind, type RaidResult, type RaidSetup, SIM_VERSION } from './engine';
 
 export interface RaidOutcome {
   win: boolean;
@@ -32,6 +32,7 @@ export function localSetup(s: GameState, kind: Exclude<RaidKind, 'player'>, rand
   }
   return {
     kind,
+    simVersion: SIM_VERSION,
     base,
     seed: (rand() * 2 ** 31) | 0,
     wind: rand() < 0.35,
