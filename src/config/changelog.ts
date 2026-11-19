@@ -10,6 +10,12 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 46,
+    date: 'Nov 19, 2026',
+    title: 'A smoother campus arrival',
+    items: ['The loading bar now fills steadily instead of jumping in random chunks, and respects reduced-motion preferences.'],
+  },
+  {
     v: 45,
     date: 'Nov 19, 2026',
     title: 'Stinger joins the Attack shield',
