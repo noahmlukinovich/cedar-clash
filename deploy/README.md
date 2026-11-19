@@ -101,6 +101,35 @@ ssh root@<droplet-ip> journalctl -u cedar-clash -n 100 --no-pager
 ssh root@<droplet-ip> journalctl -u caddy -n 50 --no-pager
 ```
 
+### Is one CPU core still enough?
+
+The game server handles one request at a time, so when it runs out of CPU, requests start
+queueing behind each other (mostly behind raid checks, which replay the whole raid). It keeps
+an eye on this itself. Open:
+
+```
+https://<ip-with-dashes>.sslip.io/api/status
+```
+
+- `verdict` is `ok`, `busy` (spikes now and then: fine) or `overloaded` (3 of the last 5
+  minutes over the limits: time to upgrade), with `advice` in plain words.
+- `activePlayers`: players who made a request in the last 5 minutes.
+- `last15Minutes`: worst event-loop lag (how long a request waited, in ms), CPU as a percentage
+  of one core (systemd caps it at 90%), requests per minute, and how long raid checks took.
+- `minutes`: the same numbers minute by minute.
+
+The numbers are in memory only, so they start over when the server restarts (including after
+each deploy). The report has no player names. When the server becomes overloaded it also logs
+a warning, and logs again when it recovers:
+
+```bash
+ssh root@<droplet-ip> journalctl -u cedar-clash --no-pager | grep -E 'OVERLOADED|back to normal'
+```
+
+If it says overloaded during normal play: resize the droplet to more CPU and raise `CPUQuota`
+(and `MemoryMax`) in `deploy/cedar-clash.service`. On a 1 vCPU droplet one core is the whole
+machine, so the bigger droplet comes first.
+
 ## Backups
 
 Copy the latest backup to your computer:
