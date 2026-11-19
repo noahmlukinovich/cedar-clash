@@ -488,3 +488,16 @@ describe('rate limits', () => {
     }
   });
 });
+
+describe('load status', () => {
+  it('reports active players and timed raid checks without player names', async () => {
+    srv.metrics.closeMinute(1, 2, 3);
+    const r = await alice.call<import('../server/metrics').StatusReport>('/api/status');
+    expect(r.status).toBe(200);
+    expect(r.data.verdict).toBe('ok');
+    expect(r.data.activePlayers).toBeGreaterThanOrEqual(2);
+    expect(r.data.last15Minutes.raidChecks).toBeGreaterThanOrEqual(1);
+    expect(r.data.last15Minutes.raidCheckMaxMs).toBeGreaterThan(0);
+    expect(JSON.stringify(r.data)).not.toContain('Alice');
+  });
+});

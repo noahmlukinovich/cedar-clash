@@ -4,6 +4,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { NAME_RULES, validCampusName } from '../src/net/protocol';
 import { DUMMY_HASH, RateLimiter, hashPassword, newInviteCode, newToken, tokenHash, verifyPassword } from './auth';
 import { type DB, type UserRow, openDb } from './db';
+import { Metrics } from './metrics';
 import { GameError, finishRaid, me, newPlayerState, raidInputs, renameUser, replay, replayList, settleStaleRaids, startRaid, sync, visit } from './game';
 
 const SESSION_DAYS = 30;
@@ -81,7 +82,7 @@ function getCookie(req: IncomingMessage, name: string): string | null {
   return null;
 }
 
-export function createApp(db: DB, cfg: ServerConfig) {
+export function createApp(db: DB, cfg: ServerConfig, metrics: Metrics = new Metrics()) {
   // Limits are per account where possible: a whole dorm can share one public IP
   // behind campus NAT, so the per-IP budgets are sized for a crowd, not a person.
   const loginFails = new RateLimiter(10, 15 * 60 * 1000); // per IP + name
@@ -166,6 +167,9 @@ export function createApp(db: DB, cfg: ServerConfig) {
     if (path === '/api/health') return { ok: true, loggedIn: sessionUser(req) != null, inviteRequired: !!cfg.requireInvite };
     const uid = sessionUser(req);
     if (!ipRequests.hit(clientIp(req)) || (uid != null && !userRequests.hit(`u${uid}`))) throw new HttpError(429, 'Slow down a little');
+    metrics.request(uid);
+    // Load report (no player names): is one CPU core still enough? See server/metrics.ts.
+    if (method === 'GET' && path === '/api/status') return metrics.report();
 
     let body: Record<string, unknown> = {};
     if (method === 'POST') {
@@ -220,7 +224,10 @@ export function createApp(db: DB, cfg: ServerConfig) {
       raidInputs(db, requireUser(req), body.raidId, body.inputs);
       return { ok: true };
     }
-    if (post('/api/raid/finish')) return finishRaid(db, requireUser(req), now, body.raidId, body.inputs);
+    if (post('/api/raid/finish')) {
+      const id = requireUser(req);
+      return metrics.timeRaidCheck(() => finishRaid(db, id, now, body.raidId, body.inputs));
+    }
     throw new HttpError(404, 'Not found');
   }
 
@@ -249,9 +256,11 @@ export function createApp(db: DB, cfg: ServerConfig) {
   };
 }
 
-export function startServer(cfg: ServerConfig): { close: () => Promise<void>; port: number; ready: Promise<void>; db: DB } {
+export function startServer(cfg: ServerConfig): { close: () => Promise<void>; port: number; ready: Promise<void>; db: DB; metrics: Metrics } {
   const db = openDb(cfg.dbPath);
-  const handler = createApp(db, cfg);
+  const metrics = new Metrics();
+  metrics.start();
+  const handler = createApp(db, cfg, metrics);
   const server = createServer((req, res) => void handler(req, res));
   server.headersTimeout = 15000;
   server.requestTimeout = 30000;
@@ -267,6 +276,7 @@ export function startServer(cfg: ServerConfig): { close: () => Promise<void>; po
   const ready = new Promise<void>((res) => server.listen(cfg.port, cfg.host, () => res()));
   return {
     db,
+    metrics,
     ready,
     get port() {
       const a = server.address();
@@ -275,6 +285,7 @@ export function startServer(cfg: ServerConfig): { close: () => Promise<void>; po
     close: () =>
       new Promise((res) => {
         clearInterval(sweep);
+        metrics.stop();
         server.close(() => {
           db.close();
           res();
