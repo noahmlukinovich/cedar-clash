@@ -1840,15 +1840,7 @@ function raTower(ctx: Ctx, L: number): void {
   const [sx, sy] = P(0, s, h * 0.2 + 6);
   plaque(ctx, sx, sy, 'RA', 9);
   if (L >= 2) {
-    // a hip roof over the lookout
-    ctx.strokeStyle = C.woodDark;
-    ctx.lineWidth = 2.2;
-    for (const [u, v] of [
-      [-0.8, 0.8],
-      [0.8, 0.8],
-      [0.8, -0.8],
-    ]) line(ctx, P(u, v, h + 16), P(u, v, h + 28));
-    pyramid(ctx, -0.95, -0.95, 0.95, 0.95, h + 28, 16, C.roofBlue);
+    drawRaTowerCanopy(ctx, L);
   }
   if (L >= 5) {
     // spotlight
@@ -1868,6 +1860,22 @@ function raTower(ctx: Ctx, L: number): void {
     ctx.lineWidth = 1.5;
     ctx.stroke();
   }
+}
+
+/** Front canopy layer, also drawn after the animated RA so the roof stays above them. */
+export function drawRaTowerCanopy(ctx: Ctx, L: number): void {
+  if (L < 2) return;
+  const h = 42 + L * 5;
+  const tier = buildingThemeTier('ratower', L);
+  const theme = buildingThemes[tier - 1];
+  ctx.save();
+  ctx.strokeStyle = tier === 8 ? '#454b55' : shade(theme.body, -0.35);
+  ctx.lineWidth = 2.2;
+  for (const [u, v] of [[-0.8, 0.8], [0.8, 0.8], [0.8, -0.8]]) {
+    line(ctx, P(u, v, h + 16), P(u, v, h + 36));
+  }
+  pyramid(ctx, -0.95, -0.95, 0.95, 0.95, h + 36, 16, theme.roof);
+  ctx.restore();
 }
 
 function safetyCart(ctx: Ctx, L: number): void {
@@ -2477,43 +2485,66 @@ function gate(ctx: Ctx, L: number, variant: number): void {
 }
 
 function lake(ctx: Ctx): void {
-  const s = 0.98;
-  poly(ctx, [P(-s, -s, 0), P(s, -s, 0), P(s, s, 0), P(-s, s, 0)], '#c9b98a', true, 2);
-  const g = ctx.createLinearGradient(0, -30, 0, 30);
-  g.addColorStop(0, '#5cc4f2');
-  g.addColorStop(1, '#2a86c4');
-  const r = 0.82;
-  poly(ctx, [P(-r, -r, -2), P(r, -r, -2), P(r, r, -2), P(-r, r, -2)], g, true, 1.5);
-  // ripples
-  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-  ctx.lineWidth = 1.5;
-  for (const [u, v, w] of [
-    [-0.3, -0.2, 10],
-    [0.35, 0.25, 7],
-    [0.1, -0.5, 6],
-  ] as [number, number, number][]) {
-    const [x, y] = P(u, v, -2);
+  // Cedar Lake: a landscaped campus shoreline, terrace steps and a central fountain.
+  // All details share the village/menu sprite, so the info icon matches the placed lake.
+  const rim: [number, number][] = [[-56, 0], [-46, -12], [-23, -17], [0, -24], [24, -16], [47, -10], [55, 2], [39, 14], [20, 18], [-5, 25], [-30, 18], [-48, 12]];
+  const shore = (scale: number, fill: string | CanvasGradient, width = 1.6): void => {
     ctx.beginPath();
-    ctx.ellipse(x, y, w, w / 2, 0, 0, Math.PI);
-    ctx.stroke();
+    for (let i = 0; i < rim.length; i++) {
+      const p0 = rim[(i + rim.length - 1) % rim.length], p1 = rim[i], p2 = rim[(i + 1) % rim.length], p3 = rim[(i + 2) % rim.length];
+      if (!i) ctx.moveTo(p1[0] * scale, p1[1] * scale);
+      ctx.bezierCurveTo((p1[0] + (p2[0] - p0[0]) / 6) * scale, (p1[1] + (p2[1] - p0[1]) / 6) * scale, (p2[0] - (p3[0] - p1[0]) / 6) * scale, (p2[1] - (p3[1] - p1[1]) / 6) * scale, p2[0] * scale, p2[1] * scale);
+    }
+    ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = width; ctx.stroke();
+  };
+  ctx.save();
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  shore(1, '#749a47', 2.2);
+  shore(0.90, '#aab3aa', 1.1);
+  const water = ctx.createLinearGradient(0, -22, 0, 24);
+  water.addColorStop(0, '#348c9f'); water.addColorStop(1, '#3e9eaf');
+  shore(0.82, water, 1.1);
+  // Short radial mortar joints keep the shoreline readable without noisy texture.
+  ctx.strokeStyle = '#505b60'; ctx.lineWidth = 0.65;
+  for (let i = 0; i < rim.length; i++) {
+    const a = rim[i], b = rim[(i + 1) % rim.length];
+    for (const t of [0, 0.5]) {
+      const x = a[0] + (b[0] - a[0]) * t, y = a[1] + (b[1] - a[1]) * t;
+      ctx.beginPath(); ctx.moveTo(x * 0.83, y * 0.83); ctx.lineTo(x * 0.90, y * 0.90); ctx.stroke();
+    }
   }
-  // lily pad
-  const [lx, ly] = P(0.4, -0.3, -1);
-  ctx.fillStyle = '#4caf50';
-  ctx.beginPath();
-  ctx.ellipse(lx, ly, 6, 3, 0, 0.3, Math.PI * 2);
-  ctx.lineTo(lx, ly);
-  ctx.fill();
-  // tiny bridge
-  box(ctx, -0.95, -0.12, 0.95, 0.12, 4, 7, C.wood, { top: '#c99a62' });
-  ctx.strokeStyle = C.woodDark;
-  ctx.lineWidth = 1.5;
-  const a = P(-0.95, 0.12, 13);
-  const b = P(0.95, 0.12, 13);
-  ctx.beginPath();
-  ctx.moveTo(a[0], a[1]);
-  ctx.lineTo(b[0], b[1]);
-  ctx.stroke();
+  // Three pale terrace steps on the near-left bank.
+  for (let i = 2; i >= 0; i--) {
+    const y = i * 2.4;
+    ctx.beginPath(); ctx.moveTo(-48, 6 + y);
+    ctx.bezierCurveTo(-43, 12 + y, -34, 17 + y, -22, 18 + y);
+    ctx.lineTo(-20, 15 + y);
+    ctx.bezierCurveTo(-31, 14 + y, -40, 10 + y, -45, 4 + y);
+    ctx.closePath(); ctx.fillStyle = i % 2 ? '#aeb3b5' : '#d4d7d4'; ctx.fill();
+    ctx.strokeStyle = OUT; ctx.lineWidth = 1.1; ctx.stroke();
+  }
+  // A small landscaped tree, kept below the fountain tip.
+  ctx.fillStyle = '#82623d'; ctx.strokeStyle = OUT; ctx.lineWidth = 1.2;
+  ctx.fillRect(-30, -27, 3, 9); ctx.strokeRect(-30, -27, 3, 9);
+  ctx.beginPath(); ctx.moveTo(-37, -27); ctx.bezierCurveTo(-42, -33, -35, -38, -31, -36);
+  ctx.bezierCurveTo(-28, -42, -21, -37, -22, -34); ctx.bezierCurveTo(-15, -33, -20, -25, -25, -26);
+  ctx.bezierCurveTo(-28, -22, -34, -24, -37, -27); ctx.closePath();
+  ctx.fillStyle = '#739b3e'; ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#96b85a'; ctx.beginPath(); ctx.ellipse(-30, -32, 5, 3, -0.2, 0, Math.PI * 2); ctx.fill();
+  // Fountain rings and the central jet; restrained cyan edges work at menu and map scales.
+  ctx.strokeStyle = '#bce9ea'; ctx.lineWidth = 1.1;
+  for (const [x, y, w] of [[4, 4, 8], [-15, 2, 4], [23, 2, 4]]) {
+    ctx.beginPath(); ctx.ellipse(x, y, w, w * 0.28, 0, 0.15, Math.PI * 1.9); ctx.stroke();
+  }
+  ctx.strokeStyle = '#effeff'; ctx.lineWidth = 1.2;
+  for (const end of [-15, 23]) {
+    ctx.beginPath(); ctx.moveTo(4, 3); ctx.quadraticCurveTo(end, -21, end, 1); ctx.stroke();
+  }
+  ctx.beginPath(); ctx.moveTo(2.5, 3); ctx.bezierCurveTo(2, -9, 2, -31, 4, -35);
+  ctx.bezierCurveTo(6, -31, 6, -9, 5.5, 3); ctx.closePath();
+  ctx.fillStyle = '#d7f5f4'; ctx.fill(); ctx.strokeStyle = '#368394'; ctx.lineWidth = 0.8; ctx.stroke();
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(4, 1); ctx.lineTo(4, -29); ctx.stroke();
+  ctx.restore();
 }
 
 // Approved wall/DMC palette. Natural effects retain their original colors.

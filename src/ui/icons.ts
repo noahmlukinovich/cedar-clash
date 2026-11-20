@@ -40,7 +40,34 @@ export const ICONS: Record<string, string> = {
   chevronDown: `<svg viewBox="0 0 32 32"><path d="m8 12 8 8 8-8" fill="none" stroke="#1e1b2b" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="m8 12 8 8 8-8" fill="none" stroke="#fff2bd" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   tuition: goldBarsSvg(),
   coffee: `<svg viewBox="0 0 32 32"><path d="M16 3C18 8 25.5 14 25.5 19.5A9.5 9.5 0 0 1 6.5 19.5C6.5 14 14 8 16 3Z" fill="#7a4520" stroke="#1e1b2b" stroke-width="2.5" stroke-linejoin="round"/><path d="M10.5 20a5.5 5.5 0 0 0 4 5" fill="none" stroke="#c98a55" stroke-width="2" stroke-linecap="round"/></svg>`,
-  chapel: `<svg viewBox="0 0 32 32"><path d="M6 28V14l10-9 10 9v14z" fill="#9b6dd6" stroke="#1e1b2b" stroke-width="2.5" stroke-linejoin="round"/><rect x="13" y="19" width="6" height="9" fill="#4a2f6b" stroke="#1e1b2b" stroke-width="1.5"/><path d="M16 7v8M13 10h6" stroke="#f5c32c" stroke-width="2.5"/></svg>`,
+  chapel: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><defs>
+<linearGradient id="chapel-icon-roof" x2=".4" y2="1"><stop stop-color="#4c9cde"/><stop offset=".5" stop-color="#265d9c"/><stop offset="1" stop-color="#102b52"/></linearGradient>
+<linearGradient id="chapel-icon-stone" x2="1" y2=".7"><stop stop-color="#f7e6c3"/><stop offset=".54" stop-color="#d9c6a0"/><stop offset="1" stop-color="#a08c6c"/></linearGradient>
+<linearGradient id="chapel-icon-front" x2="1" y2="1"><stop stop-color="#fff5dd"/><stop offset=".55" stop-color="#e9d8b5"/><stop offset="1" stop-color="#b3a389"/></linearGradient>
+<linearGradient id="chapel-icon-door"><stop stop-color="#da8007"/><stop offset=".26" stop-color="#ffb900"/><stop offset=".55" stop-color="#ffed4b"/><stop offset="1" stop-color="#f1a000"/></linearGradient>
+<linearGradient id="chapel-icon-gold"><stop stop-color="#fff7a4"/><stop offset=".22" stop-color="#ffe75c"/><stop offset=".5" stop-color="#ffc20c"/><stop offset="1" stop-color="#d97b00"/></linearGradient>
+</defs>
+<g stroke="#091329" stroke-width="7" stroke-linejoin="round" stroke-linecap="round">
+<path d="M30 126 43 90 75 69 106 62 127 47 153 64 183 70 216 91 229 128 221 145 34 145Z" fill="url(#chapel-icon-roof)"/>
+<path d="M32 125 57 93 104 69 89 94 49 123Z" fill="#3f86bc" stroke-width="2"/><path d="m165 72 41 23 20 33-34-9-21-24Z" fill="#2d6ea9" stroke-width="2"/>
+<path d="M40 133h173v89H40Z" fill="url(#chapel-icon-stone)"/>
+<path d="M42 149h35m-35 25h35m-35 25h35m100-50h35m-35 25h35m-35 25h35" stroke="#f6e8ce" stroke-width="3"/>
+<path d="M59 137v83m136-83v83" stroke="#9c8f78" stroke-width="3"/>
+<path d="M69 222V119l59-64 59 64v103h-28v-72l-31-29-31 29v72Z" fill="url(#chapel-icon-front)"/>
+<path d="M69 121 128 58l59 63" fill="none" stroke="#fff6db" stroke-width="4"/>
+<path d="M97 223v-73l31-29 31 29v73Z" fill="url(#chapel-icon-door)" stroke-width="5"/>
+<path d="M103 153v63" stroke="#ef8f00" stroke-width="3"/>
+<path d="M122 137h12v29h20v12h-20v38h-12v-38h-20v-12h20Z" fill="#fff05a" stroke="#e99a05" stroke-width="2"/>
+<path d="M125 138h5v76h-5Z" fill="#fff9ae" stroke="none"/><path d="M104 167h48v4h-48Z" fill="#fff4a0" stroke="none"/>
+<path d="M30 222h196v12H30Z" fill="#646866"/>
+<path d="M24 235h208v12H24Z" fill="#3b444c"/>
+<path d="M76 222h104v9H76Z" fill="#bbab8c" stroke-width="2"/>
+<path d="M70 232h116v8H70Z" fill="#d4c39f" stroke-width="2"/>
+<path d="M54 223v10m145-10v10m-150 3v9m154-9v9" stroke="#87918c" stroke-width="2"/>
+<path d="M114 78V48l-12-7 17-9 9-23 9 23 17 9-12 7v30l-14-12Z" fill="url(#chapel-icon-gold)"/>
+<path d="m128 17-4 21-15 6 16 2 3 19 3-20 15-4-14-5Z" fill="#fff8bc" stroke="none"/>
+<path d="m131 48 8 3v20l-8-9Z" fill="#ed8a00" stroke="none"/>
+</g></svg>`,
   trophy: `<svg viewBox="0 0 32 32"><path d="M9 5h14v6a7 7 0 0 1-14 0z" fill="#f5c32c" stroke="#1e1b2b" stroke-width="2.5"/><path d="M9 8H4c0 5 3 7 6 7M23 8h5c0 5-3 7-6 7" fill="none" stroke="#1e1b2b" stroke-width="2.5"/><rect x="13" y="18" width="6" height="5" fill="#c9971a" stroke="#1e1b2b" stroke-width="2"/><rect x="9" y="23" width="14" height="5" rx="1.5" fill="#1c3d7a" stroke="#1e1b2b" stroke-width="2"/></svg>`,
   builder: `<svg viewBox="0 0 32 32"><path d="M6 18a10 10 0 0 1 20 0z" fill="#f5c32c" stroke="#1e1b2b" stroke-width="2.5"/><rect x="3" y="17" width="26" height="5" rx="2" fill="#f5c32c" stroke="#1e1b2b" stroke-width="2.5"/><path d="M16 8v6" stroke="#1e1b2b" stroke-width="2.5"/></svg>`,
   star: `<svg viewBox="0 0 32 32"><path d="M16 3l4 8.5 9 1.2-6.6 6.3 1.7 9L16 23.6 7.9 28l1.7-9L3 12.7l9-1.2z" fill="#f5c32c" stroke="#1e1b2b" stroke-width="2.5" stroke-linejoin="round"/></svg>`,

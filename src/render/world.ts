@@ -3,7 +3,7 @@ import { GRID } from '../config/balance';
 import type { BuildingType } from '../config/types';
 import { hash2 } from '../core/rng';
 import { toWorld } from '../core/iso';
-import { CATAPULT_AXLE_Z, STINGER_TIP_Z, buildingThemeContext, buildingThemeTier, getBuildingSprite, type Sprite } from './buildingSprites';
+import { CATAPULT_AXLE_Z, STINGER_TIP_Z, buildingThemeContext, buildingThemeTier, drawRaTowerCanopy, getBuildingSprite, type Sprite } from './buildingSprites';
 import { C, OUT, P, box, poly, roundRect, shade } from './draw';
 import { drawBuilder } from './unitSprites';
 
@@ -353,8 +353,15 @@ function drawDynamic(ctx: Ctx, a: BuildingDrawArgs, size: number): void {
     }
     case 'ratower': {
       const h = 42 + L * 5 + 6;
-      const [x, y] = P(0, 0, h);
-      drawMiniPerson(ctx, x, y, buildingThemeTier(a.type, L) === 8 ? '#262c35' : C.navy, a.aim ?? 0, a.t, a.firing ?? 0, 'clipboard', a.stunned);
+      const covered = L >= 2;
+      const [x, y] = P(covered ? 0.25 : 0, covered ? 0.65 : 0, h);
+      ctx.save();
+      ctx.translate(x, y);
+      if (covered) ctx.scale(0.68, 0.68);
+      drawMiniPerson(ctx, 0, 0, buildingThemeTier(a.type, L) === 8 ? '#262c35' : C.navy, a.aim ?? 0, a.t, a.firing ?? 0, 'clipboard', a.stunned);
+      ctx.restore();
+      // The cached tower is behind dynamic actors. Repaint its canopy in front of the RA.
+      if (covered) drawRaTowerCanopy(ctx, L);
       break;
     }
     case 'safetycart': {

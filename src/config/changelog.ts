@@ -10,6 +10,12 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 48,
+    date: 'Nov 19, 2026',
+    title: 'Campus artwork refresh',
+    items: ['Cedar Lake now has a fountain, a curved stone shoreline and lakeside terrace steps inspired by campus.', 'Chapel Credits have a new chapel icon, a gold-trimmed purple resource bar and matching blue-and-gold Chapel controls.', 'The RA now stands beneath the tower canopy. The existing RA sign stays the same.'],
+  },
+  {
     v: 47,
     date: 'Nov 19, 2026',
     title: 'A tidier campus toolbar',
