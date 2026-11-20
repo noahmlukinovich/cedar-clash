@@ -10,10 +10,16 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
-    v: 48,
-    date: 'Nov 19, 2026',
+    v: 49,
+    date: 'Nov 20, 2026',
     title: 'Your favorite armies, one tap away',
     items: ['The Army menu has a Quick Train tab. Create three named troop-and-spell presets, edit their quantities, or copy your current army. Train a full preset with one tap when you have enough room and resources.'],
+  },
+  {
+    v: 48,
+    date: 'Nov 19, 2026',
+    title: 'Campus artwork refresh',
+    items: ['Cedar Lake now has a fountain, a curved stone shoreline and lakeside terrace steps inspired by campus.', 'Chapel Credits have a new chapel icon, a gold-trimmed purple resource bar and matching blue-and-gold Chapel controls.', 'The RA now stands beneath the tower canopy. The existing RA sign stays the same.'],
   },
   {
     v: 47,

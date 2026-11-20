@@ -99,7 +99,7 @@ export function fmt(n: number): string {
 const RES_COLORS: Record<ResourceId, string> = {
   tuition: 'linear-gradient(#ffe066,#e3a817)',
   coffee: 'linear-gradient(#b0703f,#6b3f22)',
-  chapel: 'linear-gradient(#c49cf5,#7b3fa0)',
+  chapel: 'repeating-linear-gradient(125deg,transparent 0 12px,rgba(255,255,255,.12) 12px 23px),linear-gradient(#bd61f1,#7523bb)',
 };
 
 export function costHtml(res: ResourceId, amt: number, ok = true): string {
@@ -937,6 +937,7 @@ export class UI {
     const stack = el('div', 'res-stack');
     for (const r of ['tuition', 'coffee', 'chapel'] as ResourceId[]) {
       const bar = el('div', 'resbar');
+      bar.dataset.resource = r;
       bar.title = resName(r);
       const track = el('div', 'track');
       const fill = el('div', 'fill');
@@ -1040,7 +1041,7 @@ export class UI {
       const log = mk('', 'Raid log & replays', () => void this.openReplays(), 'blue', shortcuts);
       log.innerHTML = '<span style="font-size:26px">🎬</span>';
     }
-    mk('chapel', 'Chapel', () => this.openChapel(), 'purple', shortcuts);
+    mk('chapel', 'Chapel', () => this.openChapel(), 'blue chapel-control', shortcuts);
     const lay = mk('', 'Base layouts', () => this.openLayouts(), 'blue', shortcuts);
     lay.innerHTML = '<span style="font-size:26px">🗺️</span>';
     const snd = mk(isMuted() ? 'mute' : 'sound', 'Toggle sound', () => {
@@ -1284,7 +1285,7 @@ export class UI {
         this.renderSelection(true);
       });
     }
-    if (b.type === 'dmc') btn('Chapel', icon('chapel', 34), 'purple', () => this.openChapel());
+    if (b.type === 'dmc') btn('Chapel', icon('chapel', 34), 'blue chapel-control', () => this.openChapel());
     if (def.removable) btn('Remove', `<span style="font-size:28px">🗑️</span>`, 'red', () => vs.removeSelected());
     p.appendChild(row);
   }

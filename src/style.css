@@ -216,6 +216,16 @@ kbd,
   border-radius: 8px 0 0 8px;
   transition: width 0.3s;
 }
+.resbar[data-resource='chapel'] .track {
+  border-color: #f5c32c;
+  box-shadow: 0 0 0 2px var(--out);
+  background: linear-gradient(#252c47, #10182c);
+}
+.btn.chapel-control {
+  border-color: #f5c32c;
+  background: linear-gradient(#2165aa, #0c2548);
+  box-shadow: inset 0 -4px 0 rgba(0,0,0,.2), inset 0 2px 0 rgba(255,255,255,.25), 0 0 0 2px var(--out), 0 4px 0 var(--out);
+}
 .resbar .ic {
   position: absolute;
   left: 0;
