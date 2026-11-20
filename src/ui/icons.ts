@@ -150,12 +150,15 @@ function button(type: CampusControl): string{
  return button(kind);
 }
 
+/** Shared by the League Ladder rows and the campus trophy panel. */
+export const LEAGUE_ROW_COLORS = [['#dce8f8','#8da2bc'],['#f0c98c','#b87b3c'],['#e5edf6','#91a2ba'],['#ffe83d','#d5a306'],['#32ceff','#0589cf'],['#b153ff','#4a15ad'],['#ff6262','#bd252e'],['#ffe85b','#e3a407']] as const;
+
 /** Original vector League Ladder artwork. The preview and live modal use this same SVG. */
 export function leagueLadderArt(data: { trophies: number; best: number; currentMin: number; leagues: { name: string; min: number }[]; matchmaking: string }): string {
   const xml = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
   const cup = `<g stroke="#08152e" stroke-width="3" stroke-linejoin="round"><path d="M12 8H3v9q0 12 13 12M36 8h9v9q0 12-13 12" fill="#f6b809"/><path d="M10 5h28v15q0 15-14 15T10 20Z" fill="url(#ladder-gold)"/><path d="M22 35h5v8h9v5H13v-5h9Z" fill="#ffcd26"/><path d="M15 9v11q0 7 5 9" fill="none" stroke="#fff6a0" stroke-width="2.5"/></g>`;
   const laurel = `<g fill="#f5d426" stroke="#17233b" stroke-width="1"><path d="M14 58Q-1 47 3 20" fill="none" stroke="#f5d426" stroke-width="2"/>${[0,1,2,3,4].map(i=>`<ellipse cx="${6+i*1.4}" cy="${22+i*7}" rx="3.3" ry="6" transform="rotate(${-35-i*10} ${6+i*1.4} ${22+i*7})"/>`).join('')}</g>`;
-  const palettes = [['#dce8f8','#8da2bc'],['#f0c98c','#b87b3c'],['#e5edf6','#91a2ba'],['#ffe83d','#d5a306'],['#32ceff','#0589cf'],['#b153ff','#4a15ad'],['#ff6262','#bd252e'],['#ffe85b','#e3a407']];
+  const palettes = LEAGUE_ROW_COLORS;
   const wrap = (s: string, length: number): string[] => {
     const lines: string[] = []; let line = '';
     for (const w of s.split(/\s+/)) { if (line && `${line} ${w}`.length > length) { lines.push(line); line = w; } else line += `${line ? ' ' : ''}${w}`; }
