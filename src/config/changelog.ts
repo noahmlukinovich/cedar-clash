@@ -10,6 +10,12 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 50,
+    date: 'Nov 20, 2026',
+    title: 'Daily updates and a new League Ladder',
+    items: ['What’s New is grouped by day. Read More opens all updates for that date; See Less collapses them again.', 'The League Ladder has new illustrated badges and glossy league colors, with your current league highlighted in gold.', 'Army Training and Campus Shop now use the same artwork as their main campus buttons.'],
+  },
+  {
     v: 49,
     date: 'Nov 20, 2026',
     title: 'Your favorite armies, one tap away',

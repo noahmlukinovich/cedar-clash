@@ -149,3 +149,48 @@ function button(type: CampusControl): string{
 }
  return button(kind);
 }
+
+/** Original vector League Ladder artwork. The preview and live modal use this same SVG. */
+export function leagueLadderArt(data: { trophies: number; best: number; currentMin: number; leagues: { name: string; min: number }[]; matchmaking: string }): string {
+  const xml = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+  const cup = `<g stroke="#08152e" stroke-width="3" stroke-linejoin="round"><path d="M12 8H3v9q0 12 13 12M36 8h9v9q0 12-13 12" fill="#f6b809"/><path d="M10 5h28v15q0 15-14 15T10 20Z" fill="url(#ladder-gold)"/><path d="M22 35h5v8h9v5H13v-5h9Z" fill="#ffcd26"/><path d="M15 9v11q0 7 5 9" fill="none" stroke="#fff6a0" stroke-width="2.5"/></g>`;
+  const laurel = `<g fill="#f5d426" stroke="#17233b" stroke-width="1"><path d="M14 58Q-1 47 3 20" fill="none" stroke="#f5d426" stroke-width="2"/>${[0,1,2,3,4].map(i=>`<ellipse cx="${6+i*1.4}" cy="${22+i*7}" rx="3.3" ry="6" transform="rotate(${-35-i*10} ${6+i*1.4} ${22+i*7})"/>`).join('')}</g>`;
+  const badge = (i: number): string => {
+    const art = [
+      `<g transform="rotate(-10 38 35)"><rect x="6" y="17" width="65" height="43" rx="5" fill="#f7fbff"/><rect x="30" y="5" width="15" height="19" rx="5" fill="#176baf"/><path d="M36 9v8" stroke="#78c8ef"/><rect x="14" y="28" width="20" height="24" fill="#9adcf1" stroke="none"/><circle cx="24" cy="35" r="5" fill="#efb63f"/><path d="M16 49q1-15 16 0" fill="#133e67"/><path d="M41 30h23m-23 9h23m-23 9h16" stroke="#2494c8" stroke-width="3"/></g>`,
+      `<path d="M7 31h62v32H7Z" fill="#efb953"/><path d="M3 31 38 12l36 19Z" fill="#20568a"/><path d="M25 63V30h27v33Z" fill="#f3d48c"/><path d="M32 63V44q7-10 14 0v19" fill="#3caada"/><path d="M12 40h7v13h-7m44-13h7v13h-7" fill="#52a7cd"/><path d="M38 13V0l19 4-19 7" fill="#f54640"/><circle cx="38" cy="31" r="4" fill="#5cb5d9"/>`,
+      `<circle cx="38" cy="35" r="29" fill="url(#ladder-gold)"/><circle cx="38" cy="35" r="23" fill="#f8fbff"/><path d="M38 13v6m0 32v6M16 35h6m32 0h6" stroke="#778ca6" stroke-width="2"/><path d="m24 49 10-18 18-10-10 18Z" fill="#ec4a4e"/><path d="m24 49 10-18 8 8Z" fill="#2a94bc"/><circle cx="38" cy="35" r="3" fill="#f1c940"/>`,
+      `<path d="M57 31h9q15 0 10 16-3 8-18 6" fill="#f9fcff"/><path d="M13 24h45v31q0 14-23 14T13 55Z" fill="#fafcff"/><ellipse cx="35" cy="25" rx="22" ry="5" fill="#7d4c22"/><path d="M28 15Q17 8 29 1m12 14Q30 9 42 0" fill="none" stroke="#fff8de" stroke-width="3"/><ellipse cx="35" cy="46" rx="8" ry="12" fill="#fbd52b"/><path d="M28 42h14m-14 7h14" stroke="#14223c" stroke-width="2"/><ellipse cx="24" cy="40" rx="6" ry="4" fill="#d8f3ff"/><ellipse cx="46" cy="40" rx="6" ry="4" fill="#d8f3ff"/>`,
+      `<path d="m7 46 45-8 17 10-44 13L7 55Z" fill="#d83d33"/><path d="m12 46 40-5 11 7-38 9-13-4Z" fill="#fff0bd" stroke-width="2"/><path d="m9 29 44-8 17 10-44 13L9 39Z" fill="#e8b83a"/><path d="m13 30 39-5 12 6-38 9-13-4Z" fill="#fff3c9" stroke-width="2"/><path d="M7 15 52 6l18 10-44 14L7 25Z" fill="#168dc3"/><path d="M13 24 52 13l12 4-38 9Z" fill="#f8efcd" stroke-width="2"/>`,
+      `<path d="M23 40 10 68l19-5 9 8 8-30m1-1 15 29-19-6-6 8-8-31" fill="#a9c3d9"/><circle cx="37" cy="28" r="27" fill="url(#ladder-gold)"/><circle cx="37" cy="28" r="20" fill="#f4aa0c" stroke="#fff3a6" stroke-width="2"/><path d="m37 10 5 12 13 1-10 9 3 13-11-7-11 7 3-13-10-9 13-1Z" fill="#fff5a0" stroke="#db8d05" stroke-width="1.5"/>`,
+      `<path d="m4 24 34-16 35 16-35 17Z" fill="#225d99"/><path d="M15 32v21q23 14 46 0V32L38 43Z" fill="#123c6b"/><path d="m37 25 26 6v26" fill="none" stroke="#f7cf22" stroke-width="3"/><path d="m59 55-2 15h12l-3-15Z" fill="#ffe047"/><circle cx="37" cy="25" r="2" fill="#ffe047"/>`,
+      `<path d="M8 58h58v9H8Z" fill="#9b5b24"/><path d="M15 52h44v7H15Z" fill="#e3a342"/><g transform="rotate(-43 39 30)"><path d="M35 13h9v42h-9Z" fill="#c28227"/><rect x="17" y="6" width="45" height="19" rx="4" fill="url(#ladder-gold)"/><path d="M20 7v17m37-17v17" stroke="#fff0a2" stroke-width="3"/></g>`,
+    ][i];
+    return `<g stroke="#08152e" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">${art}</g>`;
+  };
+  const palettes = [['#dce8f8','#8da2bc'],['#f0c98c','#b87b3c'],['#e5edf6','#91a2ba'],['#ffe83d','#d5a306'],['#32ceff','#0589cf'],['#b153ff','#4a15ad'],['#ff6262','#bd252e'],['#ffe85b','#e3a407']];
+  const wrap = (s: string, length: number): string[] => {
+    const lines: string[] = []; let line = '';
+    for (const w of s.split(/\s+/)) { if (line && `${line} ${w}`.length > length) { lines.push(line); line = w; } else line += `${line ? ' ' : ''}${w}`; }
+    if (line) lines.push(line); return lines;
+  };
+  const rows = [...data.leagues].reverse().map((l, order) => {
+    const i = data.leagues.length - 1 - order, y = 172 + order * 65, me = l.min === data.currentMin;
+    return `<g transform="translate(24 ${y})" aria-label="${xml(l.name)}, ${l.min} trophies${me ? ', current league' : ''}"><rect x="0" y="0" width="712" height="57" rx="17" fill="url(#ladder-row-${i})" stroke="#08152e" stroke-width="3"/>${me ? '<rect x="-4" y="-4" width="720" height="65" rx="21" fill="none" stroke="#fff02c" stroke-width="5"/>' : ''}<rect x="4" y="4" width="704" height="49" rx="14" fill="none" stroke="#fff5ce" opacity=".55" stroke-width="2"/><path d="M430 2h65l-40 53h-65Z" fill="#ffffff" opacity=".09"/><g transform="translate(17 -6) scale(.93)">${i >= 6 ? laurel : ''}<g transform="translate(${i>=6?12:5} 0)">${badge(i)}</g></g><text x="153" y="38" fill="#fff" stroke="#08152e" stroke-width="4.5" paint-order="stroke fill" font-size="${l.name.length > 19 ? 26 : 29}" font-weight="900">${xml(l.name)}</text><g transform="translate(561 11) scale(.65)">${cup}</g><text x="694" y="38" text-anchor="end" fill="${i===5?'#fff':'#08152e'}" font-size="27" font-weight="900">${l.min}+</text></g>`;
+  }).join('');
+  const intro = `Trophies: ${data.trophies} (best ${data.best}). Win raids to climb; lose them and slide back toward “Prospective Student.”`;
+  const lines = wrap(data.matchmaking, 78), height = 723 + lines.length * 20 + 25;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" class="ladder-art" viewBox="0 0 760 ${height}" role="group" aria-label="League Ladder" font-family="DejaVu Sans,Arial,sans-serif"><defs><linearGradient id="ladder-header" x2="0" y2="1"><stop stop-color="#216bd1"/><stop offset="1" stop-color="#0f2c69"/></linearGradient><linearGradient id="ladder-gold" x2="1" y2="1"><stop stop-color="#fff579"/><stop offset=".5" stop-color="#ffd21a"/><stop offset="1" stop-color="#df8f00"/></linearGradient>${palettes.map((p,i)=>`<linearGradient id="ladder-row-${i}" x2="0" y2="1"><stop stop-color="${p[0]}"/><stop offset="1" stop-color="${p[1]}"/></linearGradient>`).join('')}</defs><rect x="4" y="7" width="752" height="${height-11}" rx="28" fill="#07132d"/><rect x="5" y="3" width="750" height="${height-14}" rx="28" fill="#fff7e6" stroke="#07132d" stroke-width="5"/><path d="M33 5h694q26 0 26 27v55H7V32Q7 5 33 5Z" fill="url(#ladder-header)"/><path d="M24 18Q31 9 45 10h670" fill="none" stroke="#81bdff" stroke-width="3" opacity=".8"/><g transform="translate(28 7) scale(1.02)">${laurel}<g transform="translate(17 9)">${cup}</g><g transform="translate(84 0) scale(-1 1)">${laurel}</g></g><text x="125" y="60" fill="#fff" stroke="#07132d" stroke-width="6" paint-order="stroke fill" font-size="43" font-weight="900">League Ladder</text><g transform="translate(688 19)" stroke="#08152e" stroke-width="3"><rect width="49" height="50" rx="13" fill="#bd2b21"/><rect x="2" y="1" width="45" height="43" rx="11" fill="#ff6754"/><path d="m15 12 9 9 9-9 6 6-9 9 9 9-6 6-9-9-9 9-6-6 9-9-9-9Z" fill="#fff"/></g>${wrap(intro,64).map((line,i)=>`<text x="28" y="${113+i*22}" fill="#101a34" font-size="18" font-weight="${i===0?'700':'400'}">${xml(line)}</text>`).join('')}${rows}${lines.map((line,i)=>`<text x="28" y="${723+i*20}" font-size="16" font-style="italic" fill="#14213d">${xml(line)}</text>`).join('')}</svg>`;
+  // Two text layers keep the white lettering above its dark outline in SVG renderers.
+  return svg.replace(/<text([^>]*paint-order="stroke fill"[^>]*)>([^<]*)<\/text>/g, (_all, attrs: string, label: string) => {
+    const clean = attrs.replace(/ paint-order="[^"]*"/g, '');
+    const foreground = clean.replace(/ stroke="[^"]*"/g, '').replace(/ stroke-width="[^"]*"/g, '');
+    return `<text${clean} aria-hidden="true">${label}</text><text${foreground}${label === 'League Ladder' ? ' role="heading" aria-level="2"' : ''}>${label}</text>`;
+  });
+
+}
+
+/** The visible close control stays pinned while a shorter screen scrolls the ladder. */
+export function leagueCloseArt(): string {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 49 50" aria-hidden="true"><g stroke="#08152e" stroke-width="3"><rect width="49" height="50" rx="13" fill="#bd2b21"/><rect x="2" y="1" width="45" height="43" rx="11" fill="#ff6754"/><path d="m15 12 9 9 9-9 6 6-9 9 9 9-6 6-9-9-9 9-6-6 9-9-9-9Z" fill="#fff"/></g></svg>`;
+}
