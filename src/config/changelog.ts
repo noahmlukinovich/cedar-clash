@@ -10,6 +10,12 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 53,
+    date: 'Nov 20, 2026',
+    title: 'A more polished League Ladder',
+    items: ['The League Ladder has a more compact layout, shaded illustrated badges, curved gold laurels and refined lettering.', 'The campus trophy panel and player profile use the same updated league badges. Your trophies, best score and current-league highlight still update from your campus.'],
+  },
+  {
     v: 52,
     date: 'Nov 20, 2026',
     title: 'Wear your league colors',
