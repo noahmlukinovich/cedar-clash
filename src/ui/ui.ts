@@ -62,7 +62,7 @@ import type { Game } from '../main';
 import { NAME_RULES, type VisitBuilding, type VisitResponse, validCampusName } from '../net/protocol';
 import { fmtTime, type VillageScene } from '../village/villageScene';
 import { namePlatesOn, setNamePlates } from '../render/world';
-import { ICONS, campusControlArt, icon, leagueLadderArt, leagueCloseArt, leagueBadgeArt } from './icons';
+import { ICONS, LEAGUE_ROW_COLORS, campusControlArt, icon, leagueLadderArt, leagueCloseArt, leagueBadgeArt } from './icons';
 import { armyControlPortraits, buildingThumb, spellThumb, unitThumb } from './thumbs';
 
 export function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', html = ''): HTMLElementTagNameMap[K] {
@@ -2253,7 +2253,11 @@ export class UI {
     this.profileCard.innerHTML = '';
     this.profileCard.append(buildingThumb('dmc', level, 58, 58), el('span', 'player-hud-name', esc(s.playerName)));
     this.profileCard.title = `${s.playerName} · DMC ${level} · View profile`;
-    this.trophyEl.innerHTML = `<span class="hud-league-icon">${leagueBadgeArt(LEAGUES.indexOf(league))}</span><span><span class="num">${s.trophies}</span><span class="league">${league.name}</span></span>`;
+    const leagueIndex = LEAGUES.indexOf(league);
+    const [light, dark] = LEAGUE_ROW_COLORS[leagueIndex];
+    this.trophyEl.style.background = `linear-gradient(125deg,transparent 55%,#ffffff17 55%,#ffffff17 66%,transparent 66%),linear-gradient(${light},${dark})`;
+    this.trophyEl.style.color = leagueIndex === 5 || leagueIndex === 6 ? '#fff' : '#08152e';
+    this.trophyEl.innerHTML = `<span class="hud-league-icon">${leagueBadgeArt(leagueIndex)}</span><span><span class="num">${s.trophies}</span><span class="league">${league.name}</span></span>`;
   }
 
   openProfile(): void {

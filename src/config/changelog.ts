@@ -10,6 +10,12 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 52,
+    date: 'Nov 20, 2026',
+    title: 'Wear your league colors',
+    items: ['The entire campus trophy panel now matches your current League Ladder row, including the badge, trophy count and league name. Its colors update automatically as you climb or drop leagues.'],
+  },
+  {
     v: 51,
     date: 'Nov 20, 2026',
     title: 'Your campus profile',
