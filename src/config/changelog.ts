@@ -10,6 +10,12 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 49,
+    date: 'Nov 20, 2026',
+    title: 'Your favorite armies, one tap away',
+    items: ['The Army menu has a Quick Train tab. Create three named troop-and-spell presets, edit their quantities, or copy your current army. Train a full preset with one tap when you have enough room and resources.'],
+  },
+  {
     v: 48,
     date: 'Nov 19, 2026',
     title: 'Campus artwork refresh',

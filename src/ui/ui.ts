@@ -4,7 +4,7 @@ import { CHANGELOG, LATEST_CHANGE } from '../config/changelog';
 import { ACHIEVEMENTS, EVENT_INFO, LEAGUES, leagueFor, CHAPEL_ATTEND_LINES, CHUCKS_LINE } from '../config/humor';
 import { HEROES, TROOPS, TROOP_ORDER } from '../config/troops';
 import { SPELLS, SPELL_ORDER } from '../config/spells';
-import type { BuildingType, HeroType, ResourceId, TroopType } from '../config/types';
+import type { BuildingType, HeroType, ResourceId, SpellType, TroopType } from '../config/types';
 import { isMuted, setMuted, sfx } from '../core/audio';
 import { bus } from '../core/bus';
 import { hapticsOn, hapticsSupported, setHaptics } from '../core/haptics';
@@ -54,7 +54,8 @@ import { OBJECTIVES, dailyFor, dailyProgress, dayKey, msUntilNextDaily } from '.
 import { expectedDmc } from '../raid/matchmaking';
 import { MAX_NAME_LEN, cleanName, renamePlayer } from '../game/state';
 import { setPrefersOffline } from '../net/login';
-import type { BuildingInst } from '../game/state';
+import type { BuildingInst, SavedArmy } from '../game/state';
+import { SAVED_ARMY_SLOTS, readSavedArmy, savedArmyCompositionCheck, savedArmyTotals, savedArmyTrainCheck } from '../game/savedArmies';
 import { type ExtraRow, type UpgradeRow, listUpgrades } from '../game/upgrades';
 import { toWorld } from '../core/iso';
 import type { Game } from '../main';
@@ -1460,7 +1461,15 @@ export class UI {
 
   // ---------- Army ----------
   openArmy(): void {
-    const m = this.modal('Army Training', { headIcon: icon('army', 36) });
+    let tab = 'train';
+    let editing: { slot: number; draft: SavedArmy } | null = null;
+    let updateEditor: (() => void) | null = null;
+    const m = this.modal('Army Training', {
+      headIcon: icon('army', 36),
+      tabs: [{ id: 'train', label: 'Train & Brew' }, { id: 'quick', label: 'Quick Train' }],
+      activeTab: tab,
+      onTab: (id) => { stopHold(); tab = id; editing = null; m.body.scrollTop = 0; render(true); },
+    });
     const heroTypes = ['prof', 'president'] as HeroType[];
     let sig = '';
     let ticks: (() => void)[] = [];
@@ -1524,7 +1533,164 @@ export class UI {
       render(true);
     };
 
+    const editArmy = (slot: number): void => {
+      const saved = this.state.savedArmies[slot];
+      editing = { slot, draft: saved ? JSON.parse(JSON.stringify(saved)) : { name: `Army ${slot + 1}`, troops: {}, spells: {} } };
+      m.body.scrollTop = 0;
+      render(true);
+    };
+    const renderQuick = (): void => {
+      const s = this.state;
+      const button = (label: string, cls: string, fn: () => void): HTMLButtonElement => {
+        const b = el('button', `btn ${cls}`, label);
+        b.onclick = () => { sfx('click'); fn(); };
+        return b;
+      };
+      const metrics = (p: SavedArmy): string => {
+        const s = this.state;
+        const t = savedArmyTotals(s, p);
+        return `<span>🏠 ${t.housing}/${armyCapacity(s)}</span><span>🧪 ${t.spells}/${spellCapacity(s)}</span><span>⏱ ~${fmtTime(t.seconds)}</span>`;
+      };
+      const costs = (p: SavedArmy): string => {
+        const s = this.state;
+        const totals = savedArmyTotals(s, p);
+        return (['tuition', 'coffee', 'chapel'] as ResourceId[]).filter((r) => totals.cost[r] > 0).map((r) => costHtml(r, totals.cost[r], canAfford(s, r, totals.cost[r]))).join(' ') || 'No cost';
+      };
+      m.body.appendChild(el('p', 'quick-intro', 'Your favorite armies, ready to recruit. Train queues one full copy without replacing your current troops.'));
+      const availability = el('p', 'quick-availability');
+      const updateAvailability = (): void => {
+        const s = this.state;
+        const troopRoom = Math.max(0, armyCapacity(s) * ARMIES - armyUsed(s) - queueUsed(s));
+        const spellRoom = Math.max(0, spellCapacity(s) - spellsUsed(s));
+        availability.textContent = `Space available now: ${troopRoom} troop housing (including reserve) · ${spellRoom} spell space. Already trained and queued units count toward these limits.`;
+      };
+      updateAvailability();
+      m.body.appendChild(availability);
+      if (editing) {
+        const { slot, draft } = editing;
+        const editor = el('div', 'quick-editor');
+        const nameLabel = el('label', 'quick-name-label', 'Army name');
+        const name = el('input', 'quick-name');
+        name.value = draft.name;
+        name.maxLength = MAX_NAME_LEN;
+        name.oninput = () => { draft.name = name.value; update(); };
+        nameLabel.appendChild(name);
+        editor.appendChild(nameLabel);
+        editor.appendChild(button('Copy current army', 'small gray', () => {
+          draft.troops = { ...this.state.army };
+          draft.spells = { ...this.state.spells };
+          for (const q of this.state.spellQueue) draft.spells[q.type] = (draft.spells[q.type] ?? 0) + 1;
+          render(true);
+        }));
+        editor.appendChild(el('p', 'flavor', 'Choose quantities below. Copy current army includes troops in the halls and brewed/queued spells; reserve troops and heroes are excluded.'));
+        const picker = el('div', 'quick-picker');
+        const quantities: { input: HTMLInputElement; type: TroopType | SpellType; spell: boolean; housing: number }[] = [];
+        const addPicker = (type: TroopType | SpellType, spell: boolean): void => {
+          const d = spell ? SPELLS[type as SpellType] : TROOPS[type as TroopType];
+          const locked = spell ? !s.buildings.some((b) => b.type === 'ssc' && b.level >= SPELLS[type as SpellType].sscLevel) : !troopUnlocked(s, type as TroopType);
+          const values = (spell ? draft.spells : draft.troops) as Partial<Record<string, number>>;
+          if (locked && !values[type]) return;
+          const row = el('div', 'quick-pick');
+          row.appendChild(spell ? spellThumb(type as SpellType, 66, 60) : unitThumb(type as TroopType, 66, 60, s.troopLevels[type as TroopType]));
+          const label = el('label', 'quick-pick-label', esc(d.name));
+          const count = el('input', 'quick-count');
+          count.type = 'number'; count.min = '0'; count.max = '500'; count.step = '1';
+          count.value = String(values[type] ?? 0);
+          count.setAttribute('aria-label', `${d.name} quantity`);
+          count.oninput = () => { values[type] = count.value === '' ? 0 : Number(count.value); update(); };
+          quantities.push({ input: count, type, spell, housing: d.housing });
+          label.appendChild(count);
+          row.appendChild(label);
+          picker.appendChild(row);
+        };
+        for (const t of TROOP_ORDER) addPicker(t, false);
+        for (const t of SPELL_ORDER) addPicker(t, true);
+        editor.appendChild(picker);
+        const summary = el('div', 'quick-metrics');
+        const cost = el('div', 'quick-cost');
+        const reason = el('div', 'quick-reason');
+        const actions = el('div', 'quick-actions');
+        const save = button('Save army', 'gold', () => {
+          const err = this.game.act({ k: 'armySave', slot, army: draft }).err;
+          if (err) return fail(err);
+          editing = null; render(true);
+          this.toast('Army saved', 'good');
+        });
+        const update = (): void => {
+          updateAvailability();
+          const valid = readSavedArmy(draft);
+          const s = this.state;
+          const totals = valid ? savedArmyTotals(s, valid) : null;
+          for (const { input, type, spell, housing } of quantities) {
+            const counts = (spell ? draft.spells : draft.troops) as Partial<Record<string, number>>;
+            const own = valid ? (counts[type] ?? 0) * housing : 0;
+            const used = totals ? (spell ? totals.spells : totals.housing) : 0;
+            const capacity = spell ? spellCapacity(s) : armyCapacity(s);
+            input.max = String(Math.min(500, Math.max(0, Math.floor((capacity - used + own) / housing))));
+          }
+          const err = valid ? savedArmyCompositionCheck(this.state, valid) : 'Add troops or spells, a name, and whole-number quantities.';
+          summary.innerHTML = valid ? metrics(valid) : '';
+          cost.innerHTML = valid ? costs(valid) : '';
+          reason.textContent = err ?? 'Saved quantities use your current troop levels when trained.';
+          save.disabled = !!err;
+        };
+        actions.append(button('Cancel', 'gray', () => { editing = null; render(true); }), save);
+        editor.append(summary, cost, reason, actions);
+        m.body.appendChild(editor);
+        updateEditor = update;
+        update();
+        return;
+      }
+      for (let i = 0; i < SAVED_ARMY_SLOTS; i++) {
+        const p = s.savedArmies[i];
+        const card = el('section', 'quick-army');
+        const head = el('div', 'quick-army-head');
+        head.append(el('span', 'quick-slot', String(i + 1)), el('h3', '', esc(p?.name ?? `Army ${i + 1}`)));
+        card.appendChild(head);
+        if (p) {
+          const portraits = el('div', 'quick-portraits');
+          const portrait = (type: TroopType | SpellType, n: number, spell: boolean): void => {
+            const d = spell ? SPELLS[type as SpellType] : TROOPS[type as TroopType];
+            const unit = el('div', 'quick-unit');
+            unit.title = `${n} × ${d.name}`;
+            unit.appendChild(spell ? spellThumb(type as SpellType, 74, 66) : unitThumb(type as TroopType, 74, 66, s.troopLevels[type as TroopType]));
+            unit.appendChild(el('b', 'quick-quantity', `×${n}`));
+            unit.appendChild(el('span', 'quick-unit-name', esc(d.name)));
+            portraits.appendChild(unit);
+          };
+          for (const t of TROOP_ORDER) if (p.troops[t]) portrait(t, p.troops[t]!, false);
+          for (const t of SPELL_ORDER) if (p.spells[t]) portrait(t, p.spells[t]!, true);
+          card.append(portraits, el('div', 'quick-metrics', metrics(p)), el('div', 'quick-cost', costs(p)));
+          const err = savedArmyTrainCheck(s, p);
+          const actions = el('div', 'quick-actions');
+          const train = button('Train army', 'gold', () => {
+            const err = this.game.act({ k: 'armyTrain', slot: i }).err;
+            if (err) fail(err);
+            else { sfx('deploy'); this.toast('Army added to training', 'good'); }
+            render(true);
+          });
+          train.disabled = !!err;
+          train.title = err ?? 'Queue one full copy of this army';
+          actions.append(button('Edit', 'blue', () => editArmy(i)), button('Clear', 'gray', () => {
+            if (!confirm(`Clear ${p.name}? Your trained troops will stay.`)) return;
+            const err = this.game.act({ k: 'armyClear', slot: i }).err;
+            if (err) fail(err);
+            render(true);
+          }), train);
+          if (err) card.appendChild(el('div', 'quick-reason', esc(err)));
+          card.appendChild(actions);
+        } else {
+          card.appendChild(el('p', 'flavor', 'Save a favorite combination of troops and spells here.'));
+          card.appendChild(button('Create army', 'blue', () => editArmy(i)));
+        }
+        m.body.appendChild(card);
+      }
+      m.body.appendChild(el('p', 'flavor', 'Times are estimates for an empty queue. Existing training and the occasional line at Chuck’s add time. Heroes stay in the Train & Brew tab.'));
+    };
     const render = (force = false): void => {
+      // Refresh live limits without replacing the inputs or discarding an in-progress recipe.
+      if (editing && !force) { updateEditor?.(); return; }
+      updateEditor = null;
       const s = this.state;
       const cap = armyCapacity(s);
       const used = armyUsed(s);
@@ -1540,6 +1706,7 @@ export class UI {
       // Everything shown except the countdowns. Unchanged: only the countdowns are updated, so
       // the cards under the pointer are not replaced several times a second.
       const nsig = JSON.stringify([
+        tab, s.savedArmies, tab === 'quick' ? s.resources : null,
         cap,
         used,
         q,
@@ -1560,6 +1727,11 @@ export class UI {
       ticks = [];
       const scroll = m.body.scrollTop;
       m.body.innerHTML = '';
+      if (tab === 'quick') {
+        renderQuick();
+        m.body.scrollTop = scroll;
+        return;
+      }
       const capRow = el('div', 'row');
       capRow.innerHTML = `<b class="cap-label">Residence Halls</b><div class="capbar"><div style="width:${Math.min(100, (used / Math.max(1, cap)) * 100)}%"></div><span class="stroke">${used} / ${cap} ready to raid</span></div>`;
       m.body.appendChild(capRow);
