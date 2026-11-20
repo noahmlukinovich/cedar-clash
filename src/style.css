@@ -324,6 +324,60 @@ kbd,
 .trophy-box .league {
   font-size: 13px;
 }
+.player-hud-card, button.trophy-box { font-family: inherit; text-align: left; color: #fff; }
+.player-hud-card { display: flex; align-items: center; gap: 8px; width: 230px; max-width: calc(50vw - 105px); padding: 4px 10px 4px 3px; background: linear-gradient(#264a70,#102c45); border: 3px solid #1e1b2b; border-radius: 14px; box-shadow: inset 0 1px 0 #9db9d566; cursor: pointer; }
+.player-hud-card > canvas { width: 58px; height: 58px; flex-shrink: 0; }
+.player-hud-name { font-size: 17px; font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trophy-box .league { display: block; color: #d9d5f0; }
+.trophy-box .num { display: block; }
+.hud-league-icon { display: block; width: 48px; height: 44px; flex-shrink: 0; }
+.hud-league-icon svg { display: block; width: 100%; height: 100%; }
+.player-hud-card:focus-visible, button.trophy-box:focus-visible { outline: 3px solid #ffe247; outline-offset: 2px; }
+.player-profile-modal { width: min(960px,94vw); }
+.player-overview { display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; padding: 16px; background: linear-gradient(120deg,#244c7b,#102844); color: #fff; border: 2px solid #d4ac47; border-radius: 16px; }
+.player-campus { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.player-dmc { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; background: #e5d7b5; border: 2px solid #ffe082; border-radius: 12px; overflow: hidden; }
+.player-dmc canvas { width: 96px; height: 96px; }
+.player-dmc b { width: 100%; text-align: center; padding: 3px 6px; background: #132e4b; color: #ffe184; font-size: 13px; }
+.player-identity { min-width: 0; }
+.player-identity h3 { margin: 0; font-size: 25px; overflow-wrap: anywhere; }
+.player-identity p { margin: 7px 0 0; color: #c9d8e8; font-size: 13px; }
+.player-rating { display: grid; gap: 8px; }
+.player-current { display: flex; align-items: center; gap: 12px; padding: 10px; background: linear-gradient(120deg,#6d38b0,#253960); border-radius: 12px; }
+.player-league-emblem { width: 64px; height: 64px; flex-shrink: 0; }
+.player-league-emblem svg { width: 100%; height: 100%; }
+.player-current b { display: block; font-size: 18px; }
+.player-current strong { display: flex; align-items: center; gap: 5px; font-size: 26px; }
+.player-current small { color: #e5dfee; font-size: 11px; }
+.player-best { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #10253d; border-radius: 8px; color: #f7d881; font-size: 13px; }
+.player-best strong { display: flex; align-items: center; gap: 6px; font-size: 20px; color: #fff; }
+.profile-roster { margin-top: 16px; }
+.profile-roster h3 { margin: 0 0 9px; color: var(--navy); font-size: 18px; }
+.profile-roster h3 small { margin-left: 8px; font-size: 12px; font-weight: normal; color: #6a6051; }
+.profile-roster-grid { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 9px; }
+.profile-roster-grid > .flavor { grid-column: 1/-1; }
+.profile-unit { position: relative; display: flex; flex-direction: column; align-items: center; background: linear-gradient(#fff9e9,#e6d7b5); border: 2px solid var(--out); border-radius: 12px; padding: 4px; min-width: 0; }
+.profile-unit canvas { width: 96px; height: 82px; max-width: 100%; object-fit: contain; }
+.profile-unit-level { position: absolute; right: 5px; top: 63px; padding: 2px 5px; color: #fff; background: #203f70; border-radius: 5px; font-size: 10px; }
+.profile-unit-locked { background: linear-gradient(#dedee1,#babcc3); border-color: #777983; }
+.profile-unit-locked canvas { filter: grayscale(1); opacity: .4; }
+.profile-unit-locked .profile-unit-level { background: #5c606c; display: flex; align-items: center; gap: 4px; }
+.profile-unit-locked .profile-unit-level svg { width: 10px; height: 12px; }
+.profile-unit-locked .profile-unit-name { color: #626675; }
+.profile-unit-name { display: flex; align-items: center; justify-content: center; min-height: 30px; font-size: 11px; text-align: center; font-weight: bold; color: #203f70; }
+@media (max-width: 680px) {
+  .player-overview { grid-template-columns: 1fr; padding: 12px; }
+  .player-rating { grid-template-columns: 1fr 1fr; align-items: stretch; }
+  .player-best { flex-direction: column; justify-content: center; gap: 5px; }
+  .profile-roster-grid { grid-template-columns: repeat(4,minmax(0,1fr)); }
+}
+@media (max-width: 430px) { .profile-roster-grid { grid-template-columns: repeat(3,minmax(0,1fr)); } }
+@media (max-height: 500px) {
+  .player-hud-card { padding: 2px 7px 2px 2px; gap: 4px; }
+  .player-hud-card > canvas { width: 42px; height: 42px; }
+  .player-hud-name { font-size: 13px; }
+  .hud-league-icon { width: 38px; height: 36px; }
+}
 .event-chips {
   display: flex;
   flex-wrap: wrap;

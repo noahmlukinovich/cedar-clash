@@ -10,6 +10,12 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 51,
+    date: 'Nov 20, 2026',
+    title: 'Your campus profile',
+    items: ['Tap your username and DMC icon above the trophy panel to open your profile, with your current league, trophies and personal best.', 'Browse every troop, spell and hero: unlocked units show their levels, and locked units appear in gray. Spells show unlocked status.', 'The trophy panel now uses your league badge and stays stable between updates so it responds reliably to clicks and keyboard input.'],
+  },
+  {
     v: 50,
     date: 'Nov 20, 2026',
     title: 'Daily updates and a new League Ladder',

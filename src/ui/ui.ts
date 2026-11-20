@@ -62,7 +62,7 @@ import type { Game } from '../main';
 import { NAME_RULES, type VisitBuilding, type VisitResponse, validCampusName } from '../net/protocol';
 import { fmtTime, type VillageScene } from '../village/villageScene';
 import { namePlatesOn, setNamePlates } from '../render/world';
-import { ICONS, campusControlArt, icon, leagueLadderArt, leagueCloseArt } from './icons';
+import { ICONS, campusControlArt, icon, leagueLadderArt, leagueCloseArt, leagueBadgeArt } from './icons';
 import { armyControlPortraits, buildingThumb, spellThumb, unitThumb } from './thumbs';
 
 export function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', html = ''): HTMLElementTagNameMap[K] {
@@ -871,6 +871,8 @@ export class UI {
   resEls: Record<ResourceId, { val: HTMLElement; fill: HTMLElement; cap: HTMLElement; ic: HTMLElement }> = {} as never;
   buildersEl!: HTMLElement;
   trophyEl!: HTMLElement;
+  profileCard!: HTMLButtonElement;
+  private profileHudSig = "";
   chipsEl!: HTMLElement;
   selPanel!: HTMLElement;
   placePanel!: HTMLElement;
@@ -971,10 +973,14 @@ export class UI {
     v.appendChild(this.buildersEl);
 
     const prof = el('div', 'profile');
-    this.trophyEl = el('div', 'trophy-box stroke');
+    this.profileCard = el('button', 'player-hud-card');
+    this.profileCard.setAttribute('aria-label', 'Open player profile');
+    this.profileCard.onclick = () => { sfx('click'); this.openProfile(); };
+    this.trophyEl = el('button', 'trophy-box');
+    this.trophyEl.setAttribute('aria-label', 'Open League Ladder');
     this.trophyEl.onclick = () => this.openLeagues();
     this.chipsEl = el('div', 'event-chips');
-    prof.append(this.trophyEl, this.chipsEl);
+    prof.append(this.profileCard, this.trophyEl, this.chipsEl);
     v.appendChild(prof);
 
     this.bottomLeft = el('div', 'bottom-left');
@@ -1093,8 +1099,7 @@ export class UI {
       this.buildersSig = bsig;
       this.buildersEl.innerHTML = `${icon('builder', 30)}<div>${bl.total - bl.busy}/${bl.total}<small>Facilities Crew</small></div>${ups > 0 ? `<span class="up-badge" title="${ups} upgrade${ups === 1 ? '' : 's'} available">${ups}</span>` : ''}`;
     }
-    const lg = leagueFor(s.trophies);
-    this.trophyEl.innerHTML = `${icon('trophy', 34)}<div><div class="num">${s.trophies}</div><div class="league" style="color:${lg.color}">${lg.name}</div></div>`;
+    this.renderPlayerHud();
     // event chips (rebuild only when the set of events changes; otherwise just update timers)
     const active = s.events.filter((e) => e.end > s.clock);
     const sig = active.map((e) => e.type).join(',');
@@ -2237,6 +2242,65 @@ export class UI {
       m.body.appendChild(el('p', 'flavor', 'Also earn Chapel Credits from 3-star raids and achievements. Spend them on heroes, the Chapel Announcement spell, and finishing construction instantly.'));
     };
     render();
+  }
+
+  /** Stable buttons: only their content changes when the campus name, DMC or trophies change. */
+  private renderPlayerHud(): void {
+    const s = this.state, level = dmcLevel(s), league = leagueFor(s.trophies);
+    const sig = `${s.playerName}:${level}:${s.trophies}`;
+    if (sig === this.profileHudSig) return;
+    this.profileHudSig = sig;
+    this.profileCard.innerHTML = '';
+    this.profileCard.append(buildingThumb('dmc', level, 58, 58), el('span', 'player-hud-name', esc(s.playerName)));
+    this.profileCard.title = `${s.playerName} · DMC ${level} · View profile`;
+    this.trophyEl.innerHTML = `<span class="hud-league-icon">${leagueBadgeArt(LEAGUES.indexOf(league))}</span><span><span class="num">${s.trophies}</span><span class="league">${league.name}</span></span>`;
+  }
+
+  openProfile(): void {
+    const s = this.state, level = dmcLevel(s), league = leagueFor(s.trophies);
+    const m = this.modal('Player Profile', { className: 'player-profile-modal', headIcon: icon('trophy', 36) });
+    const overview = el('div', 'player-overview');
+    const campus = el('div', 'player-campus');
+    const dmc = el('div', 'player-dmc');
+    dmc.append(buildingThumb('dmc', level, 96, 96), el('b', '', `DMC ${level}`));
+    const identity = el('div', 'player-identity');
+    identity.append(el('h3', '', esc(s.playerName)), el('p', '', 'Your campus profile'));
+    campus.append(dmc, identity);
+    const rating = el('div', 'player-rating');
+    const current = el('div', 'player-current');
+    current.style.background = `linear-gradient(120deg,${league.color},#18335c)`;
+    current.innerHTML = `<span class="player-league-emblem">${leagueBadgeArt(LEAGUES.indexOf(league))}</span><div><b>${league.name}</b><strong>${icon('trophy', 24)} ${s.trophies}</strong><small>Current trophies</small></div>`;
+    const best = el('div', 'player-best', `<span>Highest trophies</span><strong>${icon('trophy', 24)} ${s.bestTrophies}</strong>`);
+    rating.append(current, best);
+    overview.append(campus, rating);
+    m.body.appendChild(overview);
+    const section = (title: string, count: number, total: number): HTMLElement => {
+      const area = el('section', 'profile-roster');
+      area.appendChild(el('h3', '', `${title} <small>${count} unlocked · ${total - count} locked</small>`));
+      const grid = el('div', 'profile-roster-grid');
+      area.appendChild(grid); m.body.appendChild(area); return grid;
+    };
+    const card = (grid: HTMLElement, name: string, thumb: HTMLCanvasElement, label: string, unlocked: boolean): void => {
+      const tile = el('div', `profile-unit${unlocked ? '' : ' profile-unit-locked'}`);
+      tile.setAttribute('aria-label', `${name}, ${unlocked ? label : 'Locked'}`);
+      const status = unlocked ? label : '<svg viewBox="0 0 16 18" aria-hidden="true"><path d="M4 8V5a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/><rect x="2" y="7" width="12" height="10" rx="2" fill="currentColor"/></svg> Locked';
+      tile.append(thumb, el('b', 'profile-unit-level', status), el('span', 'profile-unit-name', esc(name)));
+      grid.appendChild(tile);
+    };
+    const troopGrid = section('Troops', TROOP_ORDER.filter((t) => troopUnlocked(s, t)).length, TROOP_ORDER.length);
+    for (const t of TROOP_ORDER) {
+      const unlocked = troopUnlocked(s, t);
+      card(troopGrid, TROOPS[t].name, unitThumb(t, 96, 82, unlocked ? s.troopLevels[t] : 1), `Lv ${s.troopLevels[t]}`, unlocked);
+    }
+    const brewLevel = Math.max(0, ...s.buildings.filter((b) => b.type === 'ssc').map((b) => b.level));
+    const spellGrid = section('Spells', SPELL_ORDER.filter((t) => brewLevel >= SPELLS[t].sscLevel).length, SPELL_ORDER.length);
+    for (const t of SPELL_ORDER) card(spellGrid, SPELLS[t].name, spellThumb(t, 96, 82), 'Unlocked', brewLevel >= SPELLS[t].sscLevel);
+    const heroes: HeroType[] = ['prof', 'president'];
+    const heroGrid = section('Heroes', heroes.filter((h) => heroUnlocked(s, h)).length, heroes.length);
+    for (const h of heroes) {
+      const unlocked = heroUnlocked(s, h);
+      card(heroGrid, HEROES[h].name, unitThumb(h, 96, 82, unlocked ? s.heroes[h].level : 1), `Lv ${s.heroes[h].level}`, unlocked);
+    }
   }
 
   // ---------- Achievements / leagues ----------
