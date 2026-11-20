@@ -62,7 +62,7 @@ import type { Game } from '../main';
 import { NAME_RULES, type VisitBuilding, type VisitResponse, validCampusName } from '../net/protocol';
 import { fmtTime, type VillageScene } from '../village/villageScene';
 import { namePlatesOn, setNamePlates } from '../render/world';
-import { ICONS, campusControlArt, icon } from './icons';
+import { ICONS, campusControlArt, icon, leagueLadderArt, leagueCloseArt } from './icons';
 import { armyControlPortraits, buildingThumb, spellThumb, unitThumb } from './thumbs';
 
 export function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', html = ''): HTMLElementTagNameMap[K] {
@@ -1291,15 +1291,17 @@ export class UI {
   }
 
   // ---------- Modals ----------
-  modal(title: string, opts: { narrow?: boolean; tabs?: { id: string; label: string }[]; activeTab?: string; onTab?: (id: string) => void; headIcon?: string } = {}): { body: HTMLElement; close: () => void; setTitle: (t: string) => void } {
+  modal(title: string, opts: { narrow?: boolean; tabs?: { id: string; label: string }[]; activeTab?: string; onTab?: (id: string) => void; headIcon?: string; headNode?: HTMLElement; className?: string; closeArt?: string } = {}): { body: HTMLElement; close: () => void; setTitle: (t: string) => void } {
     this.closeModal();
     const back = el('div', 'modal-back');
-    const m = el('div', `modal ${opts.narrow ? 'narrow' : ''}`);
+    const m = el('div', `modal ${opts.narrow ? 'narrow' : ''} ${opts.className ?? ''}`);
     const head = el('div', 'modal-head');
     const h2 = el('h2', 'stroke', title);
-    if (opts.headIcon) head.appendChild(el('span', '', opts.headIcon));
+    if (opts.headNode) head.appendChild(opts.headNode);
+    else if (opts.headIcon) head.appendChild(el('span', '', opts.headIcon));
     head.appendChild(h2);
-    const x = el('button', 'btn red modal-close', '✖');
+    const x = el('button', 'btn red modal-close', opts.closeArt ?? '✖');
+    if (opts.closeArt) x.setAttribute('aria-label', `Close ${title}`);
     head.appendChild(x);
     m.appendChild(head);
     if (opts.tabs) {
@@ -1342,13 +1344,20 @@ export class UI {
     return !!this.modalBack;
   }
 
+  private campusMenuIcon(kind: 'army' | 'shop'): HTMLElement {
+    const node = el('span', 'campus-menu-icon', campusControlArt(kind));
+    node.setAttribute('aria-hidden', 'true');
+    if (kind === 'army') node.appendChild(armyControlPortraits());
+    return node;
+  }
+
   // ---------- Shop ----------
   openShop(tab = 'resource'): void {
     const m = this.modal('Campus Shop', {
       tabs: SHOP_TABS.map((t) => ({ id: t.id, label: t.label })),
       activeTab: tab,
       onTab: (id) => render(id),
-      headIcon: icon('shop', 36),
+      headNode: this.campusMenuIcon('shop'),
     });
     const render = (id: string): void => {
       const s = this.state;
@@ -1465,7 +1474,7 @@ export class UI {
     let editing: { slot: number; draft: SavedArmy } | null = null;
     let updateEditor: (() => void) | null = null;
     const m = this.modal('Army Training', {
-      headIcon: icon('army', 36),
+      headNode: this.campusMenuIcon('army'),
       tabs: [{ id: 'train', label: 'Train & Brew' }, { id: 'quick', label: 'Quick Train' }],
       activeTab: tab,
       onTab: (id) => { stopHold(); tab = id; editing = null; m.body.scrollTop = 0; render(true); },
@@ -2244,22 +2253,14 @@ export class UI {
   }
 
   openLeagues(): void {
-    const m = this.modal('League Ladder', { narrow: true, headIcon: icon('trophy', 36) });
+    const m = this.modal('League Ladder', { className: 'ladder-modal', closeArt: leagueCloseArt() });
     const s = this.state;
     const cur = leagueFor(s.trophies);
-    const list = el('div', 'league-list');
-    for (const l of [...LEAGUES].reverse()) {
-      const r = el('div', `league-row ${l === cur ? 'me' : ''}`, `<span>${l.name}</span><span>${icon('trophy', 18)} ${l.min}+</span>`);
-      r.style.background = l.color;
-      r.style.color = textOn(l.color);
-      list.appendChild(r);
-    }
-    m.body.appendChild(el('div', '', `Trophies: <b>${s.trophies}</b> (best ${s.bestTrophies}). Win raids to climb; lose them and slide back toward "Prospective Student."`));
-    m.body.appendChild(list);
     const exp = expectedDmc(s.trophies);
     const dl = dmcLevel(s);
     const lean = exp - dl > 0.5 ? 'so expect rivals a step above your campus (and bigger payouts)' : exp - dl < -0.5 ? 'so expect softer rivals until your trophies catch up' : 'so expect rivals about your size';
-    m.body.appendChild(el('p', 'flavor', `Matchmaking: the ladder expects a DMC ${Math.min(MAX_DMC, Math.floor(exp))} campus at ${s.trophies} trophies and yours is DMC ${dl}, ${lean}. Tougher rivals pay more trophies and loot.`));
+    const matchmaking = `Matchmaking: the ladder expects a DMC ${Math.min(MAX_DMC, Math.floor(exp))} campus at ${s.trophies} trophies and yours is DMC ${dl}, ${lean}. Tougher rivals pay more trophies and loot.`;
+    m.body.innerHTML = leagueLadderArt({ trophies: s.trophies, best: s.bestTrophies, currentMin: cur.min, leagues: LEAGUES, matchmaking });
   }
 
   // ---------- Attack ----------
@@ -2852,13 +2853,55 @@ export class UI {
   openWhatsNew(seen = LATEST_CHANGE): void {
     const m = this.modal("What's New", { narrow: true, headIcon: '<span style="font-size:30px">🎉</span>' });
     markChangeSeen();
-    for (const e of CHANGELOG) {
-      const isNew = e.v > seen;
-      const box = el('div', `news ${isNew ? 'new' : ''}`);
-      box.appendChild(el('div', 'news-head', `<b>${esc(e.title)}</b>${isNew ? '<span class="news-tag">NEW</span>' : ''}<small>${esc(e.date)}</small>`));
-      const ul = el('ul');
-      for (const it of e.items) ul.appendChild(el('li', '', esc(it)));
-      box.appendChild(ul);
+    const days = new Map<string, typeof CHANGELOG>();
+    for (const entry of CHANGELOG) days.set(entry.date, [...(days.get(entry.date) ?? []), entry]);
+    m.body.appendChild(el('p', 'news-intro', 'Campus updates, grouped by day. Open a date to read all the details.'));
+    let index = 0;
+    for (const [date, entries] of days) {
+      const isNew = entries.some((e) => e.v > seen);
+      const box = el('section', `news news-day ${isNew ? 'new' : ''}`);
+      box.appendChild(el('div', 'news-head', `<h3>${esc(date)}</h3>${isNew ? '<span class="news-tag">NEW</span>' : ''}<small>${entries.length} update${entries.length === 1 ? '' : 's'}</small>`));
+      const preview = el('p', 'news-preview');
+      preview.textContent = entries.map((e) => e.title).join(' · ');
+      const more = el('button', 'news-toggle', 'Read More…');
+      more.setAttribute('aria-label', `Read More… ${date}`);
+      more.setAttribute('aria-expanded', 'false');
+      const details = el('div', 'news-day-body');
+      details.id = `news-day-${index++}`;
+      details.hidden = true;
+      details.tabIndex = -1;
+      details.setAttribute('role', 'region');
+      details.setAttribute('aria-label', `All updates for ${date}`);
+      more.setAttribute('aria-controls', details.id);
+      for (const e of entries) {
+        const entry = el('div', 'news-entry');
+        entry.appendChild(el('h4', '', esc(e.title)));
+        const ul = el('ul');
+        for (const it of e.items) ul.appendChild(el('li', '', esc(it)));
+        entry.appendChild(ul);
+        details.appendChild(entry);
+      }
+      const less = el('button', 'news-toggle', 'See Less…');
+      less.setAttribute('aria-label', `See Less… ${date}`);
+      less.setAttribute('aria-controls', details.id);
+      less.setAttribute('aria-expanded', 'true');
+      more.onclick = () => {
+        sfx('click');
+        preview.hidden = more.hidden = true;
+        details.hidden = false;
+        more.setAttribute('aria-expanded', 'true');
+        details.focus({ preventScroll: true });
+      };
+      less.onclick = () => {
+        sfx('click');
+        details.hidden = true;
+        preview.hidden = more.hidden = false;
+        more.setAttribute('aria-expanded', 'false');
+        more.focus({ preventScroll: true });
+        box.scrollIntoView({ block: 'nearest' });
+      };
+      details.appendChild(less);
+      box.append(preview, more, details);
       m.body.appendChild(box);
     }
     const ok = el('button', 'btn big', 'Got it');
