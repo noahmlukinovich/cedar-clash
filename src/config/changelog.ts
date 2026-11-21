@@ -10,6 +10,12 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 57,
+    date: 'Nov 21, 2026',
+    title: 'A living landscape beyond campus',
+    items: ['The open green space around campus now has forests, winding rivers and streams, grassy hills, mountain outcrops, rocks and wildflowers—including the space right beyond the perimeter trees.', 'The landscape stays fixed as you pan and zoom. Scenery is decorative, so your building area and troop paths stay the same.'],
+  },
+  {
     v: 56,
     date: 'Nov 21, 2026',
     title: 'A matching look across campus menus',

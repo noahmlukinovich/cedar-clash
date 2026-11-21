@@ -32,6 +32,7 @@ export function drawGround(ctx: Ctx, opts: { grid?: boolean; border: number; tin
   }
   ctx.fillStyle = opts.snow ? '#dfe9ef' : '#3f8a2a';
   ctx.fillRect(GX0 - 3000, GY0 - 3000, GW + 6000, GH + 6000);
+  drawSurroundings(ctx, !!opts.snow);
   ctx.drawImage(c, GX0, GY0, GW, GH);
   if (opts.grid) {
     ctx.save();
@@ -208,6 +209,185 @@ export function drawTree(ctx: Ctx, t: TreeSpot, snow = false): void {
   const sp = treeSprite(t.v, snow);
   const w = toWorld(t.x, t.y);
   ctx.drawImage(sp.canvas, w.x - sp.ax / sp.scale, w.y - sp.ay / sp.scale, sp.canvas.width / sp.scale, sp.canvas.height / sp.scale);
+}
+
+// ---------- Landscape beyond campus ----------
+// World-anchored tiles are cached, so panning never reshuffles scenery or redraws
+// thousands of trees every frame. Nothing here enters game state or pathfinding.
+const LAND_TILE = 512;
+const LAND_SCALE = 0.8;
+const landscapeCache = new Map<string, HTMLCanvasElement>();
+let landscapeView: { key: string; canvas: HTMLCanvasElement; x: number; y: number } | undefined;
+type LandscapePoint = { x: number; y: number };
+
+function campusMargin(x: number, y: number): number {
+  const gx = x / 64 + y / 32, gy = y / 32 - x / 64;
+  return Math.max(-gx, -gy, gx - GRID, gy - GRID);
+}
+
+const landscapeRivers: { points: LandscapePoint[]; width: number }[] = (() => {
+  const center = GRID / 2;
+  const ringPoint = (a: number, extra = 0): LandscapePoint => {
+    const r = GRID * 0.98 + 3.5 * Math.sin(a * 3 + 0.4) + 2 * Math.cos(a * 7) + extra;
+    return toWorld(center + Math.cos(a) * r, center + Math.sin(a) * r);
+  };
+  // An open river bends past the campus and continues into the landscape at
+  // both ends, rather than enclosing the campus in an artificial moat.
+  const points = [
+    ...Array.from({ length: 81 }, (_, i) => ringPoint(2.6 + Math.sin(i / 19) * 0.07, (80 - i) * 2)),
+    ...Array.from({ length: 241 }, (_, i) => ringPoint(2.6 + i / 240 * 4.7)),
+    ...Array.from({ length: 81 }, (_, i) => ringPoint(7.3 + Math.sin(i / 19) * 0.07, i * 2)),
+  ];
+  const rivers = [{ points, width: 76 }];
+  for (const a of [0.4, 4.8]) {
+    const branch = Array.from({ length: 101 }, (_, i) => ringPoint(a + Math.sin(i / 13) * Math.min(0.13, i / 160), i * 1.1));
+    rivers.push({ points: branch, width: 23 });
+  }
+  return rivers;
+})();
+
+// Index nearby river segments once; generating a forest tile should not scan
+// the entire river system for each tree or rock candidate.
+const riverSegments = (() => {
+  type Segment = { x: number; y: number; dx: number; dy: number; length2: number; half: number };
+  const cells = new Map<string, Segment[]>();
+  for (const river of landscapeRivers) for (let i = 1; i < river.points.length; i++) {
+    const a = river.points[i - 1], b = river.points[i], dx = b.x - a.x, dy = b.y - a.y;
+    const s = { x: a.x, y: a.y, dx, dy, length2: dx * dx + dy * dy || 1, half: river.width / 2 };
+    const pad = 220 + s.half;
+    for (let y = Math.floor((Math.min(a.y, b.y) - pad) / LAND_TILE); y <= (Math.max(a.y, b.y) + pad) / LAND_TILE; y++) {
+      for (let x = Math.floor((Math.min(a.x, b.x) - pad) / LAND_TILE); x <= (Math.max(a.x, b.x) + pad) / LAND_TILE; x++) {
+        const key = `${x},${y}`, list = cells.get(key) ?? [];
+        list.push(s); cells.set(key, list);
+      }
+    }
+  }
+  return cells;
+})();
+
+function riverDistance(x: number, y: number): number {
+  let nearest = 220;
+  for (const s of riverSegments.get(`${Math.floor(x / LAND_TILE)},${Math.floor(y / LAND_TILE)}`) ?? []) {
+    const t = Math.max(0, Math.min(1, ((x - s.x) * s.dx + (y - s.y) * s.dy) / s.length2));
+    nearest = Math.min(nearest, Math.hypot(x - s.x - t * s.dx, y - s.y - t * s.dy) - s.half);
+  }
+  return nearest;
+}
+
+function drawLandscapeTile(ctx: Ctx, left: number, top: number, snow: boolean): void {
+  ctx.fillStyle = snow ? '#dfe9ef' : '#4c9635';
+  ctx.fillRect(left, top, LAND_TILE, LAND_TILE);
+  // Broad, softly varying ground facets avoid a second checkerboard outside campus.
+  for (let j = Math.floor(top / 120) - 1; j <= (top + LAND_TILE) / 120 + 1; j++) {
+    for (let i = Math.floor(left / 200) - 1; i <= (left + LAND_TILE) / 200 + 1; i++) {
+      const x = i * 200 + (j % 2) * 100, y = j * 120;
+      const h = hash2(i + 83, j - 71);
+      poly(ctx, [[x - 100, y], [x, y - 60], [x + 100, y], [x, y + 60]], snow ? (h < 0.5 ? '#e4edf2' : '#d9e6eb') : (h < 0.5 ? '#4e9836' : '#4b9534'), false);
+    }
+  }
+  // Low faceted knolls: scenery stays isometric, with no painted sky or horizon.
+  for (let j = Math.floor(top / 310) - 2; j <= (top + LAND_TILE) / 310 + 2; j++) {
+    for (let i = Math.floor(left / 400) - 2; i <= (left + LAND_TILE) / 400 + 2; i++) {
+      const h = hash2(i - 16, j + 270);
+      const x = i * 400 + h * 190, y = j * 310 + hash2(i + 74, j) * 130;
+      if (h > 0.68 || campusMargin(x, y) < 5 || riverDistance(x, y) < 130) continue;
+      const w = 155 + h * 150, height = 30 + h * 65;
+      poly(ctx, [[x - w, y], [x - 10, y - height - 55], [x + w, y - 15], [x + 30, y + 55]], snow ? '#d0e0e8' : '#62aa3b', false);
+      poly(ctx, [[x - w, y], [x - 10, y - height - 55], [x + 30, y + 55]], snow ? '#eaf3f7' : '#79bc44', false);
+    }
+  }
+  // Lay every bank first, then every water surface, so tributary mouths merge.
+  for (let layer = 0; layer < 2; layer++) for (const river of landscapeRivers) {
+    ctx.beginPath();
+    river.points.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+    ctx.lineJoin = ctx.lineCap = 'round';
+    const strokes: [number, string][] = layer === 0
+      ? [[river.width + 13, '#294a36'], [river.width + 9, snow ? '#c4d9df' : '#cdb46d']]
+      : [[river.width, snow ? '#98c9e0' : '#2996ce'], [Math.max(4, river.width - 13), snow ? '#b7dfef' : '#40ade0']];
+    for (const [width, color] of strokes) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.stroke();
+    }
+    // Small current marks are static, so even low-power devices get the full scene.
+    if (layer === 0) continue;
+    ctx.strokeStyle = snow ? '#e5f7ff' : '#91d5ef';
+    ctx.lineWidth = 1.5;
+    for (let i = 2; i < river.points.length; i += 4) {
+      const p = river.points[i], q = river.points[i - 1];
+      if (p.x < left - 30 || p.x > left + LAND_TILE + 30 || p.y < top - 30 || p.y > top + LAND_TILE + 30) continue;
+      ctx.beginPath(); ctx.moveTo(p.x - 7, p.y + 2); ctx.quadraticCurveTo(p.x, p.y + 5, p.x + (p.x - q.x) * 0.3 + 7, p.y + (p.y - q.y) * 0.3); ctx.stroke();
+    }
+  }
+  // Interleave trees and rocks in screen-depth order. Overscan ensures sprites
+  // straddling cache boundaries are rendered identically on both tiles.
+  for (let j = Math.floor((top - 45) / 55); j <= (top + LAND_TILE + 260) / 55; j++) {
+    for (let i = Math.floor((left - 300) / 57); i <= (left + LAND_TILE + 300) / 57; i++) {
+      const h = hash2(i + 521, j - 821);
+      const x = i * 57 + hash2(i, j + 417) * 55, y = j * 55 + hash2(i - 57, j) * 52;
+      const margin = campusMargin(x, y);
+      if (margin < 1.8) continue;
+      const bank = riverDistance(x, y);
+      const grove = (Math.sin(x / 190 + Math.cos(y / 270)) + Math.cos(y / 150 - x / 360)) / 2;
+      if (bank > 30 && h < 0.52 + grove * 0.32) {
+        const gx = x / 64 + y / 32, gy = y / 32 - x / 64;
+        drawTree(ctx, { x: gx, y: gy, v: Math.floor(hash2(i - 81, j + 19) * 3) }, snow);
+      } else if (h > 0.9 && bank > 9) {
+        const mountain = h > 0.995 && margin > 24 && bank > 200;
+        const size = mountain ? 100 + hash2(i + 1, j) * 85 : 13 + hash2(i + 1, j) * 19;
+        const height = mountain ? size * 1.15 : size * 0.65;
+        const pts: [number, number][] = [[x - size, y - 5], [x - size * 0.45, y - height * 0.78], [x + size * 0.05, y - height], [x + size * 0.57, y - height * 0.66], [x + size, y - 4], [x + size * 0.25, y + size * 0.27]];
+        poly(ctx, pts, snow ? '#c0d0dc' : '#87979d', true, mountain ? 2 : 1.5);
+        poly(ctx, [pts[0], pts[1], pts[2], pts[5]], snow ? '#e1eaf0' : '#b1bec0', false);
+        poly(ctx, [pts[2], pts[3], pts[4], pts[5], [x + size * 0.23, y - height * 0.55]], snow ? '#9eb4c4' : '#637583', false);
+        if (mountain) poly(ctx, [pts[2], [x + size * 0.24, y - height * 0.8], [x + size * 0.08, y - height * 0.84], [x - size * 0.16, y - height * 0.72]], snow ? '#fff' : '#d7e1df', false);
+      } else if (h > 0.72 && h < 0.8 && bank > 14 && !snow) {
+        ctx.fillStyle = h > 0.76 ? '#f5db61' : '#e5efbf';
+        for (let f = 0; f < 3; f++) { ctx.beginPath(); ctx.ellipse(x + f * 5 - 5, y - (f % 2) * 3, 2, 1.4, 0, 0, Math.PI * 2); ctx.fill(); }
+      }
+    }
+  }
+}
+
+function drawSurroundings(ctx: Ctx, snow: boolean): void {
+  const m = ctx.getTransform();
+  const x0 = Math.floor((-m.e / m.a) / LAND_TILE), y0 = Math.floor((-m.f / m.d) / LAND_TILE);
+  const x1 = Math.floor(((ctx.canvas.width - m.e) / m.a) / LAND_TILE), y1 = Math.floor(((ctx.canvas.height - m.f) / m.d) / LAND_TILE);
+  const viewKey = `${x0},${y0},${x1},${y1},${snow ? 1 : 0}`;
+  if (landscapeView?.key === viewKey) {
+    ctx.drawImage(landscapeView.canvas, landscapeView.x, landscapeView.y, (x1 - x0 + 1) * LAND_TILE, (y1 - y0 + 1) * LAND_TILE);
+    return;
+  }
+  const view = document.createElement('canvas');
+  view.width = Math.ceil((x1 - x0 + 1) * LAND_TILE * LAND_SCALE);
+  view.height = Math.ceil((y1 - y0 + 1) * LAND_TILE * LAND_SCALE);
+  const g = view.getContext('2d')!;
+  g.scale(view.width / ((x1 - x0 + 1) * LAND_TILE), view.height / ((y1 - y0 + 1) * LAND_TILE));
+  g.translate(-x0 * LAND_TILE, -y0 * LAND_TILE);
+  // Clip all exterior scenery away from the complete campus diamond. The inner
+  // playable tiles and existing perimeter forest remain exactly where they were.
+  g.beginPath();
+  g.rect(x0 * LAND_TILE, y0 * LAND_TILE, (x1 - x0 + 1) * LAND_TILE, (y1 - y0 + 1) * LAND_TILE);
+  const corners = [toWorld(0, 0), toWorld(GRID, 0), toWorld(GRID, GRID), toWorld(0, GRID)];
+  corners.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y));
+  g.closePath(); g.clip('evenodd');
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    // Entirely interior chunks need no exterior render or memory allocation.
+    if ([[x, y], [x + 1, y], [x + 1, y + 1], [x, y + 1]].every(([a, b]) => campusMargin(a * LAND_TILE, b * LAND_TILE) < -1)) continue;
+    const key = `${x},${y},${snow ? 1 : 0}`;
+    let tile = landscapeCache.get(key);
+    if (!tile) {
+      tile = document.createElement('canvas'); tile.width = tile.height = Math.ceil(LAND_TILE * LAND_SCALE);
+      const g = tile.getContext('2d')!; g.scale(tile.width / LAND_TILE, tile.height / LAND_TILE); g.translate(-x * LAND_TILE, -y * LAND_TILE);
+      drawLandscapeTile(g, x * LAND_TILE, y * LAND_TILE, snow);
+    } else landscapeCache.delete(key);
+    landscapeCache.set(key, tile);
+    g.drawImage(tile, x * LAND_TILE, y * LAND_TILE, LAND_TILE, LAND_TILE);
+  }
+  landscapeView = { key: viewKey, canvas: view, x: x0 * LAND_TILE, y: y0 * LAND_TILE };
+  ctx.drawImage(view, x0 * LAND_TILE, y0 * LAND_TILE, (x1 - x0 + 1) * LAND_TILE, (y1 - y0 + 1) * LAND_TILE);
+  // Bounded LRU cache, including both seasonal palettes; roughly 52 MiB maximum.
+  while (landscapeCache.size > 80) landscapeCache.delete(landscapeCache.keys().next().value!);
 }
 
 // ---------- Buildings ----------
