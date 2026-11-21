@@ -218,6 +218,35 @@ export function leagueCloseArt(): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -2 53 57" aria-hidden="true">${leagueClosePaths()}</svg>`;
 }
 
+/** Building Info action: vector bevels, gold inset icon and a movable pressed face. */
+export function buildingInfoButtonArt(): string {
+  return `<svg xmlns="http://www.w3.org/2000/svg" class="building-info-art" viewBox="0 0 100 108" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="building-info-blue" x2="0" y2="1"><stop stop-color="#66b2ff"/><stop offset=".16" stop-color="#3179df"/><stop offset=".52" stop-color="#2257b1"/><stop offset="1" stop-color="#102956"/></linearGradient>
+      <linearGradient id="building-info-gold" x2=".8" y2="1"><stop stop-color="#fff6b3"/><stop offset=".32" stop-color="#ffdc62"/><stop offset=".7" stop-color="#e7a921"/><stop offset="1" stop-color="#956015"/></linearGradient>
+      <linearGradient id="building-info-inset" x2="0" y2="1"><stop stop-color="#398ee0"/><stop offset="1" stop-color="#122f65"/></linearGradient>
+      <linearGradient id="building-info-gloss" x2=".25" y2="1"><stop stop-color="#fff" stop-opacity=".26"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    </defs>
+    <rect x="2" y="10" width="96" height="96" rx="22" fill="#071329"/>
+    <rect x="5" y="9" width="90" height="92" rx="19" fill="#0b1e3f"/>
+    <g class="info-face">
+      <rect x="2" y="2" width="96" height="96" rx="22" fill="#071329"/>
+      <rect x="5" y="4" width="90" height="89" rx="19" fill="url(#building-info-blue)"/>
+      <path d="M8 77V25Q8 8 25 8h50q17 0 17 17v52" fill="none" stroke="#9bd2ff" stroke-width="2.2"/>
+      <path d="M11 28Q11 11 28 11h44q16 0 17 16v18Q51 61 11 45Z" fill="url(#building-info-gloss)"/>
+      <path d="M12 83q3 8 15 8h46q12 0 15-8" fill="none" stroke="#081b3d" stroke-opacity=".65" stroke-width="4"/>
+      <rect x="27" y="17" width="46" height="47" rx="13" fill="#071329"/>
+      <rect x="29" y="15" width="42" height="45" rx="12" fill="url(#building-info-gold)" stroke="#573b16" stroke-width="1.3"/>
+      <rect x="33" y="19" width="34" height="36" rx="8" fill="url(#building-info-inset)" stroke="#fff0a6" stroke-width="1"/>
+      <path d="M35 31v-3q0-7 7-7h16" fill="none" stroke="#a9d7ff" stroke-opacity=".75" stroke-width="1.2"/>
+      <circle cx="50" cy="28" r="3.3" fill="#fff9e9"/>
+      <path d="M45 36h7v13h4v3H44v-3h3V39h-2Z" fill="#fff9e9"/>
+      <text x="50" y="85" text-anchor="middle" font-family="DejaVu Sans Condensed,Arial,sans-serif" font-weight="900" font-size="20" fill="#071329" stroke="#071329" stroke-width="4" stroke-linejoin="round">Info</text>
+      <text x="50" y="85" text-anchor="middle" font-family="DejaVu Sans Condensed,Arial,sans-serif" font-weight="900" font-size="20" fill="#fff">Info</text>
+    </g>
+  </svg>`;
+}
+
 function leagueEmblemDefs(prefix = 'ladder'): string {
   return `<linearGradient id="${prefix}-gold" x2=".9" y2=".9"><stop stop-color="#fff998"/><stop offset=".24" stop-color="#ffe454"/><stop offset=".6" stop-color="#ffbf0a"/><stop offset="1" stop-color="#c97b00"/></linearGradient>
     <linearGradient id="${prefix}-navy" x2=".3" y2="1"><stop stop-color="#397eb6"/><stop offset=".5" stop-color="#17508b"/><stop offset="1" stop-color="#092b55"/></linearGradient>
