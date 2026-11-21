@@ -5,6 +5,7 @@ import { LOOT_FRACTION, SCOUT_COST_PER_DMC } from '../src/config/balance';
 import { BUILDINGS } from '../src/config/buildings';
 import { bus } from '../src/core/bus';
 import { type Action, applyAction } from '../src/game/actions';
+import { publicPlayerProfile } from '../src/game/profile';
 import { tickArmy } from '../src/game/army';
 import { addRes, dmcLevel, hasEvent, spend, tickEconomy } from '../src/game/economy';
 import { checkChapelSkip, tickEvents } from '../src/game/events';
@@ -185,8 +186,8 @@ export function sync(db: DB, userId: number, now: number, client: unknown, seq: 
 // ---------- Visiting ----------
 
 /**
- * GET /api/visit: the public, read-only view of a player's campus. Only the layout leaves the
- * server (no resources, army, research or stats), hidden traps are left out, and nothing about
+ * GET /api/visit: the public, read-only view of a player's campus. Only the public layout and profile leave the
+ * server (no resources, army counts, queues or private stats), hidden traps are left out, and nothing about
  * the visited player is saved or touched.
  */
 export function visit(db: DB, now: number, name: unknown): VisitResponse {
@@ -197,7 +198,7 @@ export function visit(db: DB, now: number, name: unknown): VisitResponse {
   const buildings = state.buildings
     .filter((b) => BUILDINGS[b.type]?.category !== 'trap')
     .map((b, i) => ({ id: i + 1, type: b.type, x: b.x, y: b.y, level: b.level, ...(b.name ? { name: b.name } : {}), ...(b.upgrade ? { upgrading: true } : {}) }));
-  return { name: row.name, trophies: state.trophies, dmc: dmcLevel(state), buildings };
+  return { name: row.name, trophies: state.trophies, dmc: dmcLevel(state), buildings, profile: publicPlayerProfile(state, row.name) };
 }
 
 // ---------- Raids ----------

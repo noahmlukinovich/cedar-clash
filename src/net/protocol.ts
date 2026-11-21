@@ -1,6 +1,6 @@
 // Request/response shapes shared by the browser client and the game server.
 import type { Action } from '../game/actions';
-import type { BuildingType } from '../config/types';
+import type { HeroType, SpellType, TroopType, BuildingType } from '../config/types';
 import type { GameState } from '../game/state';
 import type { RaidInput, RaidSetup } from '../raid/engine';
 import type { RaidOutcome } from '../raid/outcome';
@@ -99,12 +99,24 @@ export interface VisitBuilding {
   upgrading?: boolean;
 }
 
+/** Public progression only: levels and unlocks, never the player's current army or resources. */
+export interface PlayerProfile {
+  name: string;
+  trophies: number;
+  bestTrophies: number;
+  dmc: number;
+  troopLevels: Partial<Record<TroopType, number>>;
+  spells: SpellType[];
+  heroLevels: Partial<Record<HeroType, number>>;
+}
+
 /** The public view of someone's campus (GET /api/visit?name=...). Hidden traps are left out. */
 export interface VisitResponse {
   name: string;
   trophies: number;
   dmc: number;
   buildings: VisitBuilding[];
+  profile: PlayerProfile;
 }
 
 /** One line of the raid log (GET /api/replays): a finished raid you made or defended against. */
