@@ -1565,6 +1565,14 @@ button.up-main:hover {
   font-size: 18px;
   white-space: nowrap;
 }
+.visit-hud .visit-bar {
+  right: 14px;
+  left: auto;
+  transform: none;
+  max-width: calc(100% - min(230px, 50vw - 105px) - 42px);
+  font-size: 14px;
+  white-space: normal;
+}
 .visit-bar small {
   font-size: 13px;
   opacity: 0.9;

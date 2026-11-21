@@ -10,6 +10,12 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 54,
+    date: 'Nov 20, 2026',
+    title: 'Meet the campus you are visiting',
+    items: ['While visiting another campus, tap its DMC and username to view that player’s profile, highest trophies and unit progression.', 'Their league button opens the League Ladder with their trophies and league highlighted.'],
+  },
+  {
     v: 53,
     date: 'Nov 20, 2026',
     title: 'A more polished League Ladder',
