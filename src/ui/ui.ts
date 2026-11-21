@@ -1,3 +1,4 @@
+import { publicPlayerProfile } from '../game/profile';
 import { BUILDINGS, SHOP_TABS, maxCount, maxLevelForDmc } from '../config/buildings';
 import { DEBUG_SPEEDS, MAX_DMC, SCOUT_COST_PER_DMC } from '../config/balance';
 import { CHANGELOG, LATEST_CHANGE } from '../config/changelog';
@@ -59,7 +60,7 @@ import { SAVED_ARMY_SLOTS, readSavedArmy, savedArmyCompositionCheck, savedArmyTo
 import { type ExtraRow, type UpgradeRow, listUpgrades } from '../game/upgrades';
 import { toWorld } from '../core/iso';
 import type { Game } from '../main';
-import { NAME_RULES, type VisitBuilding, type VisitResponse, validCampusName } from '../net/protocol';
+import { NAME_RULES, type PlayerProfile, type VisitBuilding, type VisitResponse, validCampusName } from '../net/protocol';
 import { fmtTime, type VillageScene } from '../village/villageScene';
 import { namePlatesOn, setNamePlates } from '../render/world';
 import { ICONS, LEAGUE_ROW_COLORS, campusControlArt, icon, leagueLadderArt, leagueCloseArt, leagueBadgeArt } from './icons';
@@ -2246,35 +2247,39 @@ export class UI {
 
   /** Stable buttons: only their content changes when the campus name, DMC or trophies change. */
   private renderPlayerHud(): void {
-    const s = this.state, level = dmcLevel(s), league = leagueFor(s.trophies);
+    const s = this.state, level = dmcLevel(s);
     const sig = `${s.playerName}:${level}:${s.trophies}`;
     if (sig === this.profileHudSig) return;
     this.profileHudSig = sig;
-    this.profileCard.innerHTML = '';
-    this.profileCard.append(buildingThumb('dmc', level, 58, 58), el('span', 'player-hud-name', esc(s.playerName)));
-    this.profileCard.title = `${s.playerName} · DMC ${level} · View profile`;
-    const leagueIndex = LEAGUES.indexOf(league);
-    const [light, dark] = LEAGUE_ROW_COLORS[leagueIndex];
-    this.trophyEl.style.background = `linear-gradient(125deg,transparent 55%,#ffffff17 55%,#ffffff17 66%,transparent 66%),linear-gradient(${light},${dark})`;
-    this.trophyEl.style.color = leagueIndex === 5 || leagueIndex === 6 ? '#fff' : '#08152e';
-    this.trophyEl.innerHTML = `<span class="hud-league-icon">${leagueBadgeArt(leagueIndex)}</span><span><span class="num">${s.trophies}</span><span class="league">${league.name}</span></span>`;
+    this.paintPlayerButtons({ name: s.playerName, dmc: level, trophies: s.trophies }, this.profileCard, this.trophyEl);
   }
 
-  openProfile(): void {
-    const s = this.state, level = dmcLevel(s), league = leagueFor(s.trophies);
+  private paintPlayerButtons(profile: Pick<PlayerProfile, 'name' | 'dmc' | 'trophies'>, card: HTMLButtonElement, trophy: HTMLElement): void {
+    const league = leagueFor(profile.trophies), leagueIndex = LEAGUES.indexOf(league);
+    card.innerHTML = '';
+    card.append(buildingThumb('dmc', profile.dmc, 58, 58), el('span', 'player-hud-name', esc(profile.name)));
+    card.title = `${profile.name} · DMC ${profile.dmc} · View profile`;
+    const [light, dark] = LEAGUE_ROW_COLORS[leagueIndex];
+    trophy.style.background = `linear-gradient(125deg,transparent 55%,#ffffff17 55%,#ffffff17 66%,transparent 66%),linear-gradient(${light},${dark})`;
+    trophy.style.color = leagueIndex === 5 || leagueIndex === 6 ? '#fff' : '#08152e';
+    trophy.innerHTML = `<span class="hud-league-icon">${leagueBadgeArt(leagueIndex)}</span><span><span class="num">${profile.trophies}</span><span class="league">${league.name}</span></span>`;
+  }
+
+  openProfile(profile?: PlayerProfile): void {
+    const view = profile ?? publicPlayerProfile(this.state), level = view.dmc, league = leagueFor(view.trophies);
     const m = this.modal('Player Profile', { className: 'player-profile-modal', headIcon: icon('trophy', 36) });
     const overview = el('div', 'player-overview');
     const campus = el('div', 'player-campus');
     const dmc = el('div', 'player-dmc');
     dmc.append(buildingThumb('dmc', level, 96, 96), el('b', '', `DMC ${level}`));
     const identity = el('div', 'player-identity');
-    identity.append(el('h3', '', esc(s.playerName)), el('p', '', 'Your campus profile'));
+    identity.append(el('h3', '', esc(view.name)), el('p', '', profile ? 'Campus profile' : 'Your campus profile'));
     campus.append(dmc, identity);
     const rating = el('div', 'player-rating');
     const current = el('div', 'player-current');
     current.style.background = `linear-gradient(120deg,${league.color},#18335c)`;
-    current.innerHTML = `<span class="player-league-emblem">${leagueBadgeArt(LEAGUES.indexOf(league))}</span><div><b>${league.name}</b><strong>${icon('trophy', 24)} ${s.trophies}</strong><small>Current trophies</small></div>`;
-    const best = el('div', 'player-best', `<span>Highest trophies</span><strong>${icon('trophy', 24)} ${s.bestTrophies}</strong>`);
+    current.innerHTML = `<span class="player-league-emblem">${leagueBadgeArt(LEAGUES.indexOf(league))}</span><div><b>${league.name}</b><strong>${icon('trophy', 24)} ${view.trophies}</strong><small>Current trophies</small></div>`;
+    const best = el('div', 'player-best', `<span>Highest trophies</span><strong>${icon('trophy', 24)} ${view.bestTrophies}</strong>`);
     rating.append(current, best);
     overview.append(campus, rating);
     m.body.appendChild(overview);
@@ -2291,19 +2296,18 @@ export class UI {
       tile.append(thumb, el('b', 'profile-unit-level', status), el('span', 'profile-unit-name', esc(name)));
       grid.appendChild(tile);
     };
-    const troopGrid = section('Troops', TROOP_ORDER.filter((t) => troopUnlocked(s, t)).length, TROOP_ORDER.length);
+    const troopGrid = section('Troops', TROOP_ORDER.filter((t) => view.troopLevels[t] !== undefined).length, TROOP_ORDER.length);
     for (const t of TROOP_ORDER) {
-      const unlocked = troopUnlocked(s, t);
-      card(troopGrid, TROOPS[t].name, unitThumb(t, 96, 82, unlocked ? s.troopLevels[t] : 1), `Lv ${s.troopLevels[t]}`, unlocked);
+      const unlocked = view.troopLevels[t] !== undefined;
+      card(troopGrid, TROOPS[t].name, unitThumb(t, 96, 82, unlocked ? view.troopLevels[t] : 1), `Lv ${view.troopLevels[t]}`, unlocked);
     }
-    const brewLevel = Math.max(0, ...s.buildings.filter((b) => b.type === 'ssc').map((b) => b.level));
-    const spellGrid = section('Spells', SPELL_ORDER.filter((t) => brewLevel >= SPELLS[t].sscLevel).length, SPELL_ORDER.length);
-    for (const t of SPELL_ORDER) card(spellGrid, SPELLS[t].name, spellThumb(t, 96, 82), 'Unlocked', brewLevel >= SPELLS[t].sscLevel);
+    const spellGrid = section('Spells', SPELL_ORDER.filter((t) => view.spells.includes(t)).length, SPELL_ORDER.length);
+    for (const t of SPELL_ORDER) card(spellGrid, SPELLS[t].name, spellThumb(t, 96, 82), 'Unlocked', view.spells.includes(t));
     const heroes: HeroType[] = ['prof', 'president'];
-    const heroGrid = section('Heroes', heroes.filter((h) => heroUnlocked(s, h)).length, heroes.length);
+    const heroGrid = section('Heroes', heroes.filter((h) => view.heroLevels[h] !== undefined).length, heroes.length);
     for (const h of heroes) {
-      const unlocked = heroUnlocked(s, h);
-      card(heroGrid, HEROES[h].name, unitThumb(h, 96, 82, unlocked ? s.heroes[h].level : 1), `Lv ${s.heroes[h].level}`, unlocked);
+      const unlocked = view.heroLevels[h] !== undefined;
+      card(heroGrid, HEROES[h].name, unitThumb(h, 96, 82, unlocked ? view.heroLevels[h] : 1), `Lv ${view.heroLevels[h]}`, unlocked);
     }
   }
 
@@ -2320,15 +2324,16 @@ export class UI {
     m.body.appendChild(list);
   }
 
-  openLeagues(): void {
+  openLeagues(profile?: PlayerProfile): void {
     const m = this.modal('League Ladder', { className: 'ladder-modal', closeArt: leagueCloseArt() });
-    const s = this.state;
-    const cur = leagueFor(s.trophies);
-    const exp = expectedDmc(s.trophies);
-    const dl = dmcLevel(s);
+    const view = profile ?? publicPlayerProfile(this.state);
+    const cur = leagueFor(view.trophies);
+    const exp = expectedDmc(view.trophies);
+    const dl = view.dmc;
     const lean = exp - dl > 0.5 ? 'so expect rivals a step above your campus (and bigger payouts)' : exp - dl < -0.5 ? 'so expect softer rivals until your trophies catch up' : 'so expect rivals about your size';
-    const matchmaking = `Matchmaking: the ladder expects a DMC ${Math.min(MAX_DMC, Math.floor(exp))} campus at ${s.trophies} trophies and yours is DMC ${dl}, ${lean}. Tougher rivals pay more trophies and loot.`;
-    m.body.innerHTML = leagueLadderArt({ trophies: s.trophies, best: s.bestTrophies, currentMin: cur.min, leagues: LEAGUES, matchmaking });
+    const subjectLean = profile ? lean.replace('your campus', 'their campus').replace('your trophies', 'their trophies') : lean;
+    const matchmaking = `Matchmaking${profile ? ` for ${view.name}` : ''}: the ladder expects a DMC ${Math.min(MAX_DMC, Math.floor(exp))} campus at ${view.trophies} trophies and ${profile ? 'theirs' : 'yours'} is DMC ${dl}, ${subjectLean}. Tougher rivals pay more trophies and loot.`;
+    m.body.innerHTML = leagueLadderArt({ trophies: view.trophies, best: view.bestTrophies, currentMin: cur.min, leagues: LEAGUES, matchmaking });
   }
 
   // ---------- Attack ----------
@@ -2874,9 +2879,19 @@ export class UI {
   // ---------- Visiting another campus ----------
   showVisit(v: VisitResponse): void {
     this.hideVisit();
-    const hud = el('div', 'hud');
+    const hud = el('div', 'hud visit-hud');
+    const buttons = el('div', 'profile visit-profile');
+    const player = el('button', 'player-hud-card');
+    player.setAttribute('aria-label', `Open ${v.name}'s profile`);
+    player.onclick = () => { sfx('click'); this.openProfile(v.profile); };
+    const league = el('button', 'trophy-box');
+    league.setAttribute('aria-label', `Open ${v.name}'s League Ladder`);
+    league.onclick = () => { sfx('click'); this.openLeagues(v.profile); };
+    this.paintPlayerButtons(v.profile, player, league);
+    buttons.append(player, league);
+    hud.appendChild(buttons);
     const bar = el('div', 'visit-bar');
-    bar.appendChild(el('span', 'stroke', `👀 Visiting <b>${esc(v.name)}</b> <small>DMC ${v.dmc} · ${icon('trophy', 16)} ${v.trophies}</small>`));
+    bar.appendChild(el('span', '', '👀 Visiting campus'));
     const home = el('button', 'btn small gold', '🏠 Go home');
     home.onclick = () => {
       sfx('click');
@@ -2905,6 +2920,7 @@ export class UI {
   }
 
   hideVisit(): void {
+    if (this.visitHud) this.closeModal();
     this.visitHud?.remove();
     this.visitHud = null;
     this.visitSel = null;

@@ -368,7 +368,7 @@ describe('visiting another campus', () => {
     const before = rowOf('Bob_U');
     const r = await alice.call<VisitResponse>('/api/visit?name=bob_u'); // names are case-insensitive
     expect(r.status).toBe(200);
-    expect(Object.keys(r.data).sort()).toEqual(['buildings', 'dmc', 'name', 'trophies']);
+    expect(Object.keys(r.data).sort()).toEqual(['buildings', 'dmc', 'name', 'profile', 'trophies']);
     expect(r.data.name).toBe('Bob_U');
     expect(r.data.trophies).toBe(before.trophies);
     const stored = JSON.parse(before.state as string) as GameState;
@@ -379,8 +379,41 @@ describe('visiting another campus', () => {
     for (const b of r.data.buildings) {
       for (const k of Object.keys(b)) expect(['id', 'type', 'x', 'y', 'level', 'name', 'upgrading']).toContain(k);
     }
-    expect(JSON.stringify(r.data)).not.toMatch(/stored|resources|army|chapel|stats/);
+    expect(JSON.stringify(r.data)).not.toMatch(/stored|resources|army|stats/);
     expect(rowOf('Bob_U')).toEqual(before); // state, last_seen, shield: nothing written
+  });
+
+  it('returns the visited player’s public progression, without exposing their army or changing their save', async () => {
+    const original = JSON.parse(rowOf('Bob_U').state as string) as GameState;
+    try {
+      patchState('Bob_U', (s) => {
+        s.trophies = 1333;
+        s.bestTrophies = 1771;
+        s.buildings = [
+          { id: 1, type: 'dmc', x: 18, y: 18, level: 3 },
+          { id: 2, type: 'biblical', x: 10, y: 10, level: 1 },
+          { id: 3, type: 'ens', x: 10, y: 15, level: 1 },
+          { id: 4, type: 'ssc', x: 25, y: 25, level: 1 },
+          { id: 5, type: 'faculty', x: 28, y: 10, level: 1 },
+        ];
+        s.troopLevels.freshman = 4;
+        s.troopLevels.engineer = 2;
+        s.troopLevels.thesis = 7; // a stored level is not an unlock
+        s.heroes.prof.level = 3;
+        s.heroes.president.level = 5;
+      });
+      const before = rowOf('Bob_U');
+      const r = await alice.call<VisitResponse>('/api/visit?name=Bob_U');
+      expect(r.status).toBe(200);
+      expect(r.data.profile).toEqual({
+        name: 'Bob_U', dmc: 3, trophies: 1333, bestTrophies: 1771,
+        troopLevels: { freshman: 4, engineer: 2 }, spells: ['allnighter'], heroLevels: { prof: 3 },
+      });
+      expect(Object.keys(r.data.profile).sort()).toEqual(['bestTrophies', 'dmc', 'heroLevels', 'name', 'spells', 'troopLevels', 'trophies']);
+      expect(rowOf('Bob_U')).toEqual(before);
+    } finally {
+      patchState('Bob_U', (s) => Object.assign(s, original));
+    }
   });
 });
 
