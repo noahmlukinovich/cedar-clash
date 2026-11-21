@@ -10,6 +10,12 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 55,
+    date: 'Nov 21, 2026',
+    title: 'The campus Rock comes to life',
+    items: ['The Rock now has the campus boulder’s broad painted torso, stone limbs and a separate head with simple blue eyes. Look for familiar WELCOME home, silver-and-blue welcome and CU FRIDAY paint jobs.', 'The League Ladder now has just one close button, which stays in place when you scroll.'],
+  },
+  {
     v: 54,
     date: 'Nov 20, 2026',
     title: 'Meet the campus you are visiting',
