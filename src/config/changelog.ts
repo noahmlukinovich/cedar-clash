@@ -10,6 +10,12 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 58,
+    date: 'Nov 21, 2026',
+    title: 'Refined landscape and finished header edges',
+    items: ['The landscape now follows the approved scene more closely, with an S-shaped river, smaller forest groves, rolling hills and a connected rocky ridge.', 'Rocks stay fully on dry land, clear of rivers and streams.', 'The light-blue highlights on menu headers now reach the black divider on desktop, mobile and the League Ladder.'],
+  },
+  {
     v: 57,
     date: 'Nov 21, 2026',
     title: 'A living landscape beyond campus',

@@ -193,7 +193,7 @@ export function leagueLadderArt(data: { trophies: number; best: number; currentM
     <rect x="3" y="7" width="754" height="${height - 10}" rx="31" fill="#071329"/>
     <rect x="6" y="4" width="748" height="${height - 14}" rx="29" fill="#102956" stroke="#08152e" stroke-width="6"/>
     <path d="M9 79V35Q9 7 37 7H723Q751 7 751 35V102H9Z" fill="url(#ladder-header)"/>
-    <path d="M12 69V35Q12 10 38 10H722Q746 10 746 35V69" fill="none" stroke="#78b9ff" stroke-width="4"/>
+    <path d="M12 110V35Q12 10 38 10H722Q746 10 746 35V110" fill="none" stroke="#78b9ff" stroke-width="4"/>
     <rect x="10" y="76" width="740" height="${height - 92}" rx="28" fill="url(#ladder-paper)" stroke="#08152e" stroke-width="3"/>
     <g transform="translate(36 10) scale(.86)">${leagueLaurel()}<g transform="translate(25 0) scale(1.23)">${leagueCup()}</g><g transform="translate(79 0)">${leagueLaurel(true)}</g></g>
     <text x="153" y="55" fill="#fff" stroke="#071329" stroke-width="6.5" stroke-linejoin="round" paint-order="stroke fill" font-size="42" font-weight="900" letter-spacing="-.4">League Ladder</text>
