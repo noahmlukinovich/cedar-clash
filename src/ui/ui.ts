@@ -63,7 +63,7 @@ import type { Game } from '../main';
 import { NAME_RULES, type PlayerProfile, type VisitBuilding, type VisitResponse, validCampusName } from '../net/protocol';
 import { fmtTime, type VillageScene } from '../village/villageScene';
 import { namePlatesOn, setNamePlates } from '../render/world';
-import { ICONS, LEAGUE_ROW_COLORS, campusControlArt, icon, leagueLadderArt, leagueCloseArt, leagueBadgeArt } from './icons';
+import { ICONS, LEAGUE_ROW_COLORS, campusControlArt, buildingInfoButtonArt, icon, leagueLadderArt, leagueCloseArt, leagueBadgeArt } from './icons';
 import { armyControlPortraits, buildingThumb, spellThumb, unitThumb } from './thumbs';
 
 export function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', html = ''): HTMLElementTagNameMap[K] {
@@ -1224,15 +1224,16 @@ export class UI {
     const def = BUILDINGS[b.type];
     p.appendChild(el('div', 'sel-title stroke', `${b.name ?? def.name} <small>${b.level === 0 ? '(under construction)' : 'Level ' + b.level}</small>`));
     const row = el('div', 'sel-buttons');
-    const btn = (label: string, ic: string, cls: string, fn: () => void, extra = ''): void => {
-      const e = el('button', `btn square ${cls}`, `${ic}<span>${label}</span>${extra}`);
+    const btn = (label: string, ic: string | HTMLElement, cls: string, fn: () => void, extra = ''): void => {
+      const e = el('button', `btn square ${cls}`, `${typeof ic === 'string' ? ic : ''}<span>${label}</span>${extra}`);
+      if (typeof ic !== 'string') e.prepend(ic);
       e.onclick = () => {
         sfx('click');
         fn();
       };
       row.appendChild(e);
     };
-    btn('Info', `<span style="font-size:30px">ℹ️</span>`, 'blue', () => this.openInfo(b));
+    btn('Info', buildingInfoButtonArt(), 'blue info-action', () => this.openInfo(b));
     if (b.upgrade) {
       const c = finishNowCost(s, b);
       btn('Finish', icon('clock', 30), 'purple', () => {
@@ -1272,7 +1273,7 @@ export class UI {
     if ((b.type === 'admissions' || b.type === 'coffeecart') && b.level >= 1) {
       btn('Collect', icon(b.type === 'admissions' ? 'tuition' : 'coffee', 34), 'green', () => vs.doCollect(b));
     }
-    if (['reshall', 'biblical', 'callan', 'ens', 'health', 'business', 'music'].includes(b.type)) btn('Train', icon('army', 34), 'blue', () => this.openArmy());
+    if (['reshall', 'biblical', 'callan', 'ens', 'health', 'business', 'music'].includes(b.type)) btn('Train', this.campusMenuIcon('army'), 'blue', () => this.openArmy());
     if (b.type === 'ssc' && b.level >= 1) btn('Brew', `<span style="font-size:28px">🧪</span>`, 'purple', () => this.openArmy());
     if (b.type === 'library' && b.level >= 1) btn('Research', `<span style="font-size:28px">📚</span>`, 'blue', () => this.openLibrary());
     if (b.type === 'faculty' && b.level >= 1) btn('Prof', `<span style="font-size:28px">🎓</span>`, 'gold', () => this.openHero('prof'));
@@ -1306,8 +1307,8 @@ export class UI {
     if (opts.headNode) head.appendChild(opts.headNode);
     else if (opts.headIcon) head.appendChild(el('span', '', opts.headIcon));
     head.appendChild(h2);
-    const x = el('button', 'btn red modal-close', opts.closeArt ?? '✖');
-    if (opts.closeArt) x.setAttribute('aria-label', `Close ${title}`);
+    const x = el('button', 'btn red modal-close', opts.closeArt ?? leagueCloseArt());
+    x.setAttribute('aria-label', 'Close dialog');
     head.appendChild(x);
     m.appendChild(head);
     if (opts.tabs) {

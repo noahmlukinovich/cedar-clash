@@ -10,6 +10,12 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 56,
+    date: 'Nov 21, 2026',
+    title: 'A matching look across campus menus',
+    items: ['Menus now share the League Ladder’s glossy blue headers, outlined titles and red close buttons, including building details, profiles, raid results and notices.', 'Building actions have matching highlights and shadows. Train shows the familiar Army portraits, and Info has a gold-trimmed vector icon with a pressed state.'],
+  },
+  {
     v: 55,
     date: 'Nov 21, 2026',
     title: 'The campus Rock comes to life',
