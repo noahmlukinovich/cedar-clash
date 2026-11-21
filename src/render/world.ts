@@ -216,6 +216,7 @@ export function drawTree(ctx: Ctx, t: TreeSpot, snow = false): void {
 // thousands of trees every frame. Nothing here enters game state or pathfinding.
 const LAND_TILE = 512;
 const LAND_SCALE = 0.8;
+const LAND_BLEED = 4;
 const landscapeCache = new Map<string, HTMLCanvasElement>();
 let landscapeView: { key: string; canvas: HTMLCanvasElement; x: number; y: number } | undefined;
 type LandscapePoint = { x: number; y: number; width: number };
@@ -274,6 +275,19 @@ const landscapeRivers: { points: LandscapePoint[] }[] = (() => {
   }));
 })();
 
+// Only free ends get ponds; tributary mouths stay open to the main channel.
+const landscapePonds = landscapeRivers.flatMap((river) => {
+  return [river.points[0], river.points[river.points.length - 1]].flatMap((end) => {
+    const joinsChannel = landscapeRivers.some((other) => other !== river && other.points.some((b, i) => {
+      if (!i) return false;
+      const a = other.points[i - 1], dx = b.x - a.x, dy = b.y - a.y;
+      const t = Math.max(0, Math.min(1, ((end.x-a.x)*dx+(end.y-a.y)*dy)/(dx*dx+dy*dy || 1)));
+      return Math.hypot(end.x-a.x-t*dx,end.y-a.y-t*dy) < Math.max(a.width,b.width)/2 + end.width/2 + 12;
+    }));
+    return joinsChannel ? [] : [{ x:end.x, y:end.y, radius:Math.max(60,end.width*.85), river }];
+  });
+});
+
 type LandscapeProp = { x: number; y: number; kind: 'tree' | 'rock' | 'shrub'; size: number; v: number; height: number };
 const landscapeProps: LandscapeProp[] = (() => {
   const props: LandscapeProp[] = [];
@@ -323,36 +337,42 @@ function drawRiverReach(ctx: Ctx, points: LandscapePoint[], extra: number, color
   }
 }
 
-function drawLandscapeRidges(ctx: Ctx, snow: boolean): void {
-  const outline: [number,number][]=[[1005,216],[1047,159],[1084,110],[1130,79],[1180,61],[1220,49],[1265,15],[1290,17],[1325,50],[1373,31],[1417,56],[1455,86],[1479,121],[1521,119],[1552,164],[1545,204],[1602,246],[1643,287],[1662,338],[1610,351],[1559,333],[1501,300],[1450,302],[1410,283],[1360,250],[1319,222],[1279,222],[1230,190],[1185,199],[1151,220],[1108,225],[1070,243]];
-  const faces: {color:string;points:[number,number][]}[] = [
-    {color:'#aebac0',points:[[1005,216],[1047,159],[1084,110],[1070,181],[1070,243]]},
-    {color:'#6b7f8c',points:[[1084,110],[1130,79],[1115,172],[1070,243],[1070,181]]},
-    {color:'#bac3c5',points:[[1130,79],[1180,61],[1160,138],[1115,172]]},
-    {color:'#8497a1',points:[[1180,61],[1220,49],[1203,101],[1230,190],[1185,199],[1160,138]]},
-    {color:'#b1bec2',points:[[1220,49],[1265,15],[1253,82],[1230,190],[1203,101]]},
-    {color:'#697f8f',points:[[1265,15],[1290,17],[1325,50],[1280,95],[1279,222],[1230,190],[1253,82]]},
-    {color:'#a9b7be',points:[[1325,50],[1373,31],[1353,126],[1280,95]]},
-    {color:'#8b9ba5',points:[[1373,31],[1417,56],[1390,163],[1353,126]]},
-    {color:'#b5c0c4',points:[[1417,56],[1455,86],[1479,121],[1437,166],[1390,163]]},
-    {color:'#6b808e',points:[[1479,121],[1521,119],[1552,164],[1505,205],[1437,166]]},
-    {color:'#9caeb6',points:[[1070,243],[1115,172],[1185,156],[1151,220],[1108,225]]},
-    {color:'#b3bfc3',points:[[1185,156],[1233,131],[1279,152],[1279,222],[1230,190],[1185,199]]},
-    {color:'#748a98',points:[[1279,152],[1325,143],[1360,192],[1360,250],[1319,222],[1279,222]]},
-    {color:'#b0bec3',points:[[1360,192],[1390,163],[1437,166],[1451,223],[1410,283],[1360,250]]},
-    {color:'#667e8e',points:[[1437,166],[1505,205],[1545,204],[1501,300],[1450,302],[1410,283],[1451,223]]},
-    {color:'#a2b3bb',points:[[1545,204],[1602,246],[1570,294],[1559,333],[1501,300]]},
-    {color:'#718a98',points:[[1602,246],[1643,287],[1662,338],[1610,351],[1559,333],[1570,294]]},
+const MOUNTAIN_OUTLINE: [number, number][] = [
+  [-240,0],[-265,-45],[-225,-112],[-175,-150],[-165,-210],[-105,-248],[-72,-204],[-18,-310],
+  [35,-270],[62,-216],[123,-252],[171,-186],[198,-116],[244,-62],[255,0],[155,38],[30,26],[-86,50],[-190,25],
+];
+type MountainCluster = { x: number; y: number; scale: number; outline: { x: number; y: number }[] };
+
+function drawLandscapeRidges(ctx: Ctx, snow: boolean, left: number, top: number): void {
+  const faces: { color: string; points: [number,number][] }[] = [
+    {color:'#b9c5ca',points:[[-240,0],[-265,-45],[-225,-112],[-175,-150],[-165,-210],[-105,-248],[-122,-94],[-170,-32],[-190,25]]},
+    {color:'#8298a5',points:[[-105,-248],[-72,-204],[-18,-310],[-56,-116],[-122,-94]]},
+    {color:'#c4d0d4',points:[[-18,-310],[35,-270],[62,-216],[8,-116],[-56,-116]]},
+    {color:'#718b9c',points:[[62,-216],[123,-252],[98,-118],[155,38],[30,26],[8,-116]]},
+    {color:'#aabcc5',points:[[123,-252],[171,-186],[198,-116],[244,-62],[255,0],[155,38],[98,-118]]},
+    {color:'#8da5b2',points:[[-190,25],[-170,-32],[-122,-94],[-56,-116],[8,-116],[30,26],[-86,50]]},
+    {color:'#dce6e9',points:[[-18,-310],[-52,-203],[-26,-225],[11,-242]]},
+    {color:'#d0dce1',points:[[-105,-248],[-150,-173],[-127,-187],[-106,-179],[-88,-217]]},
+    {color:'#d7e2e6',points:[[123,-252],[97,-177],[126,-192],[145,-174],[149,-216]]},
   ];
-  const caps: [number,number][][]=[[[1047,159],[1084,110],[1130,79],[1104,107],[1072,151]],[[1185,156],[1233,131],[1279,152],[1266,164],[1220,151]],[[1325,143],[1367,127],[1417,141],[1390,163],[1360,168]],[[1451,223],[1494,209],[1535,225],[1506,240]],[[1559,333],[1570,294],[1608,286],[1591,307]]];
-  for(const mirror of [false,true]){
-    const convert=(points:[number,number][]):[number,number][]=>points.map(([x,y])=>{const p=landscapePoint(x,mirror?380-y:y,mirror);return[p.x,p.y]});
-    poly(ctx,convert(outline),snow?'#c9dbe5':'#899da7',true,2);
-    for(const face of faces)poly(ctx,convert(face.points),snow?shade(face.color,.45):face.color,false);
-    for(const points of caps)poly(ctx,convert(points),snow?'#e4f0f5':'#79b940',false);
+  const ledges: [number,number][][] = [
+    [[-159,-79],[-112,-119],[-67,-120],[-92,-84],[-133,-63]],
+    [[20,-82],[67,-104],[111,-91],[89,-65],[41,-60]],
+  ];
+  for (const mountain of mountainClusters) {
+    const {x,y,scale}=mountain;
+    if(x+280*scale<left-LAND_BLEED || x-280*scale>left+LAND_TILE+LAND_BLEED || y+65*scale<top-LAND_BLEED || y-325*scale>top+LAND_TILE+LAND_BLEED)continue;
+    const convert=(points:[number,number][]):[number,number][]=>points.map(([px,py])=>[x+px*scale,y+py*scale]);
+    poly(ctx,convert(MOUNTAIN_OUTLINE),snow?'#c9dbe5':'#899da7',true,2);
+    for(const face of faces)poly(ctx,convert(face.points),snow?shade(face.color,.3):face.color,false);
+    for(const ledge of ledges)poly(ctx,convert(ledge),snow?'#e5f1f5':'#80b94c',false);
+    // Small cedars grow on the two grass terraces, inside the validated silhouette.
+    const sp=treeSprite(0,snow),treeScale=.52*scale;
+    for(const [tx,ty]of[[-111,-99],[59,-81]]){
+      ctx.drawImage(sp.canvas,x+tx*scale-sp.ax/sp.scale*treeScale,y+ty*scale-sp.ay/sp.scale*treeScale,sp.canvas.width/sp.scale*treeScale,sp.canvas.height/sp.scale*treeScale);
+    }
   }
 }
-
 function drawLandscapeRock(ctx: Ctx, p: LandscapeProp, snow: boolean): void {
   const {x,y,size:w,height:h}=p;
   const a: [number,number]=[x-w*.53,y], b: [number,number]=[x-w*.3,y-h*.69], c: [number,number]=[x+w*.02,y-h], d: [number,number]=[x+w*.29,y-h*.8], e: [number,number]=[x+w*.53,y-h*.12], f: [number,number]=[x+w*.28,y+h*.06];
@@ -383,6 +403,7 @@ const riverSegments = (() => {
 
 function riverDistance(x: number, y: number): number {
   let nearest = 220;
+  for (const pond of landscapePonds) nearest = Math.min(nearest, Math.hypot(x-pond.x,y-pond.y)-pond.radius-5);
   for (const s of riverSegments.get(`${Math.floor(x / LAND_TILE)},${Math.floor(y / LAND_TILE)}`) ?? []) {
     const t = Math.max(0, Math.min(1, ((x - s.x) * s.dx + (y - s.y) * s.dy) / s.length2));
     nearest = Math.min(nearest, Math.hypot(x - s.x - t * s.dx, y - s.y - t * s.dy) - s.half);
@@ -393,6 +414,7 @@ function riverDistance(x: number, y: number): number {
 /** Keep the entire drawn rock, including its outline, clear of every channel. */
 function rockOnDryLand(x: number, y: number, width: number, height: number): boolean {
   const clearance = Math.hypot(width * 0.6, height * 1.05) + 12;
+  if (landscapePonds.some(p => Math.hypot(x-p.x,y-p.y) < p.radius+clearance+5)) return false;
   if (clearance < 200) return riverDistance(x, y) > clearance;
   // Large outcrops can exceed the nearby-segment index's 220px search radius.
   for (const river of landscapeRivers) for (let i=1; i<river.points.length; i++) {
@@ -403,9 +425,87 @@ function rockOnDryLand(x: number, y: number, width: number, height: number): boo
   return true;
 }
 
+type LandscapeVertex = { x: number; y: number };
+
+function pointInLandscapePolygon(p: LandscapeVertex, polygon: LandscapeVertex[]): boolean {
+  let inside=false;
+  for(let i=0,j=polygon.length-1;i<polygon.length;j=i++){
+    const a=polygon[i],b=polygon[j];
+    if((a.y>p.y)!==(b.y>p.y) && p.x<(b.x-a.x)*(p.y-a.y)/(b.y-a.y)+a.x)inside=!inside;
+  }
+  return inside;
+}
+
+function landscapeSegmentDistance2(a: LandscapeVertex, b: LandscapeVertex, c: LandscapeVertex, d: LandscapeVertex): number {
+  const cross=(p:LandscapeVertex,q:LandscapeVertex,r:LandscapeVertex):number=>(q.x-p.x)*(r.y-p.y)-(q.y-p.y)*(r.x-p.x);
+  if(Math.max(Math.min(a.x,b.x),Math.min(c.x,d.x))<=Math.min(Math.max(a.x,b.x),Math.max(c.x,d.x)) &&
+    Math.max(Math.min(a.y,b.y),Math.min(c.y,d.y))<=Math.min(Math.max(a.y,b.y),Math.max(c.y,d.y)) &&
+    cross(a,b,c)*cross(a,b,d)<=0 && cross(c,d,a)*cross(c,d,b)<=0)return 0;
+  const pointDistance=(p:LandscapeVertex,q:LandscapeVertex,r:LandscapeVertex):number=>{
+    const dx=r.x-q.x,dy=r.y-q.y,t=Math.max(0,Math.min(1,((p.x-q.x)*dx+(p.y-q.y)*dy)/(dx*dx+dy*dy||1)));
+    return (p.x-q.x-t*dx)**2+(p.y-q.y-t*dy)**2;
+  };
+  return Math.min(pointDistance(a,c,d),pointDistance(b,c,d),pointDistance(c,a,b),pointDistance(d,a,b));
+}
+
+/** Check the complete projected mountain, not just its center or base. */
+function mountainOnDryLand(polygon: LandscapeVertex[], padding=30): boolean {
+  const minX=Math.min(...polygon.map(p=>p.x)),maxX=Math.max(...polygon.map(p=>p.x));
+  const minY=Math.min(...polygon.map(p=>p.y)),maxY=Math.max(...polygon.map(p=>p.y));
+  for(let i=0;i<polygon.length;i++){
+    const a=polygon[i],b=polygon[(i+1)%polygon.length],steps=Math.ceil(Math.hypot(b.x-a.x,b.y-a.y)/12);
+    for(let step=0;step<=steps;step++)if(campusMargin(a.x+(b.x-a.x)*step/steps,a.y+(b.y-a.y)*step/steps)<3)return false;
+  }
+  if(pointInLandscapePolygon(toWorld(GRID/2,GRID/2),polygon))return false;
+  for(const pond of landscapePonds){
+    if(pointInLandscapePolygon(pond,polygon))return false;
+    for(let j=0;j<polygon.length;j++)if(landscapeSegmentDistance2(pond,pond,polygon[j],polygon[(j+1)%polygon.length])<(pond.radius+padding+5)**2)return false;
+  }
+  for(const river of landscapeRivers)for(let i=1;i<river.points.length;i++){
+    const a=river.points[i-1],b=river.points[i],clearance=Math.max(a.width,b.width)/2+padding;
+    if(Math.max(a.x,b.x)+clearance<minX || Math.min(a.x,b.x)-clearance>maxX || Math.max(a.y,b.y)+clearance<minY || Math.min(a.y,b.y)-clearance>maxY)continue;
+    if(pointInLandscapePolygon(a,polygon)||pointInLandscapePolygon(b,polygon))return false;
+    for(let j=0;j<polygon.length;j++)if(landscapeSegmentDistance2(a,b,polygon[j],polygon[(j+1)%polygon.length])<clearance*clearance)return false;
+  }
+  return true;
+}
+
+const mountainClusters: MountainCluster[] = (()=>{
+  const result:MountainCluster[]=[];
+  for(const mirror of [false,true])for(const [sx,sy,scale]of[[340,745,1.1],[1500,560,1]]){
+    const wanted=landscapePoint(sx,sy,mirror);
+    const offsets: [number,number][] = [[0,0]];
+    for(const radius of [160,320,480,640,800])for(let step=0;step<12;step++)offsets.push([Math.cos(step*Math.PI/6)*radius,Math.sin(step*Math.PI/6)*radius]);
+    for(const [dx,dy]of offsets){
+      const x=wanted.x+dx,y=wanted.y+dy,outline=MOUNTAIN_OUTLINE.map(([px,py])=>({x:x+px*scale,y:y+py*scale}));
+      if(result.some(m=>Math.abs(m.x-x)<600 && Math.abs(m.y-y)<430)||!mountainOnDryLand(outline))continue;
+      result.push({x,y,scale,outline});break;
+    }
+  }
+  return result;
+})();
+
+function onLandscapeMountain(x:number,y:number):boolean {
+  return mountainClusters.some(m=>pointInLandscapePolygon({x,y},m.outline));
+}
+
+const landmarkTreeCells=(()=>{
+  const cells=new Map<string,LandscapeProp[]>();
+  for(const p of landscapeProps)if(p.kind==='tree'){
+    const key=`${Math.floor(p.x/96)},${Math.floor(p.y/96)}`,list=cells.get(key)??[];list.push(p);cells.set(key,list);
+  }
+  return cells;
+})();
+
+function nearLandmarkTree(x:number,y:number):boolean {
+  const cx=Math.floor(x/96),cy=Math.floor(y/96);
+  for(let j=cy-1;j<=cy+1;j++)for(let i=cx-1;i<=cx+1;i++)for(const p of landmarkTreeCells.get(`${i},${j}`)??[])if((p.x-x)**2+(p.y-y)**2<65**2)return true;
+  return false;
+}
+
 function drawLandscapeTile(ctx: Ctx, left: number, top: number, snow: boolean): void {
   ctx.fillStyle = snow ? '#dfe9ef' : '#5aa32d';
-  ctx.fillRect(left, top, LAND_TILE, LAND_TILE);
+  ctx.fillRect(left-LAND_BLEED, top-LAND_BLEED, LAND_TILE+LAND_BLEED*2, LAND_TILE+LAND_BLEED*2);
   // Broad, softly varying ground facets avoid a second checkerboard outside campus.
   for (let j = Math.floor(top / 120) - 1; j <= (top + LAND_TILE) / 120 + 1; j++) {
     for (let i = Math.floor(left / 200) - 1; i <= (left + LAND_TILE) / 200 + 1; i++) {
@@ -419,7 +519,7 @@ function drawLandscapeTile(ctx: Ctx, left: number, top: number, snow: boolean): 
     for (let i = Math.floor(left / 400) - 2; i <= (left + LAND_TILE) / 400 + 2; i++) {
       const h = hash2(i - 16, j + 270);
       const x = i * 400 + h * 190, y = j * 310 + hash2(i + 74, j) * 130;
-      if (h > 0.68 || directedVista(x,y) || campusMargin(x, y) < 5 || riverDistance(x, y) < 130) continue;
+      if (h > 0.8 || campusMargin(x, y) < 5 || riverDistance(x, y) < 130 || onLandscapeMountain(x,y)) continue;
       const w = 155 + h * 150, height = 30 + h * 65;
       poly(ctx, [[x - w, y], [x - 10, y - height - 55], [x + w, y - 15], [x + 30, y + 55]], snow ? '#d0e0e8' : '#62aa3b', false);
       poly(ctx, [[x - w, y], [x - 10, y - height - 55], [x + 30, y + 55]], snow ? '#eaf3f7' : '#79bc44', false);
@@ -438,18 +538,33 @@ function drawLandscapeTile(ctx: Ctx, left: number, top: number, snow: boolean): 
     const bands: [number,string][] = layer===0
       ? [[5,'#294a36'],[3,snow?'#c4d9df':'#cdb46d']]
       : [[0,snow?'#98c9e0':'#268dc5'],[-2,snow?'#b7dfef':'#3ba7db']];
-    for (const [extra,color] of bands) drawRiverReach(ctx,river.points,extra,color);
+    for (const [extra,color] of bands) {
+      drawRiverReach(ctx,river.points,extra,color);
+      // Use the same shore and water bands so ponds merge seamlessly with streams.
+      for(const pond of landscapePonds){
+        if(pond.river!==river)continue;
+        ctx.beginPath();ctx.ellipse(pond.x,pond.y,pond.radius+extra,pond.radius*.7+extra,0,0,Math.PI*2);
+        ctx.fillStyle=color;ctx.fill();
+      }
+    }
     // Small current marks are static, so even low-power devices get the full scene.
     if (layer === 0) continue;
     ctx.strokeStyle = snow ? '#e5f7ff' : '#91d5ef';
     ctx.lineWidth = 1.5;
+    for(const pond of landscapePonds){
+      if(pond.river!==river)continue;
+      for(const [dx,dy]of[[-.35,-.2],[.2,.25]]){
+        const x=pond.x+pond.radius*dx,y=pond.y+pond.radius*dy;
+        ctx.beginPath();ctx.ellipse(x,y,pond.radius*.19,pond.radius*.07,0,.1,Math.PI-.1);ctx.stroke();
+      }
+    }
     for (let i = 2; i < river.points.length; i += 4) {
       const p = river.points[i], q = river.points[i - 1];
       if (p.x < left - 30 || p.x > left + LAND_TILE + 30 || p.y < top - 30 || p.y > top + LAND_TILE + 30) continue;
       ctx.beginPath(); ctx.moveTo(p.x - 7, p.y + 2); ctx.quadraticCurveTo(p.x, p.y + 5, p.x + (p.x - q.x) * 0.3 + 7, p.y + (p.y - q.y) * 0.3); ctx.stroke();
     }
   }
-  drawLandscapeRidges(ctx,snow);
+  drawLandscapeRidges(ctx,snow,left,top);
   if (!snow) for (const mirror of [false,true]) for (const [sx,sy] of [[292,477],[369,489],[714,245],[833,223],[936,298],[88,589],[465,652],[711,726],[960,697],[1046,838],[1235,876],[1488,865],[1546,608],[1515,550],[1280,553]]) {
     const p=landscapePoint(sx,sy,mirror);
     if(p.x<left-50||p.x>left+LAND_TILE+50||p.y<top-40||p.y>top+LAND_TILE+40||riverDistance(p.x,p.y)<10)continue;
@@ -462,12 +577,16 @@ function drawLandscapeTile(ctx: Ctx, left: number, top: number, snow: boolean): 
       const h = hash2(i + 521, j - 821);
       const x = i * 57 + hash2(i, j + 417) * 55, y = j * 55 + hash2(i - 57, j) * 52;
       const margin = campusMargin(x, y);
-      if (margin < 1.8 || directedVista(x,y)) continue;
+      if (margin < 1.8 || onLandscapeMountain(x,y)) continue;
       const bank = riverDistance(x, y);
       const grove = (Math.sin(x / 190 + Math.cos(y / 270)) + Math.cos(y / 150 - x / 360)) / 2;
-      if (bank > 30 && h < 0.52 + grove * 0.32) {
+      const density=directedVista(x,y)?0.3+grove*0.18:0.52+grove*0.32;
+      if (bank > 70 && h < density && !nearLandmarkTree(x,y)) {
         const gx = x / 64 + y / 32, gy = y / 32 - x / 64;
         drawTree(ctx, { x: gx, y: gy, v: Math.floor(hash2(i - 81, j + 19) * 3) }, snow);
+      } else if(bank>25 && h>=density && h<density+.1 && !nearLandmarkTree(x,y)){
+        ctx.fillStyle=snow?'#cfdee6':'#428b3b';ctx.strokeStyle=OUT;ctx.lineWidth=1.4;
+        ctx.beginPath();ctx.ellipse(x-5,y-4,10,7,0,0,Math.PI*2);ctx.ellipse(x+6,y-5,9,8,0,0,Math.PI*2);ctx.fill();ctx.stroke();
       } else if (h > 0.9 && bank > 9) {
         const mountain = h > 0.995 && margin > 24 && bank > 200;
         const size = mountain ? 100 + hash2(i + 1, j) * 85 : 13 + hash2(i + 1, j) * 19;
@@ -485,9 +604,9 @@ function drawLandscapeTile(ctx: Ctx, left: number, top: number, snow: boolean): 
     }
   }
   for (const p of landscapeProps) {
-    if (p.x < left-180 || p.x > left+LAND_TILE+180 || p.y < top-40 || p.y > top+LAND_TILE+200 || campusMargin(p.x,p.y)<1.6) continue;
+    if (p.x < left-180 || p.x > left+LAND_TILE+180 || p.y < top-40 || p.y > top+LAND_TILE+200 || campusMargin(p.x,p.y)<1.6 || onLandscapeMountain(p.x,p.y)) continue;
     if (p.kind==='tree') {
-      if (riverDistance(p.x,p.y)<8) continue;
+      if (riverDistance(p.x,p.y)<70*p.size) continue;
       const sp=treeSprite(p.v,snow);
       ctx.drawImage(sp.canvas,p.x-sp.ax/sp.scale*p.size,p.y-sp.ay/sp.scale*p.size,sp.canvas.width/sp.scale*p.size,sp.canvas.height/sp.scale*p.size);
     } else if (p.kind==='shrub') {
@@ -525,12 +644,12 @@ function drawSurroundings(ctx: Ctx, snow: boolean): void {
     const key = `${x},${y},${snow ? 1 : 0}`;
     let tile = landscapeCache.get(key);
     if (!tile) {
-      tile = document.createElement('canvas'); tile.width = tile.height = Math.ceil(LAND_TILE * LAND_SCALE);
-      const g = tile.getContext('2d')!; g.scale(tile.width / LAND_TILE, tile.height / LAND_TILE); g.translate(-x * LAND_TILE, -y * LAND_TILE);
+      tile = document.createElement('canvas'); tile.width = tile.height = Math.round((LAND_TILE+LAND_BLEED*2) * LAND_SCALE);
+      const g = tile.getContext('2d')!; g.scale(tile.width / (LAND_TILE+LAND_BLEED*2), tile.height / (LAND_TILE+LAND_BLEED*2)); g.translate(-x * LAND_TILE+LAND_BLEED, -y * LAND_TILE+LAND_BLEED);
       drawLandscapeTile(g, x * LAND_TILE, y * LAND_TILE, snow);
     } else landscapeCache.delete(key);
     landscapeCache.set(key, tile);
-    g.drawImage(tile, x * LAND_TILE, y * LAND_TILE, LAND_TILE, LAND_TILE);
+    g.drawImage(tile, x * LAND_TILE-LAND_BLEED, y * LAND_TILE-LAND_BLEED, LAND_TILE+LAND_BLEED*2, LAND_TILE+LAND_BLEED*2);
   }
   landscapeView = { key: viewKey, canvas: view, x: x0 * LAND_TILE, y: y0 * LAND_TILE };
   ctx.drawImage(view, x0 * LAND_TILE, y0 * LAND_TILE, (x1 - x0 + 1) * LAND_TILE, (y1 - y0 + 1) * LAND_TILE);
