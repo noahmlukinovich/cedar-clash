@@ -10,6 +10,12 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 59,
+    date: 'Nov 21, 2026',
+    title: 'Clear rivers and woodland ponds',
+    items: ['Smaller mountain ranges stay fully clear of rivers, streams and their banks.', 'More trees, shrubs, flowers and terrain details fill the open landscape around campus.', 'Free stream ends now open into little blue ponds with sandy banks and gentle ripples.'],
+  },
+  {
     v: 58,
     date: 'Nov 21, 2026',
     title: 'Refined landscape and finished header edges',
