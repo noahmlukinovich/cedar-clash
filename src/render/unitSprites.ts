@@ -72,151 +72,134 @@ function dot(ctx: CanvasRenderingContext2D, x: number, y: number, r: number): vo
   ctx.fill();
 }
 
-/** Paint jobs for The Rock: base coat, accent, and what's written on it. */
-const ROCK_PAINT: { base: string; accent: string; text: string }[] = [
-  { base: '#1c3d7a', accent: '#f5c32c', text: 'GO JACKETS' },
-  { base: '#f4efe4', accent: '#c8323c', text: 'MARRY ME?' },
-  { base: '#2f6f4f', accent: '#f4efe4', text: "CLASS OF '27" },
-  { base: '#b23a6f', accent: '#ffd23f', text: 'HAPPY 21ST' },
-  { base: '#f2a20c', accent: '#1c3d7a', text: 'JOHN 3:16' },
-  { base: '#7b3fa0', accent: '#f4efe4', text: 'PRAY 4 FINALS' },
-];
+/** Campus paint schemes: the first three follow the supplied photographs. */
+const ROCK_PAINT = [
+  { base: '#f0d332', accent: '#164f9b', text: 'WELCOME', sub: 'home', pattern: 'gold' },
+  { base: '#ccd1cf', accent: '#234a9b', text: 'welcome', sub: '', pattern: 'silver' },
+  { base: '#172c3c', accent: '#e9da85', text: 'CU FRIDAY', sub: 'Thanks for visiting', pattern: 'event' },
+  { base: '#173b6b', accent: '#ffdb57', text: 'GO JACKETS', sub: '', pattern: 'classic' },
+  { base: '#f4efe4', accent: '#bf3544', text: 'MARRY ME?', sub: '', pattern: 'classic' },
+  { base: '#34614d', accent: '#f4efe4', text: "CLASS OF '27", sub: '', pattern: 'classic' },
+  { base: '#a84270', accent: '#ffda5b', text: 'HAPPY 21ST', sub: '', pattern: 'classic' },
+  { base: '#e6ae31', accent: '#173b6b', text: 'JOHN 3:16', sub: '', pattern: 'classic' },
+  { base: '#745084', accent: '#f4efe4', text: 'PRAY 4 FINALS', sub: '', pattern: 'classic' },
+] as const;
 
-/**
- * The Rock: a lumpy painted boulder on stubby legs. Higher levels carry more coats of paint
- * (drips, then a second coat, then a gold rim). Pebbles are small chips of it with a fleck of paint.
- */
+const rockPaths = new Map<string, Path2D>();
+function rockPath(path: string): Path2D {
+  let p = rockPaths.get(path);
+  if (!p) { p = new Path2D(path); rockPaths.set(path, p); }
+  return p;
+}
+
+/** A broad campus boulder brought to life; its repainting remains visible at every level. */
 function drawRock(ctx: CanvasRenderingContext2D, x: number, y: number, o: UnitDrawOpts, pebble: boolean): void {
-  const lv = Math.max(1, Math.min(5, Math.floor(o.level ?? 1)));
-  const s = o.scale * (pebble ? 0.55 : 1);
+  const level = Math.max(1, Math.min(7, Math.floor(o.level ?? 1)));
+  const scale = o.scale * (pebble ? .43 : .78);
   const paint = ROCK_PAINT[Math.abs(Math.floor(o.variant ?? 0)) % ROCK_PAINT.length];
   const step = o.moving ? Math.sin(o.t * 6) : 0;
-  const lean = o.attacking > 0 ? o.attacking * 3 : 0;
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  ctx.beginPath();
-  ctx.ellipse(x, y, 17 * s, 6 * s, 0, 0, Math.PI * 2);
-  ctx.fill();
+  const swing = Math.sin(Math.max(0, Math.min(1, o.attacking)) * Math.PI);
   ctx.save();
-  ctx.translate(x, y);
-  ctx.scale(s * o.facing, s);
-  // stubby legs, stomping
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = OUT;
-  ctx.fillStyle = '#5a554c';
-  for (const [lx, ph] of [[-7, 1], [5, -1]] as const) {
-    const lift = Math.max(0, step * ph) * 3;
-    ctx.fillRect(lx, -7 - lift, 5, 7);
-    ctx.strokeRect(lx, -7 - lift, 5, 7);
-  }
-  ctx.translate(lean, -Math.abs(step) * 1.2);
-  // the boulder
-  const body = (): void => {
-    ctx.beginPath();
-    ctx.moveTo(-17, -8);
-    ctx.quadraticCurveTo(-20, -22, -12, -30);
-    ctx.quadraticCurveTo(-4, -37, 6, -34);
-    ctx.quadraticCurveTo(17, -31, 18, -19);
-    ctx.quadraticCurveTo(19, -8, 12, -5);
-    ctx.quadraticCurveTo(0, -2, -10, -4);
-    ctx.closePath();
+  ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(x, y, 33 * scale, 7.5 * scale, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.translate(x + swing * o.facing * scale * 2, y - Math.abs(step) * scale * 1.4);
+  ctx.scale(scale * o.facing, scale);
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  const shape = (d: string, fill: string | CanvasGradient, width = 1.65, stroke = '#172331'): void => {
+    const p = rockPath(d); ctx.fillStyle = fill; ctx.fill(p);
+    if (width) { ctx.strokeStyle = stroke; ctx.lineWidth = width; ctx.stroke(p); }
   };
-  body();
-  ctx.fillStyle = pebble ? '#8a8478' : paint.base;
-  ctx.fill();
-  ctx.save();
-  body();
-  ctx.clip();
-  if (pebble) {
-    // a fleck of the old paint job
-    ctx.fillStyle = paint.base;
-    ctx.beginPath();
-    ctx.ellipse(4, -24, 9, 6, 0.4, 0, Math.PI * 2);
-    ctx.fill();
-  } else {
-    // older coats showing through where it's chipped
-    ctx.fillStyle = paint.accent;
-    ctx.beginPath();
-    ctx.ellipse(-12, -11, 6, 4, 0.3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#8a8478';
-    ctx.beginPath();
-    ctx.ellipse(13, -9, 4, 3, -0.4, 0, Math.PI * 2);
-    ctx.fill();
-    if (lv >= 3) {
-      // second coat swooped over the top
-      ctx.fillStyle = paint.accent;
-      ctx.beginPath();
-      ctx.moveTo(-20, -24);
-      ctx.quadraticCurveTo(0, -34, 20, -26);
-      ctx.lineTo(20, -36);
-      ctx.lineTo(-20, -36);
-      ctx.closePath();
-      ctx.fill();
-    }
-    if (lv >= 2) {
-      // drips
-      // paint drips running down from the top, clear of the face
-      ctx.fillStyle = paint.accent;
-      for (const [dx, len] of [[-13, 10], [-7, 7], [14, 8]] as const) {
-        ctx.beginPath();
-        ctx.moveTo(dx - 1.3, -36);
-        ctx.lineTo(dx - 1.3, -36 + len);
-        ctx.arc(dx, -36 + len, 1.3, Math.PI, 0, true);
-        ctx.lineTo(dx + 1.3, -36);
-        ctx.closePath();
-        ctx.fill();
-      }
-    }
+  const seam = (d: string, color = '#3b4851', width = 1): void => { ctx.strokeStyle = color; ctx.lineWidth = width; ctx.stroke(rockPath(d)); };
+  // Split stone feet and short, load-bearing legs, with the existing walking timing.
+  for (const side of [-1, 1]) {
+    ctx.save(); ctx.translate(side * 10, -Math.max(0, step * side) * 3);
+    shape('M-6-15 3-16 6-8 5-2-6-2-8-8Z', '#535e64');
+    shape('M-7-7 4-8 8-3 7 1-9 1-10-2Z', '#788187');
+    shape('M-7-6 2-7 5-4-8-3Z', '#aab0ae', 0);
+    seam('M-3-2V1M2-2 3 1', '#44505a', .85); ctx.restore();
   }
-  // shading on the underside
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';
-  ctx.beginPath();
-  ctx.ellipse(2, -2, 22, 8, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-  body();
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = lv >= 5 && !pebble ? C.gold : OUT;
-  ctx.stroke();
-  if (!pebble) {
-    // what this week's painters wrote (mirrored back when facing left, so it always reads)
-    ctx.save();
-    ctx.scale(o.facing, 1);
-    ctx.fillStyle = paint.accent;
-    ctx.strokeStyle = OUT;
-    ctx.lineWidth = 0.8;
-    ctx.font = 'bold 6px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(paint.text, 0, -18, 30);
+  shape('M-14-25 13-25 16-15 8-10-9-10-17-16Z', '#394850');
+  shape('M-7-22 6-23 8-15 0-12-9-16Z', '#6e797d', 1);
+  // Heavy original stone arms. The torso, rather than a separate stone head, is the campus rock.
+  if (!pebble) for (const side of [-1, 1]) {
+    ctx.save(); ctx.scale(side, 1); ctx.translate(0, side === 1 ? -swing * 5 : swing * 2);
+    ctx.translate(25, -42); ctx.scale(.9, .92); ctx.translate(-25, 42);
+    ctx.translate(25, -42); ctx.rotate((side === 1 ? -swing * .40 : swing * .12) + step * side * .045); ctx.translate(-25, 42);
+    shape('M22-49 31-49 39-42 39-32 31-27 22-32 19-40Z', '#89918e');
+    shape('M24-47 31-46 35-40 27-39 22-42Z', '#b8beb5', 0);
+    shape('M31-38 39-39 43-29 39-21 29-23 26-30Z', '#616d74');
+    shape('M35-33 40-32 41-27 36-24 30-26Z', '#9aa29d', 0);
+    shape('M29-27 40-27 46-19 44-10 36-7 27-12 25-19Z', '#808985');
+    shape('M29-24 39-24 42-20 35-18 28-20Z', '#b1b7ac', 0);
+    seam('M29-18 30-15 29-12M34-17 35-14 34-10M40-18 39-14 40-11', '#3d4d54', 1.1);
+    shape('M23-47 28-46 29-42 24-42Z', paint.base, .6);
+    if (level >= 3) { shape('M29-32 39-33 40-30 30-29Z', '#24486c', .8); seam('M30-31 38-32', '#eac84d', .75); }
+    if (level >= 6) seam('M32-46 37-41 37-36', '#d6d9cf', .8);
     ctx.restore();
-    // eyes: two painted-on googly eyes
-    for (const ex of [3, 10]) {
-      circle(ctx, ex, -26, 2.6, '#fff', 1.2);
-      dot(ctx, ex + 0.8, -25.6, 1.1);
-    }
-  } else {
-    circle(ctx, 8, -24, 1.8, '#fff', 1);
-    dot(ctx, 8.5, -23.8, 0.8);
   }
+  // Broad, low and asymmetrical, with the ridge and missing corner visible in the campus photos.
+  const body = 'M-34-35Q-37-38-34-41L-30-43-28-47Q-25-48-22-48L-19-51-13-52-9-54-4-53 1-55 7-54 11-52 18-52Q24-51 27-47L31-43Q34-39 35-33L34-28Q33-24 29-23L21-22 11-22 3-23-7-22-17-23-24-22Q-29-23-29-27L-28-31-31-31Z';
+  const base = pebble ? '#89918e' : paint.base;
+  const bodyGradient = ctx.createLinearGradient(-19, -54, 24, -22);
+  bodyGradient.addColorStop(0, pebble ? '#b6bbb5' : paint.pattern === 'gold' ? '#f9e56c' : paint.pattern === 'silver' ? '#eceddf' : paint.pattern === 'event' ? '#4b6370' : paint.base);
+  bodyGradient.addColorStop(.45, base); bodyGradient.addColorStop(1, pebble ? '#68757b' : paint.pattern === 'gold' ? '#c8ac22' : paint.pattern === 'silver' ? '#9aa9ad' : paint.pattern === 'event' ? '#142532' : paint.base);
+  shape(body, bodyGradient, 2);
+  ctx.save(); ctx.clip(rockPath(body));
+  // Uneven natural planes; no regular brick or armor pattern across the painted face.
+  shape('M-35-40-27-46-17-50-9-52 2-53 15-50 25-46 32-37 25-44 14-47 2-49-10-48-24-44Z', 'rgba(255,255,255,.20)', 0);
+  shape('M-35-39-29-35-27-31-28-26-24-23-17-22-26-21-33-27Z', 'rgba(10,27,39,.26)', 0);
+  shape('M26-47 34-38 35-29 29-23 20-21 18-24 29-29Z', 'rgba(10,27,39,.17)', 0);
+  if (!pebble && paint.pattern === 'silver') {
+    shape('M-38-47-13-56-5-53-15-21-36-20Z', '#efce39', 0);
+    shape('M-12-53-8-54-20-21-23-21Z', '#a3b5ba', 0);
+    shape('M-15-21-6-39 3-20Z', '#234a9b', 0);
+  }
+  if (pebble) shape('M-25-42-9-51 3-50-5-36-18-34Z', paint.base, 0);
+  // Fixed-position flecks suggest many layers of paint without per-frame randomness.
+  for (let n = 0; n < 28; n++) {
+    const fx = -32 + ((n * 19 + 7) % 65), fy = -53 + ((n * 13 + 3) % 30);
+    ctx.fillStyle = n % 3 ? 'rgba(255,255,255,.13)' : 'rgba(16,35,49,.13)';
+    ctx.beginPath(); ctx.ellipse(fx, fy, .35 + (n % 3) * .18, .3 + (n % 2) * .22, n, 0, Math.PI * 2); ctx.fill();
+  }
+  // Old coats peek out only at the rim, leaving the painted message clear.
+  shape('M-30-33-27-31-27-27-30-28Z', '#405b70', .4);
+  shape('M17-22 23-25 28-24 25-22Z', '#e6e2ca', .4);
+  seam('M-25-46-19-47-15-46M4-54 8-51 14-51M32-34 29-31', 'rgba(18,36,49,.25)', .75);
   ctx.restore();
-  if (o.flash && o.flash > 0) {
-    ctx.globalAlpha = o.flash * 0.6;
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.ellipse(x, y - 16 * s, 19 * s, 15 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 1;
+  if (!pebble) {
+    // Keep the campus lettering readable in both movement directions.
+    ctx.save(); ctx.scale(o.facing, 1); ctx.fillStyle = paint.accent;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    if (paint.pattern === 'gold') {
+      ctx.font = '900 6.2px sans-serif'; ctx.fillText('WELCOME', 0, -38, 45);
+      ctx.font = 'italic 8.4px cursive'; ctx.fillText('home', 1, -29.2, 37);
+    } else if (paint.pattern === 'silver') {
+      ctx.font = 'italic 7.6px cursive'; ctx.fillText('welcome', 6, -33, 39);
+    } else if (paint.pattern === 'event') {
+      ctx.font = '4.0px sans-serif'; ctx.fillText(paint.sub, 0, -38.5, 45);
+      ctx.font = '900 6.8px sans-serif'; ctx.fillText(paint.text, 0, -29.5, 46);
+    } else {
+      ctx.font = `900 ${paint.text.length > 10 ? 5.1 : 6.3}px sans-serif`; ctx.fillText(paint.text, 0, -33, 46);
+    }
+    ctx.restore();
+    // A distinct stone head sits ABOVE the campus boulder: no eyes or mask on its painted face.
+    shape('M-6-52-7-58 7-59 9-52 4-49-4-49Z', '#455963', 1.15);
+    shape('M-10-55-13-62-11-69-6-73 3-74 10-71 14-65 12-57 7-53-3-53Z', '#8d9796', 1.65);
+    shape('M-10-65-7-70 2-72 8-69 10-65 2-66-4-64Z', '#c4c9be', 0);
+    shape('M8-69 13-64 11-57 6-54 3-56 7-61Z', '#63757c', 0);
+    // Eyes only: no mouth, brows, eyelids or mask to imply an expression.
+    for (const ex of [-4.5, 5.5]) {
+      ctx.beginPath(); ctx.ellipse(ex, -62, 2.4, 2.65, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#b0e4ed'; ctx.fill(); ctx.strokeStyle = '#314c59'; ctx.lineWidth = .65; ctx.stroke();
+    }
+    seam('M4-72 3-69 6-68', '#63777e', .8);
+
+  } else {
+    for (const ex of [-4, 5]) { circle(ctx, ex, -36, 2.4, '#e5edf0', .9); dot(ctx, ex + .5, -35.8, .9); }
   }
-  if (o.frozen) {
-    ctx.fillStyle = 'rgba(170,225,255,0.55)';
-    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.rect(x - 21 * s, y - 38 * s, 42 * s, 38 * s);
-    ctx.fill();
-    ctx.stroke();
-  }
+  // Existing frozen and hit-flash cues cover the new silhouette too.
+  if (o.flash && o.flash > 0) { ctx.save(); ctx.globalAlpha *= o.flash * .65; shape(body, '#fff', 0); ctx.restore(); }
+  if (o.frozen) { shape(body, 'rgba(170,225,255,.4)', 1.2, '#e7faff'); }
+  ctx.restore();
 }
 
 /** The GO Team's van: a white fifteen-passenger with a blue stripe and a globe on the side. */
@@ -464,7 +447,7 @@ export function drawUnit(ctx: CanvasRenderingContext2D, x: number, y: number, ty
   if (themeTier !== null) ctx = troopThematicContext(ctx, themeTier, type);
 
   if (type === 'goteam') return drawVan(ctx, x, y, o);
-  if (type === 'rock' || type === 'pebble') return drawRock(ctx, x, y, o, type === 'pebble');
+  if (type === 'rock' || type === 'pebble') return drawRock(rawContext, x, y, o, type === 'pebble');
   const lv = Math.max(1, Math.min(5, Math.floor(o.level ?? 1)));
   const s = o.scale;
   const of = OUTFIT[type];

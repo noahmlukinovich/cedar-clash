@@ -197,7 +197,7 @@ export function leagueLadderArt(data: { trophies: number; best: number; currentM
     <rect x="10" y="76" width="740" height="${height - 92}" rx="28" fill="url(#ladder-paper)" stroke="#08152e" stroke-width="3"/>
     <g transform="translate(36 10) scale(.86)">${leagueLaurel()}<g transform="translate(25 0) scale(1.23)">${leagueCup()}</g><g transform="translate(79 0)">${leagueLaurel(true)}</g></g>
     <text x="153" y="55" fill="#fff" stroke="#071329" stroke-width="6.5" stroke-linejoin="round" paint-order="stroke fill" font-size="42" font-weight="900" letter-spacing="-.4">League Ladder</text>
-    <g transform="translate(665 14) scale(1.12)">${leagueClosePaths()}</g>
+    <!-- The real close button is outside this scrolling artwork. -->
     ${introText}${rows}
     ${lines.map((line, i) => `<text x="46" y="${footerY + i * 20}" font-size="17" font-style="italic" fill="#14213d">${xml(line)}</text>`).join('')}
   </svg>`;
