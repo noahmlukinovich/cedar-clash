@@ -104,7 +104,7 @@ const RES_COLORS: Record<ResourceId, string> = {
 };
 
 export function costHtml(res: ResourceId, amt: number, ok = true): string {
-  return `<span class="price ${ok ? '' : 'bad'}">${icon(res, 18)} ${amt > 0 ? fmt(amt) : 'Free'}</span>`;
+  return `<span class="price ${ok ? '' : 'bad'}">${icon(res, 18)} ${amt > 0 ? (Number.isInteger(amt) ? fmt(amt) : amt.toLocaleString(undefined, { maximumFractionDigits: 1 })) : 'Free'}</span>`;
 }
 
 const SEEN_KEY = 'cedarville-clash-whatsnew';

@@ -225,7 +225,7 @@ export function tickArmy(s: GameState, dt: number): void {
     if (!q) break;
     if (q.left === q.total && q.chucks === undefined) {
       // first time this item starts: maybe it's stuck in line at Chuck's
-      q.chucks = Math.random() < 0.18 ? 3 + Math.random() * 3 : 0;
+      q.chucks = Math.random() < 0.18 ? 1.5 + Math.random() * 1.5 : 0;
     }
     if (q.chucks && q.chucks > 0) {
       const use = Math.min(budget, q.chucks);

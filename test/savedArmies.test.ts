@@ -94,7 +94,8 @@ describe('saved armies', () => {
     const p = { ...preset(), spells: { allnighter: 1 } };
     expect(savedArmyTotals(s, p).seconds).toBe(30);
     s.events.push({ type: 'finals', end: s.clock + 100 });
-    expect(savedArmyTotals(s, p).seconds).toBe(40);
+    // Ten freshmen now take 10s (20s in Finals), so the unchanged 30s spell still dominates.
+    expect(savedArmyTotals(s, p).seconds).toBe(30);
   });
 
   it('clears only the recipe and handles empty slots', () => {
