@@ -122,10 +122,6 @@ export class Game {
       this.ui.toast(`🏅 Achievement: ${a.name}! +${a.reward} Chapel Credits`, 'good', 3500);
       sfx('star');
     });
-    bus.on('ticket', (d) => {
-      this.ui.toast(`🚓 ${d.text} −${d.fine} Tuition`, 'bad', 4000);
-      sfx('whistle');
-    });
     bus.on('changed', () => {
       if (this.scene === this.editor) this.editor?.markDirty();
     });
@@ -246,11 +242,11 @@ export class Game {
     if (this.scene === this.village) this.showServerNews();
   }
 
-  /** Toasts and popups for things that happened on the server (events, tickets, raids on us). */
+  /** Toasts and popups for things that happened on the server (events and raids on us). */
   showServerNews(): void {
     for (const n of this.pendingNotes.splice(0)) {
-      if (n.ev === 'ticket') bus.emit('ticket', n.data);
-      else if (n.ev === 'eventStart') {
+      // Legacy ticket notes are ignored; automatic fines have been retired.
+      if (n.ev === 'eventStart') {
         const info = EVENT_INFO[n.data.type as keyof typeof EVENT_INFO];
         if (info) this.ui.toast(`${info.icon} ${info.name}! ${info.desc}`, 'event', 4000);
       } else if (n.ev === 'chapelSkip') this.ui.popup('A note from the Chapel office', esc(n.data), 'I will do better');
@@ -558,7 +554,7 @@ export class Game {
     s.clock += dt;
     tickEconomy(s, dt);
     tickArmy(s, dt);
-    // Online, random events (and tickets) are rolled by the server and arrive with the next sync.
+    // Online, random events are rolled by the server and arrive with the next sync.
     if (!this.online) tickEvents(s, dt);
     this.scene.update(dt, realDt);
     const ctx = this.ctx;

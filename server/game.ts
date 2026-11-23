@@ -38,7 +38,6 @@ const HOUR = 3600 * 1000;
 
 // Capture things the shared game code announces on the bus during a request.
 let notes: Note[] = [];
-bus.on('ticket', (d: { text: string; fine: number }) => notes.push({ ev: 'ticket', data: d }));
 bus.on('eventStart', (e: { type: string }) => notes.push({ ev: 'eventStart', data: { type: e.type } }));
 
 export interface Loaded {

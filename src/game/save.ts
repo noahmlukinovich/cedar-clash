@@ -126,7 +126,7 @@ const TROOP_KEYS = Object.keys(TROOPS) as TroopType[];
 const SPELL_KEYS = Object.keys(SPELLS) as SpellType[];
 const HERO_KEYS = Object.keys(HEROES) as HeroType[];
 const RES_KEYS: ResourceId[] = ['tuition', 'coffee', 'chapel'];
-const EVENT_KEYS: EventType[] = ['ringbyspring', 'finals', 'construction', 'elephantrun'];
+const EVENT_KEYS: EventType[] = ['ringbyspring', 'finals', 'elephantrun'];
 
 function buildings(v: unknown, fallback: BuildingInst[]): { list: BuildingInst[]; maxId: number } {
   if (!Array.isArray(v)) return { list: fallback, maxId: Math.max(0, ...fallback.map((b) => b.id)) };
@@ -248,7 +248,6 @@ export function sanitize(raw: AnySave): GameState {
     settings: { muted: bool(settings.muted), speedIdx: int(settings.speedIdx, 0, 0, 2), debug: bool(settings.debug) },
     campaignDone: bool(raw.campaignDone),
     lastRaidClock: num(raw.lastRaidClock, 0),
-    nextTicketCheck: num(raw.nextTicketCheck, clock + 240),
     playerName: str(raw.playerName, fresh.playerName).slice(0, 40),
     layouts: layouts(raw.layouts),
     activeLayout: int(raw.activeLayout, 0, 0, 2),

@@ -12,7 +12,7 @@ export interface UserInfo {
 
 /** Things that happened on the server that the client should show (toasts, popups). */
 export type Note =
-  | { ev: 'ticket'; data: { text: string; fine: number } }
+  | { ev: 'ticket'; data: { text: string; fine: number } } // legacy saved notes; ignored by current clients
   | { ev: 'eventStart'; data: { type: string } }
   | { ev: 'chapelSkip'; data: string }
   | { ev: 'achievement'; data: string }

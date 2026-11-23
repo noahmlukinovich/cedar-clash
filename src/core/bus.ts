@@ -15,7 +15,6 @@ export interface BusEvents {
   achievement: AchievementId;
   eventStart: ActiveEvent;
   eventsChanged: void;
-  ticket: { text: string; fine: number };
   trained: TroopType;
   researchDone: TroopType;
   heroDone: HeroType;

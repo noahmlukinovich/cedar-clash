@@ -12,8 +12,8 @@ export const CHANGELOG: ChangeEntry[] = [
   {
     v: 61,
     date: 'Nov 23, 2026',
-    title: 'Meet the Cashier’s Office',
-    items: ['The Registrar’s Office is now called the Cashier’s Office in menus, building details and storage messages.', 'Your Tuition storage, building levels and saved progress stay the same.'],
+    title: 'Cashier’s Office, no random fences or fines',
+    items: ['The Registrar’s Office is now called the Cashier’s Office in menus, building details and storage messages.', 'Campus Construction has been retired: random fences no longer appear, and existing event fences are cleared from saved campuses.', 'Campus Safety no longer issues automatic tickets or deducts Tuition for an idle army. The Campus Safety Cart still defends your campus.', 'Your Tuition storage, building levels, regular construction, already-earned rewards and saved progress stay the same.'],
   },
   {
     v: 60,

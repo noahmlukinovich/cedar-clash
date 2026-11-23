@@ -17,7 +17,6 @@ export const LOADING_TIPS: string[] = [
   'Pro tip: Your Facilities Crew is doing their best. They are also mowing. Again.',
   'Pro tip: Ring by Spring season boosts troops who pair up. Coincidence? Ask your RA.',
   'Pro tip: If the training queue stalls, your troops are waiting in line at Chuck\'s.',
-  'Pro tip: Campus Safety will ticket idle troops. Keep them raiding.',
   'Pro tip: Coffee production doubles during Finals Week. So does crying in the library.',
   'Pro tip: the Thesis Defender hits harder the longer it argues with one building. Do not waste it on a Coffee Cart.',
   'Pro tip: Rinnova stores Coffee. Also stores 40% of all group-project procrastination.',
@@ -111,19 +110,6 @@ export const CHAPEL_ATTEND_LINES: string[] = [
 
 export const CHUCKS_LINE = "waiting in line at Chuck's…";
 
-export const TICKET_LINES: string[] = [
-  'Campus Safety ticketed your idle troops for loitering near the fire lane.',
-  'Campus Safety ticketed a Freshman for parking a skateboard in a faculty spot.',
-  'Campus Safety ticketed your army for "excessive standing around."',
-  'Campus Safety found your troops idling by the lake. Ticket issued (with a smile).',
-];
-
-export const CONSTRUCTION_LINES: string[] = [
-  'Campus construction has begun! A tile is fenced off. Nobody knows what is being built. Nobody ever does.',
-  'New sidewalk incoming! It will be torn up again next semester.',
-  'Facilities is "improving drainage." Orange fencing has appeared.',
-];
-
 export const WIND_LINES: string[] = [
   'OHIO WIND! Hold on to your lanyards!',
   'Gust warning: the walk from Lawlor to the DMC just got longer.',
@@ -140,11 +126,6 @@ export const EVENT_INFO: Record<EventType, { name: string; desc: string; icon: s
     name: 'Finals Week',
     desc: 'Coffee production x2. Troop training 50% slower (everyone is studying).',
     icon: '📚',
-  },
-  construction: {
-    name: 'Campus Construction',
-    desc: 'A tile is fenced off with orange fencing. It will be done "soon."',
-    icon: '🚧',
   },
   elephantrun: {
     name: 'Elephant Run',
@@ -179,6 +160,7 @@ export interface AchievementDef {
   id: AchievementId;
   name: string;
   desc: string;
+  retired?: boolean; // legacy awards stay visible only for players who already earned them
   reward: number; // chapel credits
 }
 
@@ -188,7 +170,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'lakebridge', name: 'Walked Across the Lake Bridge', desc: 'Place a Cedar Lake on your campus.', reward: 5 },
   { id: 'freshman15', name: 'Freshman 15', desc: 'Train 15 Freshmen.', reward: 5 },
   { id: 'chapelregular', name: 'Chapel Regular', desc: 'Reach a 3-day Chapel streak.', reward: 10 },
-  { id: 'ticketed', name: 'Parking Ticket Collector', desc: 'Get ticketed by Campus Safety.', reward: 3 },
+  { id: 'ticketed', name: 'Parking Ticket Collector', desc: 'Legacy award: earned before idle-army tickets were retired.', reward: 3, retired: true },
   { id: 'allnighter', name: 'Pulled an All-Nighter', desc: 'Cast the All-Nighter spell.', reward: 5 },
   { id: 'dmc3', name: 'Upperclassman', desc: 'Upgrade the DMC to level 3.', reward: 10 },
   { id: 'dmc5', name: 'Senior Status', desc: 'Upgrade the DMC to level 5.', reward: 25 },

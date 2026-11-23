@@ -2317,11 +2317,12 @@ export class UI {
     const m = this.modal('Achievements', { headIcon: icon('medal', 36) });
     const s = this.state;
     const list = el('div', 'ach-list');
-    for (const a of ACHIEVEMENTS) {
+    const visibleAchievements = ACHIEVEMENTS.filter((a) => !a.retired || s.achievements[a.id]);
+    for (const a of visibleAchievements) {
       const got = !!s.achievements[a.id];
       list.appendChild(el('div', `ach ${got ? '' : 'locked'}`, `${icon('medal', 40)}<div><b>${a.name}</b><br><span style="font-size:13px">${a.desc}</span><br><span style="font-size:12px">Reward: ${a.reward} ${icon('chapel', 14)}</span></div>`));
     }
-    m.body.appendChild(el('div', 'section-title', `${Object.keys(s.achievements).length}/${ACHIEVEMENTS.length} unlocked`));
+    m.body.appendChild(el('div', 'section-title', `${visibleAchievements.filter((a) => s.achievements[a.id]).length}/${visibleAchievements.length} unlocked`));
     m.body.appendChild(list);
   }
 
@@ -2602,18 +2603,11 @@ export class UI {
         }
       };
       dr.append(sp, res, fin);
-      for (const ev of ['ringbyspring', 'finals', 'construction', 'elephantrun'] as const) {
+      for (const ev of ['ringbyspring', 'finals', 'elephantrun'] as const) {
         const b = el('button', 'btn small purple', `${EVENT_INFO[ev].icon} ${EVENT_INFO[ev].name}`);
         b.onclick = () => startEvent(s, ev);
         dr.appendChild(b);
       }
-      const tk = el('button', 'btn small purple', '🚓 Ticket');
-      tk.onclick = () => {
-        s.nextTicketCheck = s.clock;
-        s.lastRaidClock = -9999;
-        this.toast('Campus Safety is on patrol (needs a mostly-full army)...');
-      };
-      dr.appendChild(tk);
       m.body.appendChild(dr);
 
       m.body.appendChild(el('div', 'section-title', 'Save data'));
