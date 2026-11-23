@@ -10,6 +10,12 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 60,
+    date: 'Nov 23, 2026',
+    title: 'Rooftop gold and a giant coffee globe',
+    items: ['The Tuition storage building has a new bank-inspired design with a navy gabled roof, a stone entrance, a Cashier’s Office sign and larger rooftop gold stacks that extend to the front of the roof.', 'Rinnova’s two silos are replaced by one large clear sphere. Its coffee level rises and falls with your stored coffee.', 'Both storage buildings keep their existing levels, capacities, costs and footprint.'],
+  },
+  {
     v: 59,
     date: 'Nov 21, 2026',
     title: 'Clear rivers and woodland ponds',

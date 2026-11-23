@@ -3,7 +3,7 @@ import { GRID } from '../config/balance';
 import type { BuildingType } from '../config/types';
 import { hash2 } from '../core/rng';
 import { toWorld } from '../core/iso';
-import { CATAPULT_AXLE_Z, STINGER_TIP_Z, buildingThemeContext, buildingThemeTier, drawRaTowerCanopy, getBuildingSprite, type Sprite } from './buildingSprites';
+import { CATAPULT_AXLE_Z, STINGER_TIP_Z, buildingThemeContext, buildingThemeTier, drawRaTowerCanopy, drawRinnovaReservoir, getBuildingSprite, type Sprite } from './buildingSprites';
 import { C, OUT, P, box, poly, roundRect, shade } from './draw';
 import { drawBuilder } from './unitSprites';
 
@@ -770,32 +770,34 @@ function drawDynamic(ctx: Ctx, a: BuildingDrawArgs, size: number): void {
       break;
     }
     case 'registrar': {
-      const f = a.fill ?? 0;
-      const h = 30 + L * 5;
-      if (f > 0.02) {
-        const k = 0.35 + f * 0.5;
-        box(ctx, -0.05 - k, -0.1 - k, -0.05 + k, -0.1 + k, h + 4, h + 6 + f * 10, C.gold, { top: '#ffe066', stroke: true });
+      const f = Math.max(0,Math.min(1,a.fill ?? 0));
+      const vaultZ=44+L*3+4+(L>=3?31:24)+4;
+      // As before, stored Tuition is visible on the roof, not just in a UI bar.
+      // More storage means more stacks, with a taller central pile when full.
+      const piles=Math.ceil(f*15);
+      for(let row=0;row<5;row++)for(let col=0;col<3;col++){
+        if(row*3+col>=piles)continue;
+        const u=-.9+row*.4,v=-.48+col*.36;
+        const height=3+f*(col===1?20:14);
+        box(ctx,u,v,u+.34,v+.3,vaultZ,vaultZ+height,C.gold,{top:'#ffe066'});
+        const [cx,cy]=P(u+.17,v+.15,vaultZ+height+1.2);
+        ctx.beginPath();ctx.ellipse(cx,cy,4,2,0,0,Math.PI*2);
+        ctx.fillStyle='#ffe066';ctx.strokeStyle=C.goldDark;ctx.lineWidth=.8;ctx.fill();ctx.stroke();
+      }
+      const [mx,my]=P(.01,1.31,7);
+      for(let stack=0;stack<3;stack++){
+        const n=Math.ceil(f*(stack===1?5:3));
+        for(let i=0;i<n;i++){
+          const x=mx+(stack-1)*5.1,y=my-4-i*2.25;
+          ctx.fillStyle=C.goldDark;ctx.strokeStyle=OUT;ctx.lineWidth=.65;
+          ctx.beginPath();ctx.ellipse(x,y,3.3,1.65,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+          ctx.fillStyle='#ffe066';ctx.beginPath();ctx.ellipse(x,y-.8,3.3,1.45,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+        }
       }
       break;
     }
     case 'rinnova': {
-      const f = a.fill ?? 0;
-      const h = 30 + L * 4;
-      const th = h + 22 + L * 3;
-      const [x, y] = P(0.85, -0.85, 4);
-      const rx = 0.5 * 45;
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(x - rx * 0.35, y - th + 6, rx * 0.7, th - 10);
-      ctx.fillStyle = 'rgba(30,20,10,0.5)';
-      ctx.fill();
-      const fh = (th - 10) * f;
-      ctx.fillStyle = '#7a4520';
-      ctx.fillRect(x - rx * 0.35, y - 4 - fh, rx * 0.7, fh);
-      ctx.strokeStyle = OUT;
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(x - rx * 0.35, y - th + 6, rx * 0.7, th - 10);
-      ctx.restore();
+      drawRinnovaReservoir(ctx,L,a.fill ?? 0);
       break;
     }
     case 'ratower': {

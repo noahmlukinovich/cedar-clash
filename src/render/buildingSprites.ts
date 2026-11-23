@@ -42,7 +42,7 @@ export function getBuildingSprite(type: BuildingType, level: number, variant = 0
   const size = BUILDINGS[type].size;
   const w = size * 64 + 48;
   // headroom above the footprint, by footprint size (the DMC steeple is the tallest thing on campus)
-  const top = type === 'dmc' ? 240 : type === 'stinger' ? 112 : size === 1 ? 46 : size === 2 ? 80 : size === 3 ? 150 : 140;
+  const top = type === 'dmc' ? 240 : type === 'rinnova' ? 220 : type === 'stinger' ? 112 : size === 1 ? 46 : size === 2 ? 80 : size === 3 ? 150 : 140;
   const h = size * 32 + top + 12;
   const canvas = document.createElement('canvas');
   canvas.width = w * SCALE;
@@ -504,7 +504,7 @@ function drawBuildingArt(ctx: Ctx, type: BuildingType, level: number, variant = 
     case 'coffeecart':
       return coffeeCart(ctx, L);
     case 'registrar':
-      return registrar(ctx, L);
+      return cashiersOffice(ctx, L);
     case 'rinnova':
       return rinnova(ctx, L);
     case 'reshall':
@@ -1294,67 +1294,141 @@ function coffeeCart(ctx: Ctx, L: number): void {
   if (L >= 4) cafeHedge(ctx,0.15,1.38,0.48);
 }
 
-/** Registrar: the Tuition vault. The roof is an open coin bin (filled in by the live overlay). */
-function registrar(ctx: Ctx, L: number): void {
-  site(ctx, L, 3);
-  const h = 30 + L * 5;
-  walls(ctx, L, -1.15, -1.15, 1.1, 1.0, 4, h, C.brick);
-  if (L >= 2) panes(ctx, 'R', -1.0, 0.9, 1.1, 10, h - 6, 3, L >= 4 ? 2 : 1);
-  else windowsR(ctx, -1.0, 0.9, 1.1, 10, h - 6, 3, 1);
-  if (L >= 2) {
-    // narrow windows either side of the vault
-    panes(ctx, 'L', -1.05, -0.62, 1.0, 10, h - 8, 1, 1, 0);
-    panes(ctx, 'L', 0.6, 1.02, 1.0, 10, h - 8, 1, 1, 2);
+/** Cashier's Office: a tuition store with a stone banking front and navy gabled roof. */
+function cashiersOffice(ctx: Ctx, L: number): void {
+  site(ctx,L,3);
+  const h=44+L*3, roofRise=L>=3?31:24;
+  const stone=L>=3?'#ffe9a8':'#c9c1ae', gold=L>=4?C.gold:'#b5a17d';
+  walls(ctx,L,-1.13,-1.05,1.03,1.02,4,h,C.brick);
+  // Warm, divided windows on the long brick side.
+  panes(ctx,'L',-.98,.94,1.03,12,h-13,4,1,1);
+  box(ctx,-1.18,-1.1,1.1,1.07,h-3,h+3,stone,{right:stone});
+  gable(ctx,-1.22,-1.15,1.12,1.12,h+4,roofRise,C.navy,'u');
+  // Slate seams on the main roof slope, with a gold ridge and eaves.
+  ctx.strokeStyle='#112e59';ctx.lineWidth=1;
+  for(let u=-1.05;u<1.1;u+=.25)line(ctx,P(u,1.12,h+4),P(u,-.015,h+4+roofRise));
+  ctx.strokeStyle=gold;ctx.lineWidth=2.4;
+  line(ctx,P(-1.22,1.12,h+4),P(1.12,1.12,h+4));
+  line(ctx,P(-1.22,-.015,h+4+roofRise),P(1.12,-.015,h+4+roofRise));
+  // A low rooftop vault preserves the original at-a-glance Tuition display.
+  const vaultZ=h+4+roofRise;
+  box(ctx,-1.03,-.64,1.1,.64,vaultZ,vaultZ+4,C.navy,{top:'#485766'});
+  box(ctx,-1.03,-.64,1.1,-.58,vaultZ+4,vaultZ+7,gold);
+  box(ctx,-1.03,.58,1.1,.64,vaultZ+4,vaultZ+7,gold);
+  box(ctx,-1.03,-.64,-.97,.64,vaultZ+4,vaultZ+7,gold);
+  // Carved pediment on the entrance face; its inset carries a bank icon.
+  poly(ctx,[P(1.14,1.12,h+5),P(1.14,-1.15,h+5),P(1.14,-.015,h+4+roofRise)],stone,true,1.7);
+  poly(ctx,[P(1.16,.85,h+9),P(1.16,-.88,h+9),P(1.16,-.015,h+roofRise-2)],'#b9ae96',true,1);
+  ctx.strokeStyle=L>=4?gold:'#ece3cf';ctx.lineWidth=2;
+  line(ctx,P(1.17,1.1,h+6),P(1.17,-.015,h+roofRise+4));
+  line(ctx,P(1.17,-.015,h+roofRise+4),P(1.17,-1.13,h+6));
+  // Stone entrance surround, warm glass and a double door.
+  box(ctx,1.04,-.93,1.09,.96,5,h-8,stone,{right:stone});
+  for(const v of[-.77,.7])panes(ctx,'R',v-.16,v+.16,1.1,12,h-14,1,1,1);
+  for(const v of[-.39,.02]){
+    poly(ctx,[P(1.115,v,8),P(1.115,v+.37,8),P(1.115,v+.37,h-16),P(1.115,v,h-16)],C.navy,true,1.3);
+    poly(ctx,[P(1.12,v+.05,12),P(1.12,v+.32,12),P(1.12,v+.32,h-20),P(1.12,v+.05,h-20)],'#ffd870',true,.9);
+    poly(ctx,[P(1.125,v+.07,15),P(1.125,v+.17,15),P(1.125,v+.31,h-22),P(1.125,v+.22,h-22)],'#ffe9a8',false);
   }
-  // vault door on left face
-  const [vx, vy] = P(0, 1.0, h * 0.42);
-  if (L >= 3) {
-    // cream surround
-    ctx.beginPath();
-    ctx.ellipse(vx, vy, 20, 19, 0, 0, Math.PI * 2);
-    ctx.fillStyle = CREAM;
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = OUT;
-    ctx.stroke();
+  ctx.strokeStyle=gold;ctx.lineWidth=1.7;
+  for(const v of[-.06,.06])line(ctx,P(1.14,v,20),P(1.14,v,29));
+  for(const v of[-.54,.5]){
+    box(ctx,1.03,v-.095,1.22,v+.095,5,10,stone,{right:stone});
+    box(ctx,1.07,v-.06,1.18,v+.06,10,h-9,stone,{right:stone});
+    box(ctx,1.02,v-.11,1.23,v+.11,h-11,h-6,stone,{right:stone});
   }
-  ctx.beginPath();
-  ctx.ellipse(vx, vy, 16, 15, 0, 0, Math.PI * 2);
-  ctx.fillStyle = L >= 4 ? C.gold : L <= 1 ? '#8a8f96' : '#c9cdd3';
-  ctx.fill();
-  ctx.lineWidth = 2.5;
-  ctx.strokeStyle = OUT;
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.ellipse(vx, vy, 9, 8.5, 0, 0, Math.PI * 2);
-  ctx.fillStyle = C.gold;
-  ctx.fill();
-  ctx.stroke();
-  for (let i = 0; i < 4; i++) {
-    const a = (i * Math.PI) / 2 + 0.4;
-    ctx.beginPath();
-    ctx.moveTo(vx, vy);
-    ctx.lineTo(vx + Math.cos(a) * 13, vy + Math.sin(a) * 12);
-    ctx.stroke();
+  // Broad sign, projected onto the front face rather than floating in screen space.
+  box(ctx,1.04,-1.06,1.23,1.08,h-9,h+7,stone,{right:stone});
+  poly(ctx,[P(1.245,-1.01,h-7),P(1.245,1.03,h-7),P(1.245,1.03,h+5),P(1.245,-1.01,h+5)],C.navy,true,1.3);
+  ctx.strokeStyle=gold;ctx.lineWidth=1.25;
+  for(const z of[h-6,h+4])line(ctx,P(1.255,-.99,z),P(1.255,1.01,z));
+  const [sx,sy]=P(1.26,.01,h-1);
+  ctx.save();ctx.translate(sx,sy);ctx.transform(1,-.5,0,1,0,0);
+  ctx.font='900 6.4px "Trebuchet MS", sans-serif';ctx.fillStyle='#fff7df';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText("CASHIER'S OFFICE",0,0,59);ctx.restore();
+  // Gold banking emblem centered in the pediment.
+  const [ix,iy]=P(1.19,-.015,h+15);
+  ctx.save();ctx.translate(ix,iy);ctx.transform(1,-.5,0,1,0,0);
+  poly(ctx,[[-9,0],[0,-7],[9,0]],gold,true,1);
+  for(const x of[-6,0,6]){ctx.fillStyle=gold;ctx.fillRect(x-1,-.5,2,8);}
+  poly(ctx,[[-10,8],[10,8],[10,10],[-10,10]],gold,true,.8);ctx.restore();
+  // Shallow entrance stairs and small wall lanterns.
+  for(let n=2;n>=0;n--)box(ctx,1.1,-.5,1.43-n*.09,.5,4+n*1.5,6+n*1.5,stone,{right:stone});
+  if(L>=3)for(const v of[-.6,.59]){
+    const [x,y]=P(1.24,v,24);ctx.fillStyle='#f5c32c';ctx.strokeStyle=OUT;ctx.lineWidth=.9;
+    ctx.beginPath();ctx.roundRect(x-2.4,y-5,4.8,8,1.2);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#fff1b2';ctx.fillRect(x-1,y-4,1.7,5);
   }
-  trim(ctx, L, -1.15, -1.15, 1.1, 1.0, h);
-  // parapet around the open-top coin bin
-  if (L >= 2) box(ctx, -1.2, -1.2, 1.15, 1.05, h, h + 3, CREAM);
-  box(ctx, -1.0, -1.0, 0.95, 0.85, h + (L >= 2 ? 3 : 0), h + 6, C.stoneDark);
-  const [sx, sy] = P(0, 1.0, h - 5);
-  plaque(ctx, sx, sy, 'REGISTRAR', 7);
-  levelFlags(ctx, L, 1.05, 0.95, h + 6);
-  grounds(ctx, L, 3);
+  if(L>=4){
+    // Side banner with a small calculator motif.
+    poly(ctx,[P(-.79,1.08,h-3),P(-.22,1.08,h-3),P(-.22,1.08,17),P(-.5,1.08,10),P(-.79,1.08,17)],C.navy,true,1.2);
+    ctx.strokeStyle=gold;ctx.lineWidth=1;line(ctx,P(-.73,1.09,h-5),P(-.73,1.09,19));line(ctx,P(-.73,1.09,19),P(-.5,1.09,13));line(ctx,P(-.5,1.09,13),P(-.28,1.09,19));
+    const [x,y]=P(-.5,1.1,36);ctx.save();ctx.translate(x,y);ctx.transform(1,.5,0,1,0,0);ctx.strokeStyle=gold;ctx.strokeRect(-4,-7,8,12);ctx.fillStyle=gold;ctx.fillRect(-2,-5,4,2);for(let r=0;r<2;r++)for(let c=0;c<2;c++)ctx.fillRect(-2+c*3,-1+r*3,1.5,1.5);ctx.restore();
+  }
+  if(L>=2){
+    for(const [u,v,len]of[[-1.22,1.22,.75],[.55,1.22,.45],[1.28,-1.15,.12]]){
+      cafeHedge(ctx,u,v,len);
+      if(L>=3)for(let i=0;i<Math.ceil(len/.18);i++){
+        const [x,y]=P(u+i*.18,v+0.04,11);
+        for(let k=0;k<5;k++){const a=k*Math.PI*2/5;ctx.beginPath();ctx.arc(x+Math.cos(a)*1.6,y+Math.sin(a)*1.2,1,0,Math.PI*2);ctx.fillStyle='#fff9dc';ctx.fill();}
+        ctx.fillStyle=C.gold;ctx.beginPath();ctx.arc(x,y,.8,0,Math.PI*2);ctx.fill();
+      }
+    }
+  }
+  // Low freestanding coin monument; its coins are filled by the live storage overlay.
+  box(ctx,-.26,1.14,.28,1.43,4,7,'#aeb8bd');
+  const [mx,my]=P(.01,1.31,7);
+  poly(ctx,[[mx-13,my],[mx-13,my-18],[mx,my-26],[mx+13,my-18],[mx+13,my],[mx-13,my]],'#b7c2c8',true,1.5);
+  poly(ctx,[[mx-9,my-2],[mx-9,my-16],[mx,my-21],[mx+9,my-16],[mx+9,my-2]],C.navy,true,1);
+}
+
+/** Clear spherical coffee reservoir; fill is the existing stored-coffee/capacity ratio. */
+export function drawRinnovaReservoir(ctx: Ctx, L: number, fill: number): void {
+  const f=Number.isFinite(fill)?Math.max(0,Math.min(1,fill)):0;
+  const [cx,baseY]=P(-.42,-.96,0), h=40+L*4;
+  const radius=29+Math.min(8,L),rx=radius*1.7,ry=rx*.86;
+  // Grow upward and outward while keeping the reservoir seated on its pedestal.
+  const cy=baseY-h-37-(ry-radius*.86);
+  // A subtly blue glass shell remains readable even when completely empty.
+  const glass=ctx.createLinearGradient(cx-rx,cy,cx+rx,cy);
+  glass.addColorStop(0,'rgba(153,217,239,.38)');glass.addColorStop(.35,'rgba(220,247,255,.12)');glass.addColorStop(1,'rgba(86,151,179,.36)');
+  ctx.beginPath();ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);ctx.fillStyle=glass;ctx.fill();
+  if(f>0){
+    const waterline=cy+ry-f*ry*2;
+    ctx.save();ctx.beginPath();ctx.ellipse(cx,cy,rx-1.8,ry-1.6,0,0,Math.PI*2);ctx.clip();
+    const coffee=ctx.createLinearGradient(0,waterline,0,cy+ry);
+    coffee.addColorStop(0,'#a96630');coffee.addColorStop(.2,'#79401f');coffee.addColorStop(1,'#382017');
+    ctx.fillStyle=coffee;ctx.fillRect(cx-rx,waterline,rx*2,cy+ry-waterline+2);
+    const span=Math.sqrt(Math.max(0,1-((waterline-cy)/ry)**2))*(rx-1.8);
+    ctx.beginPath();ctx.ellipse(cx,waterline,span,Math.min(4.2,span*.16),0,0,Math.PI*2);ctx.fillStyle='#c08a4e';ctx.fill();
+    ctx.strokeStyle='rgba(255,222,160,.65)';ctx.lineWidth=.9;ctx.beginPath();ctx.ellipse(cx,waterline,span,Math.min(4.2,span*.16),0,Math.PI,Math.PI*2);ctx.stroke();
+    ctx.restore();
+  }
+  // Glass highlights and a navy/gold cradle sit in front of the liquid.
+  ctx.strokeStyle=OUT;ctx.lineWidth=2.2;ctx.beginPath();ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);ctx.stroke();
+  ctx.strokeStyle='#b4dce9';ctx.lineWidth=1.1;ctx.beginPath();ctx.ellipse(cx,cy,rx-2,ry-2,0,0,Math.PI*2);ctx.stroke();
+  ctx.lineCap='round';ctx.strokeStyle='rgba(245,253,255,.8)';ctx.lineWidth=3.2;
+  ctx.beginPath();ctx.ellipse(cx+2,cy,rx-9,ry-7,0,3.48,4.34);ctx.stroke();
+  ctx.lineWidth=1.8;ctx.beginPath();ctx.ellipse(cx,cy+1,rx-6,ry-6,0,-.65,.37);ctx.stroke();
+  ctx.fillStyle='rgba(255,255,255,.6)';ctx.beginPath();ctx.ellipse(cx-11,cy-ry+8,6.5,2.2,-.3,0,Math.PI*2);ctx.fill();
+  const bottom=cy+ry-2;
+  poly(ctx,[[cx-17,bottom-2],[cx+17,bottom-2],[cx+12,bottom+5],[cx-12,bottom+5]],C.navy,true,1.3);
+  ctx.strokeStyle=C.gold;ctx.lineWidth=1.6;line(ctx,[cx-15,bottom],[cx+15,bottom]);
+  // Graduations are fixed to the glass, not to the moving coffee surface.
+  ctx.strokeStyle='rgba(233,247,252,.8)';ctx.lineWidth=.75;
+  for(let i=1;i<4;i++){const y=cy+ry-i*ry*.5;line(ctx,[cx+rx*.52,y],[cx+rx*.52+4,y]);}
 }
 
 /** Brick cafe, cream cornice, warm shopfront and navy/gold patio umbrella. */
 function rinnova(ctx: Ctx, L: number): void {
   site(ctx,L,3);
-  // The main tank and its live fill gauge share the same revised side position.
-  const tankH=30+L*4;
   const h=40+L*4;
-  cylinder(ctx,-0.72,-0.95,0.4,4,tankH+10+L*3,'#c8ccd2','#9aa0a8');
-  cylinder(ctx,0.85,-0.85,0.5,4,tankH+22+L*3,'#c8ccd2','#9aa0a8');
+  // One glass reservoir replaces both silos; its pedestal and pipe disappear behind the cafe.
+  box(ctx,-.64,-1.12,-.2,-.76,4,h+10,'#6a7277');
+  const [px,py]=P(-.42,-.96,h+10);
+  ctx.strokeStyle=OUT;ctx.lineWidth=6;line(ctx,[px,py],[px,py-18]);
+  ctx.strokeStyle='#d2ae48';ctx.lineWidth=3.5;line(ctx,[px,py],[px,py-18]);
+  drawRinnovaReservoir(ctx,L,0);
   if (L >= 3) cafeHedge(ctx,-1.2,-0.05,0.12);
   campusBlock(ctx,-1.1,-0.35,1.05,0.85,h);
   // Large uninterrupted amber shopfront with dark steel mullions.
@@ -2592,6 +2666,8 @@ export function buildingThemeContext(ctx: Ctx, type: BuildingType, level: number
  const cache = colorCache;
  const recolor=(s:any)=>{
   if(typeof s!=='string')return s;if(cache.has(s))return cache.get(s);
+  // Stored coffee stays brown when the cafe's level palette changes.
+  if(type==='rinnova'&&['#a96630','#79401f','#382017','#c08a4e'].includes(s.toLowerCase()))return s;
   const v=buildingRgb(s);if(!v)return s;
   const [r,g,b]=v,hi=Math.max(...v),lo=Math.min(...v),sat=hi-lo;
   // Leave ink, transparency, vegetation, water/glass, warm lamps and skin readable.
