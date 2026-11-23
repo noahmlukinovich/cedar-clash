@@ -10,6 +10,12 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 61,
+    date: 'Nov 23, 2026',
+    title: 'Meet the Cashier’s Office',
+    items: ['The Registrar’s Office is now called the Cashier’s Office in menus, building details and storage messages.', 'Your Tuition storage, building levels and saved progress stay the same.'],
+  },
+  {
     v: 60,
     date: 'Nov 23, 2026',
     title: 'Rooftop gold and a giant coffee globe',

@@ -199,7 +199,7 @@ export function collect(s: GameState, b: BuildingInst): number {
   const res: ResourceId = b.type === 'admissions' ? 'tuition' : 'coffee';
   const got = addRes(s, res, Math.floor(b.stored));
   b.stored -= got;
-  if (got <= 0) toast(`${res === 'tuition' ? "Registrar's Office" : 'Rinnova'} is full! Upgrade or build more storage.`, 'bad');
+  if (got <= 0) toast(`${res === 'tuition' ? "Cashier's Office" : 'Rinnova'} is full! Upgrade or build more storage.`, 'bad');
   return got;
 }
 
