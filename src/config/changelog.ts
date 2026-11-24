@@ -10,6 +10,12 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 62,
+    date: 'Nov 23, 2026',
+    title: 'Midnight Honors for selected flagship buildings',
+    items: ['Thirteen selected building upgrades gain the approved charcoal, platinum and lavender architectural treatment, including stronger corner frames and roof details.', 'The new artwork applies only to the approved maximum level of each selected building. Lower levels and all other building artwork keep their existing designs.', 'Building stats, costs, timers, footprints and unlock requirements are unchanged.'],
+  },
+  {
     v: 61,
     date: 'Nov 23, 2026',
     title: 'Cheaper armies, faster training and fewer interruptions',

@@ -32,6 +32,31 @@ export interface Sprite {
   scale: number;
 }
 
+// Approved Midnight Honors art applies only to these exact building/level pairs.
+const MIDNIGHT_HONORS_LEVELS: Partial<Record<BuildingType, number>> = {
+  hive: 6,
+  coffeecart: 8,
+  admissions: 8,
+  registrar: 8,
+  rinnova: 8,
+  reshall: 7,
+  ssc: 4,
+  sprayer: 5,
+  bibleprof: 6,
+  stinger: 5,
+  catapult: 6,
+  deans: 3,
+  gate: 3,
+};
+export function isMidnightHonors(type: BuildingType, level: number): boolean {
+  return MIDNIGHT_HONORS_LEVELS[type] === level;
+}
+const MIDNIGHT_MATERIALS = {
+  body: '#303747', roof: '#182233', trim: '#c8d6e4', floor: '#677987', accent: '#b0a3ed',
+};
+const midnightContexts = new WeakMap<Ctx, { raw: Ctx }>();
+function midnightRaw(ctx: Ctx): Ctx { return midnightContexts.get(ctx)?.raw ?? ctx; }
+
 const SCALE = 2;
 const cache = new Map<string, Sprite>();
 
@@ -83,6 +108,8 @@ function line(ctx: Ctx, a: [number, number], b: [number, number]): void {
 
 /** The lot a building stands on. `color` is kept for buildings with their own paving. */
 function site(ctx: Ctx, L: number, size: number, color?: string): void {
+  const midnight = midnightContexts.get(ctx);
+  if (midnight) { ctx = midnight.raw; color = MIDNIGHT_MATERIALS.floor; }
   const base = color ?? (L <= 1 ? '#c9b48a' : L >= 5 ? '#e6dfd0' : C.concrete);
   pad(ctx, size, base);
   const s = size / 2 - 0.06;
@@ -135,10 +162,19 @@ function site(ctx: Ctx, L: number, size: number, color?: string): void {
   const k = size >= 4 ? 1 : 0.85;
   if (L >= 3) tree(ctx, -half + 0.3, -half + 0.3, k);
   if (L >= 5) tree(ctx, half - 0.3, -half + 0.3, k);
+  if (midnight) {
+    const a = size / 2 - 0.09;
+    ctx.strokeStyle = MIDNIGHT_MATERIALS.trim; ctx.lineWidth = 2.1;
+    line(ctx,P(-a,a,4),P(a,a,4)); line(ctx,P(a,a,4),P(a,-a,4));
+    ctx.strokeStyle = MIDNIGHT_MATERIALS.accent; ctx.lineWidth = 1;
+    line(ctx,P(-a+.12,a-.12,4.5),P(a-.12,a-.12,4.5));
+    line(ctx,P(a-.12,a-.12,4.5),P(a-.12,-a+.12,4.5));
+  }
 }
 
 /** Main walls in the level's material: wood planks at Lv1, coursed masonry after, stone base from Lv3. */
 function walls(ctx: Ctx, L: number, u0: number, v0: number, u1: number, v1: number, z0: number, h: number, base: string): void {
+  if (midnightContexts.has(ctx)) { midnightWalls(ctx,u0,v0,u1,v1,z0,h); return; }
   box(ctx, u0, v0, u1, v1, z0, h, L <= 1 ? WOOD : base);
   ctx.strokeStyle = L <= 1 ? 'rgba(60,35,10,0.3)' : 'rgba(0,0,0,0.14)';
   ctx.lineWidth = 1;
@@ -176,6 +212,7 @@ function walls(ctx: Ctx, L: number, u0: number, v0: number, u1: number, v1: numb
  * building. At Lv1 it is a plain tar-paper lid.
  */
 function flatRoof(ctx: Ctx, L: number, u0: number, v0: number, u1: number, v1: number, h: number, unit = true): void {
+  if (midnightContexts.has(ctx)) { midnightFlatRoof(ctx,u0,v0,u1,v1,h); return; }
   if (L <= 1) {
     box(ctx, u0 - 0.04, v0 - 0.04, u1 + 0.04, v1 + 0.04, h, h + 3, '#6b5a48');
     return;
@@ -895,6 +932,7 @@ function shed(ctx: Ctx): void {
 // only rendering changes, never the footprint or any building stats.
 const CAMPUS_BRICK = '#ce8050';
 function campusBlock(ctx: Ctx, u0: number, v0: number, u1: number, v1: number, h: number, color = CAMPUS_BRICK): void {
+  if (midnightContexts.has(ctx)) { midnightCampusBlock(ctx,u0,v0,u1,v1,h); return; }
   box(ctx, u0, v0, u1, v1, 4, h, color);
   ctx.strokeStyle = 'rgba(75,40,20,0.15)';
   ctx.lineWidth = 0.6;
@@ -944,6 +982,7 @@ function academicGlass(ctx:Ctx,face:'L'|'R',a0:number,a1:number,fixed:number,z0:
   for(let c=1;c<cols;c++)line(ctx,pt(a0+c*d+.008,z0),pt(a0+c*d+.008,z1));
 }
 function academicBlock(ctx:Ctx,u0:number,v0:number,u1:number,v1:number,h:number,color=CAMPUS_BRICK):void {
+  if (midnightContexts.has(ctx)) { midnightCampusBlock(ctx,u0,v0,u1,v1,h); return; }
   campusBlock(ctx,u0,v0,u1,v1,h,color);
   ctx.strokeStyle=color===CAMPUS_BRICK?'rgba(104,48,25,0.23)':'rgba(112,98,75,0.15)';ctx.lineWidth=.45;
   for(let z=8,row=0;z<h-3;z+=3,row++) {
@@ -2674,9 +2713,10 @@ export function buildingThemeTier(type: BuildingType, level: number): number {
 }
 export function buildingThemeContext(ctx: Ctx, type: BuildingType, level: number): Ctx {
  if (level <= 0 || type === 'ratower') return ctx;
+ const midnight = isMidnightHonors(type, level);
  const tier = buildingThemeTier(type, level);
- const t:any=buildingThemes[tier-1];
- const key = `${type}:${tier}`;
+ const t:any=midnight ? MIDNIGHT_MATERIALS : buildingThemes[tier-1];
+ const key = `${type}:${tier}${midnight ? ":midnight" : ""}`;
  let colorCache = buildingColorCaches.get(key);
  if (!colorCache) { colorCache = new Map<string,string>(); buildingColorCaches.set(key,colorCache); }
  const cache = colorCache;
@@ -2711,12 +2751,55 @@ export function buildingThemeContext(ctx: Ctx, type: BuildingType, level: number
   // Walls retain the original full palette; RA Tower uses its full-theme
   // drawing path above. Even the black tier retains native material detail.
   const target=buildingRgb(result)!;
-  const strength=type==='wall'?1:type==='bibleprof'?.55:.40;
+  const strength=midnight?1:type==='wall'?1:type==='bibleprof'?.55:.40;
   result=buildingColorOutput(target.map((n,i)=>n*strength+v[i]*(1-strength)) as BuildingRGB);
   cache.set(s,result);return result;
  };
- return new Proxy(ctx,{
+ const themed = new Proxy(ctx,{
   set(obj,key,val){(obj as any)[key]=(key==='fillStyle'||key==='strokeStyle')?recolor(val):val;return true;},
   get(obj,key){if(key==='createLinearGradient'||key==='createRadialGradient')return (...args:any[])=>{const gradient=(obj as any)[key](...args);const add=gradient.addColorStop.bind(gradient);gradient.addColorStop=(p:number,c:string)=>add(p,recolor(c));return gradient;};if(key==='fillText')return (...args:any[])=>{const c=obj.fillStyle; obj.fillStyle=type==='stinger'?'#ffffff':tier===8?'#bcc5d1':(tier===1||tier===4||tier===5)?'#1e1b2b':'#f4efe4';(obj.fillText as any)(...args);obj.fillStyle=c;};const v=(obj as any)[key];return typeof v==='function'?v.bind(obj):v;}
  });
+ if (midnight) midnightContexts.set(themed, { raw: ctx });
+ return themed;
+}
+
+
+/** Platinum corner framing and restrained lavender inlays for the selected flagships. */
+function midnightWalls(ctx: Ctx, u0: number, v0: number, u1: number, v1: number, z0: number, h: number): void {
+  ctx = midnightRaw(ctx);
+  const t = MIDNIGHT_MATERIALS;
+  box(ctx,u0,v0,u1,v1,z0,h,t.body);
+  box(ctx,u0-.025,v0-.025,u1+.025,v1+.025,z0,Math.min(h,z0+4),t.floor,{stroke:false});
+  const w = .09;
+  for (const [u,v] of [[u0,v1],[u1,v1],[u1,v0]]) {
+    box(ctx,u-w,v-w,u+w,v+w,z0,Math.min(h,z0+6),t.trim,{stroke:false});
+    box(ctx,u-w*.55,v-w*.55,u+w*.55,v+w*.55,z0+5,h,t.trim,{stroke:false});
+    box(ctx,u-w,v-w,u+w,v+w,h-3,h+1,t.trim,{stroke:false});
+  }
+  ctx.strokeStyle=t.trim; ctx.lineWidth=1.7;
+  line(ctx,P(u0,v1,h-4),P(u1,v1,h-4)); line(ctx,P(u1,v1,h-4),P(u1,v0,h-4));
+  ctx.strokeStyle=t.accent; ctx.lineWidth=1;
+  line(ctx,P(u0+.08,v1,h-7),P(u1-.08,v1,h-7)); line(ctx,P(u1,v1-.08,h-7),P(u1,v0+.08,h-7));
+}
+
+/** Deep cornice, continuous coping and an inset glazed roof lantern. */
+function midnightFlatRoof(ctx: Ctx, u0: number, v0: number, u1: number, v1: number, h: number): void {
+  ctx = midnightRaw(ctx);
+  const t = MIDNIGHT_MATERIALS;
+  box(ctx,u0-.07,v0-.07,u1+.07,v1+.07,h,h+5,t.trim,{top:t.roof});
+  const z=h+5, w=.075;
+  box(ctx,u0-w,v0-w,u1+w,v0+w,z,z+3,t.trim,{stroke:false});
+  box(ctx,u0-w,v0-w,u0+w,v1+w,z,z+3,t.trim,{stroke:false});
+  box(ctx,u0-w,v1-w,u1+w,v1+w,z,z+3,t.trim,{stroke:false});
+  box(ctx,u1-w,v0-w,u1+w,v1+w,z,z+3,t.trim,{stroke:false});
+  const a=u0+(u1-u0)*.2, b=u1-(u1-u0)*.2, d=v0+(v1-v0)*.22, e=v1-(v1-v0)*.22;
+  box(ctx,a,d,b,e,h+5,h+10,t.trim,{top:'#7e83b5',stroke:false});
+  ctx.strokeStyle=t.trim; ctx.lineWidth=1;
+  line(ctx,P((a+b)/2,d,h+10),P((a+b)/2,e,h+10));
+}
+
+function midnightCampusBlock(ctx: Ctx, u0: number, v0: number, u1: number, v1: number, h: number): void {
+  ctx = midnightRaw(ctx);
+  midnightWalls(ctx,u0,v0,u1,v1,4,h);
+  midnightFlatRoof(ctx,u0,v0,u1,v1,h);
 }
