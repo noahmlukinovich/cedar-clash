@@ -57,18 +57,13 @@ export function builders(s: GameState): { total: number; busy: number } {
   return { total, busy };
 }
 
-/** Tile occupancy map: building id per tile, -1 for event construction fencing. */
+/** Tile occupancy map: building id per tile. */
 export function occupancy(s: GameState, ignoreId = -1): Int32Array {
   const occ = new Int32Array(GRID * GRID);
   for (const b of s.buildings) {
     if (b.id === ignoreId) continue;
     const sz = BUILDINGS[b.type].size;
     for (let y = b.y; y < b.y + sz; y++) for (let x = b.x; x < b.x + sz; x++) occ[y * GRID + x] = b.id;
-  }
-  for (const e of s.events) {
-    if (e.type === 'construction' && e.end > s.clock && e.x !== undefined && e.y !== undefined) {
-      for (let y = e.y; y < e.y + 2; y++) for (let x = e.x; x < e.x + 2; x++) if (!occ[y * GRID + x]) occ[y * GRID + x] = -1;
-    }
   }
   return occ;
 }
@@ -199,7 +194,7 @@ export function collect(s: GameState, b: BuildingInst): number {
   const res: ResourceId = b.type === 'admissions' ? 'tuition' : 'coffee';
   const got = addRes(s, res, Math.floor(b.stored));
   b.stored -= got;
-  if (got <= 0) toast(`${res === 'tuition' ? "Registrar's Office" : 'Rinnova'} is full! Upgrade or build more storage.`, 'bad');
+  if (got <= 0) toast(`${res === 'tuition' ? "Cashier's Office" : 'Rinnova'} is full! Upgrade or build more storage.`, 'bad');
   return got;
 }
 

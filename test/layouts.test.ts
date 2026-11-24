@@ -99,15 +99,15 @@ describe('base layouts', () => {
     expect(s.layouts[2]).toBeNull();
   });
 
-  it('moves the construction fence out from under a building', () => {
-    const s = newGame();
+  it('can apply a layout to an area freed from a retired construction event', () => {
+    const raw = JSON.parse(JSON.stringify(newGame()));
+    raw.events = [{ type: 'construction', end: raw.clock + 999, x: 4, y: 4 }];
+    const s = migrate(raw);
+    expect(s.events).toEqual([]);
     const b = s.buildings.find((x) => x.type === 'shed')!;
-    s.events = [{ type: 'construction', end: s.clock + 999, x: 4, y: 4 }];
     const pos = snapshot(s.buildings);
     pos[b.id] = { x: 4, y: 4 };
-    applyAction(s, { k: 'layoutSave', slot: 0, pos });
-    const e = s.events[0];
-    expect(e.x === 4 && e.y === 4).toBe(false);
-    expect(applyAction(s, { k: 'build', type: 'wall', x: e.x!, y: e.y! }).err).toBeTruthy();
+    expect(applyAction(s, { k: 'layoutSave', slot: 0, pos }).err).toBeUndefined();
+    expect({ x: b.x, y: b.y }).toEqual({ x: 4, y: 4 });
   });
 });

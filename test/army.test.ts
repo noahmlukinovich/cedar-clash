@@ -109,7 +109,7 @@ describe('faster training and the reserve army', () => {
   const cap = (s: GameState): number => armyCapacity(s);
 
   it('trains every troop in half the time it used to take', () => {
-    const before = { freshman: 4, engineer: 10, nurse: 30, theology: 15, athlete: 20, business: 8, music: 12, runner: 15, ra: 30, goteam: 30 };
+    const before = { freshman: 2, engineer: 5, nurse: 15, theology: 7.5, athlete: 10, business: 4, music: 6, runner: 7.5, ra: 15, goteam: 15, rock: 40, senior: 30, thesis: 45 };
     for (const [t, old] of Object.entries(before)) expect(TROOPS[t as keyof typeof before].trainTime).toBe(old / 2);
     expect(ARMIES).toBe(2);
   });
@@ -211,5 +211,41 @@ describe('faster training and the reserve army', () => {
     applyRaidOutcome(s, setup, r);
     expect(s.army.freshman).toBe(n); // five went out, five came in from the reserve
     expect(s.trainQueue.filter(isReady)).toHaveLength(3);
+  });
+});
+
+
+describe('half-price, half-time recruitment', () => {
+  it('charges an exact half-price and finishes the troop after the reduced training time', () => {
+    const s = game();
+    s.resources.coffee = 12.5;
+    expect(applyAction(s, { k: 'train', type: 'freshman' }).err).toBeUndefined();
+    expect(s.resources.coffee).toBe(0);
+    expect(s.trainQueue[0]).toMatchObject({ paid: 12.5, total: 1, left: 1 });
+    s.trainQueue[0].chucks = 0;
+    tickArmy(s, 0.75);
+    expect(s.army.freshman ?? 0).toBe(0);
+    tickArmy(s, 0.25);
+    expect(s.army.freshman).toBe(1);
+    expect(s.trainQueue).toEqual([]);
+  });
+
+  it('fully refunds an old full-price queue item and a new half-price item', () => {
+    const s = game();
+    const before = s.resources.coffee;
+    s.trainQueue.push({ type: 'freshman', paid: 25, total: 2, left: 1 });
+    expect(applyAction(s, { k: 'cancelTrain', idx: 0 }).err).toBeUndefined();
+    expect(s.resources.coffee).toBe(before + 25);
+    expect(applyAction(s, { k: 'train', type: 'freshman' }).err).toBeUndefined();
+    expect(s.trainQueue[0].paid).toBe(12.5);
+    expect(applyAction(s, { k: 'cancelTrain', idx: 0 }).err).toBeUndefined();
+    expect(s.resources.coffee).toBe(before + 25);
+  });
+
+  it('preserves research requirements and combat stats', () => {
+    expect(TROOPS.freshman.levels[1]).toMatchObject({ researchCost: 1500, hp: 59, dps: 11, libraryLevel: 1 });
+    expect(TROOPS.nurse.levels[0].cost).toBe(400);
+    expect(TROOPS.rock.levels[6].cost).toBe(3600);
+    expect(TROOPS.thesis.trainTime).toBe(22.5);
   });
 });

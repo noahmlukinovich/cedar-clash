@@ -89,7 +89,6 @@ export interface GameState {
   settings: { muted: boolean; speedIdx: number; debug: boolean };
   campaignDone: boolean;
   lastRaidClock: number;
-  nextTicketCheck: number;
   playerName: string;
   /** Saved base layouts (3 slots). The active slot always mirrors the live campus. */
   layouts: (Layout | null)[];
@@ -149,7 +148,6 @@ export function newGame(): GameState {
     settings: { muted: false, speedIdx: 0, debug: false },
     campaignDone: false,
     lastRaidClock: 0,
-    nextTicketCheck: 240,
     playerName: 'Your Campus',
     layouts: [null, null, null],
     activeLayout: 0,

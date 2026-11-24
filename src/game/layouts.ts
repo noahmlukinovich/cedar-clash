@@ -1,6 +1,6 @@
 import { BUILDINGS } from '../config/buildings';
 import { GRID } from '../config/balance';
-import { BORDER, occupancy } from './economy';
+import { BORDER } from './economy';
 import type { BuildingInst, GameState, Layout } from './state';
 
 export const LAYOUT_SLOTS = 3;
@@ -68,34 +68,7 @@ export function activate(s: GameState, slot: number): boolean {
   }
   s.activeLayout = slot;
   syncActive(s); // also drops ids of buildings that no longer exist
-  relocateFence(s);
   return true;
-}
-
-/** If the construction-event fence now sits under a building, shift it to the nearest free 2x2. */
-export function relocateFence(s: GameState): void {
-  const e = s.events.find((ev) => ev.type === 'construction' && ev.end > s.clock && ev.x !== undefined && ev.y !== undefined);
-  if (!e) return;
-  const occ = occupancy({ ...s, events: [] });
-  const free = (x: number, y: number): boolean =>
-    x >= BORDER && y >= BORDER && x + 2 <= GRID - BORDER && y + 2 <= GRID - BORDER &&
-    !occ[y * GRID + x] && !occ[y * GRID + x + 1] && !occ[(y + 1) * GRID + x] && !occ[(y + 1) * GRID + x + 1];
-  const ex = e.x!;
-  const ey = e.y!;
-  if (free(ex, ey)) return;
-  for (let r = 1; r < GRID; r++) {
-    for (let dy = -r; dy <= r; dy++) {
-      for (let dx = -r; dx <= r; dx++) {
-        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-        if (free(ex + dx, ey + dy)) {
-          e.x = ex + dx;
-          e.y = ey + dy;
-          return;
-        }
-      }
-    }
-  }
-  e.end = s.clock; // nowhere to put it: the crew goes home
 }
 
 /** Repair layout fields on load so the rest of the game can trust them. */

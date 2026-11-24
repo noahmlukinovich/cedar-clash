@@ -14,10 +14,9 @@ import {
   collectorCap,
   occupancy,
 } from '../game/economy';
-import { constructionTile } from '../game/events';
 import type { Action, ActionResult } from '../game/actions';
 import type { BuildingInst, GameState } from '../game/state';
-import { drawBar, drawBuildingAt, drawConstructionFence, drawGround, drawLabel, drawNamePlate, drawTree, borderTrees, namePlatesOn, plateText, type TreeSpot } from '../render/world';
+import { drawBar, drawBuildingAt, drawGround, drawLabel, drawNamePlate, drawTree, borderTrees, namePlatesOn, plateText, type TreeSpot } from '../render/world';
 import { drawUnit } from '../render/unitSprites';
 import { TROOPS } from '../config/troops';
 import type { TroopType } from '../config/types';
@@ -548,8 +547,6 @@ export class VillageScene implements Scene {
     this.cam.apply(ctx, dpr);
     const showGrid = this.editing || this.mode.kind !== 'idle';
     drawGround(ctx, { grid: showGrid, border: BORDER });
-    const ct = constructionTile(s);
-    if (ct) drawConstructionFence(ctx, ct.x, ct.y, t);
 
     // Build drawables
     type D = { depth: number; fn: () => void };
