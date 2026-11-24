@@ -3,7 +3,7 @@ import { GRID } from '../config/balance';
 import type { BuildingType } from '../config/types';
 import { hash2 } from '../core/rng';
 import { toWorld } from '../core/iso';
-import { CATAPULT_AXLE_Z, STINGER_TIP_Z, buildingThemeContext, buildingThemeTier, drawRaTowerCanopy, drawRinnovaReservoir, getBuildingSprite, type Sprite } from './buildingSprites';
+import { CATAPULT_AXLE_Z, STINGER_TIP_Z, buildingThemeContext, buildingThemeTier, isMidnightHonors, drawRaTowerCanopy, drawRinnovaReservoir, getBuildingSprite, type Sprite } from './buildingSprites';
 import { C, OUT, P, box, poly, roundRect, shade } from './draw';
 import { drawBuilder } from './unitSprites';
 
@@ -735,7 +735,10 @@ export function drawBuildingAt(ctx: Ctx, a: BuildingDrawArgs): void {
 }
 
 function drawDynamic(ctx: Ctx, a: BuildingDrawArgs, size: number): void {
-  ctx = buildingThemeContext(ctx, a.type, a.level);
+  // Resource contents keep their native gold/coffee colors in the approved art.
+  const nativeContents = isMidnightHonors(a.type, a.level) &&
+    (a.type === 'registrar' || a.type === 'admissions' || a.type === 'coffeecart');
+  if (!nativeContents) ctx = buildingThemeContext(ctx, a.type, a.level);
   const L = a.level;
   switch (a.type) {
     case 'admissions':
