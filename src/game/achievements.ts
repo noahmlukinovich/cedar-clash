@@ -27,7 +27,7 @@ export const ACHIEVEMENT_RULES: Record<AchievementId, (s: GameState) => boolean>
   lakebridge: (s) => stat(s, 'lakesBuilt') >= 1,
   freshman15: (s) => stat(s, 'trained_freshman') >= 15,
   chapelregular: (s) => s.chapel.streak >= 3,
-  ticketed: (s) => stat(s, 'tickets') >= 1,
+  ticketed: () => false, // retired; previously earned awards and paid rewards remain intact
   allnighter: (s) => stat(s, 'cast_allnighter') >= 1,
   dmc3: (s) => dmc(s) >= 3,
   dmc5: (s) => dmc(s) >= 5,

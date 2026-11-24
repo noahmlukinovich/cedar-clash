@@ -10,6 +10,12 @@ export interface ChangeEntry {
 
 export const CHANGELOG: ChangeEntry[] = [
   {
+    v: 61,
+    date: 'Nov 23, 2026',
+    title: 'Cheaper armies, faster training and fewer interruptions',
+    items: ['The Registrar’s Office is now called the Cashier’s Office in menus, building details and storage messages.', 'Campus Construction has been retired: random fences no longer appear, and existing event fences are cleared from saved campuses.', 'Campus Safety no longer issues automatic tickets or deducts Tuition for an idle army. The Campus Safety Cart still defends your campus.', 'Every troop now costs half as much to recruit and trains in half the time. Research and spells keep their existing costs and timers.', 'The gold building tier now has silver trim. Level 5 walls keep gold bodies, cap surfaces and ornaments, with a silver middle band and silver cap edging.', 'Your Tuition storage, building levels, regular construction, already-earned rewards and saved progress stay the same.'],
+  },
+  {
     v: 60,
     date: 'Nov 23, 2026',
     title: 'Rooftop gold and a giant coffee globe',

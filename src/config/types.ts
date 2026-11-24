@@ -216,7 +216,7 @@ export interface SpellDef {
   color: string;
 }
 
-export type EventType = 'ringbyspring' | 'finals' | 'construction' | 'elephantrun';
+export type EventType = 'ringbyspring' | 'finals' | 'elephantrun';
 
 /** Lifetime counters kept in the save (GameState.stats). */
 export type StatKey =

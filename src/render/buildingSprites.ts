@@ -480,6 +480,9 @@ export function drawBuilding(ctx: Ctx, type: BuildingType, level: number, varian
       C.navy=dark?'#272d36':'#1c3d7a'; C.concrete=t.floor;
       drawBuildingArt(ctx,type,level,variant);
     } finally { Object.assign(C,before); CREAM=cream; CREAM_LIGHT=creamLight; }
+  } else if (type === 'wall' && level === 5) {
+    // Keep the gold wall materials; silver is confined to its middle band and cap rim.
+    drawBuildingArt(ctx,type,level,variant);
   } else drawBuildingArt(buildingThemeContext(ctx,type,level),type,level,variant);
 }
 function drawBuildingArt(ctx: Ctx, type: BuildingType, level: number, variant = 0): void {
@@ -2430,7 +2433,7 @@ const WALL_TOPS = ['#c99a62', '#d97a5f', '#c46a58', '#c4c9cf', '#f5c32c', '#f5c3
 /**
  * Walls change shape as well as colour:
  * 1 wooden fence posts, 2 brick, 3 brick with a stone cap, 4 stone block with a cap,
- * 5 gold-capped with a ball, 6 navy with gold battlements, 7 deep navy with a gold band,
+ * 5 gold with a silver middle band, 6 navy with gold battlements, 7 deep navy with a gold band,
  * 8 white marble with a gold band and a gold star.
  */
 function wall(ctx: Ctx, L: number, mask: number): void {
@@ -2465,7 +2468,15 @@ function wall(ctx: Ctx, L: number, mask: number): void {
   if (lv >= 3) {
     // overhanging cap
     const c = s + 0.05;
-    box(ctx, -c, -c, c, c, h, h + 3, lv >= 5 ? C.gold : lv === 4 ? '#dfe3e8' : C.stone);
+    if (lv === 5) {
+      // Silver fascia and perimeter replace the dark cap edging; the top stays gold.
+      box(ctx,-c,-c,c,c,h,h+3,'#c8d0db',{top:C.gold,left:'#dfe3e8',right:'#aeb8c6',stroke:false});
+      ctx.strokeStyle='#e1e6ed';ctx.lineWidth=1.5;
+      const rim=[P(-c,-c,h+3),P(c,-c,h+3),P(c,c,h+3),P(-c,c,h+3)];
+      ctx.beginPath();ctx.moveTo(...rim[0]);
+      for(const p of rim.slice(1))ctx.lineTo(...p);
+      ctx.closePath();ctx.stroke();
+    } else box(ctx, -c, -c, c, c, h, h + 3, lv >= 5 ? C.gold : lv === 4 ? '#dfe3e8' : C.stone);
   }
   if (lv === 5) {
     const [x, y] = P(0, 0, h + 5);
@@ -2486,12 +2497,17 @@ function wall(ctx: Ctx, L: number, mask: number): void {
       [0.17, 0.17],
     ]) box(ctx, u - 0.09, v - 0.09, u + 0.09, v + 0.09, h + 3, h + 8, C.gold);
   }
-  if (lv >= 7) {
-    // gold band around the middle
-    ctx.strokeStyle = C.gold;
+  if (lv === 5 || lv >= 7) {
+    // Lv5 has a silver band and cap rim, while its body and cap surface stay gold.
+    ctx.strokeStyle = lv === 5 ? '#dfe3e8' : C.gold;
     ctx.lineWidth = 2;
     line(ctx, P(-s, s, h * 0.5), P(s, s, h * 0.5));
     line(ctx, P(s, s, h * 0.5), P(s, -s, h * 0.5));
+    if (lv === 5) {
+      const edge=s*.8;
+      if (mask & 1) line(ctx,P(s,edge,h*.5),P(1-s,edge,h*.5));
+      if (mask & 2) line(ctx,P(edge,s,h*.5),P(edge,1-s,h*.5));
+    }
   }
   if (lv >= 8) {
     const [x, y] = P(0, 0, h + 16);
@@ -2627,7 +2643,7 @@ const buildingThemes=[
  {name:'Brick',body:'#bf5a3f',trim:'#d97a5f',roof:'#bd5c43',floor:'#c3b5a1'},
  {name:'Dark brick + stone',body:'#a34a3a',trim:'#b8b2a7',roof:'#a34a3a',floor:'#b8b2a7'},
  {name:'Grey + silver',body:'#9aa0a8',trim:'#dfe3e8',roof:'#c4c9cf',floor:'#aeb4bb'},
- {name:'Gold',body:'#c9a13a',trim:'#f5c32c',roof:'#f5c32c',floor:'#b9aa7c'},
+ {name:'Gold + silver',body:'#c9a13a',trim:'#dfe3e8',roof:'#f5c32c',floor:'#b9aa7c'},
  {name:'Blue + gold',body:'#2e63b8',trim:'#f5c32c',roof:'#2e63b8',floor:'#a6adb6'},
  {name:'Navy + gold',body:'#1c3d7a',trim:'#f5c32c',roof:'#1c3d7a',floor:'#959eac'},
  {name:'Obsidian black',body:'#272c34',trim:'#525b68',roof:'#171b22',floor:'#454c57'}

@@ -127,11 +127,11 @@ export const BUILDINGS: Record<BuildingType, BuildingDef> = {
   },
   registrar: {
     type: 'registrar',
-    name: "Registrar's Office",
+    name: "Cashier's Office",
     category: 'resource',
     size: 3,
-    desc: 'Stores Tuition. Raiders love it. Protect it with walls.',
-    flavor: 'Open 8–5. Closed for lunch. Closed the week you need a transcript.',
+    desc: 'Processes tuition payments, student accounts, and financial services. Stores Tuition—protect it with walls.',
+    flavor: 'Where your education investments come together.',
     counts: [0, 1, 1, 2, 2, 3, 3, 3, 4],
     levels: mk(
       8,
